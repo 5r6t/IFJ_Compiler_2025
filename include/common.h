@@ -38,4 +38,12 @@ typedef struct Token {
     char *data;
 } *TokenPtr;
 
+TokenPtr token_init ();
+void token_create(TokenPtr token, const char *id, const char *data, int type);
+void token_free(TokenPtr token);
+void token_print (TokenPtr token);
+
+char *my_strdup (const char *str);
+void program_error (FILE *file, int err_type, int err_index, TokenPtr bad_token);
+
 #endif
