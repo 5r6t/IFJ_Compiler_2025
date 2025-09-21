@@ -1,5 +1,5 @@
 //////////////////////////////////////////////
-// filename: common.h	                    //
+// filename: lex.h	                        //
 // IFJ_prekladac	varianta - vv-BVS   	//
 // Authors:						  			//
 //  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
@@ -37,10 +37,12 @@
 #define MULTILINE_STRING_1 8    
 #define MULTILINE_STRING_2 9    // id=NULL, data=*, type=9
 #define IDENTIFIER 10           // id=*, data=NULL, type=10
-#define our_INT 11              // id=NULL, data=*, type=11
-#define our_DOUBLE 12           // id=NULL, data=*, type=12
-#define unary_plus 13
-#define unary_minus 14
+#define OUR_INT 11              // id=NULL, data=*, type=11
+#define OUR_DOUBLE 12           // id=NULL, data=*, type=12
+#define UNARY_PLUS 13
+#define UNARY_MINUS 14
+#define IN_BUILT_FUNC 15
+#define KEYWORD 16
 
 # include <common.h>
 

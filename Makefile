@@ -42,4 +42,4 @@ clean:
 	-rm -f $(OBJDIR)/*.o $(TEST_TARGET)
 
 test: 
-	echo "identif" | ./build/test 0 /dev/stdin # Run lexer test with input from stdin
+	echo "Ifj Ifj . identif identif" | ./build/test 0 /dev/stdin # Run lexer test with input from stdin

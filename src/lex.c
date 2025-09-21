@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
 
 /**
  * @file lex.c
@@ -23,7 +24,49 @@
  * Implements a finite state machine (FSM) to tokenize the input from a file.
  * It reads characters, transitions between states, and creates tokens based 
  * on recognized patterns (e.g., identifiers, strings, operators, special characters...).
- *
+ */
+
+ // Helper function to skip whitespace characters and return the next non-whitespace character
+int skip_whitespace(FILE *file) {
+    int c = fgetc(file);
+
+    while (c != EOF && isblank(c)) {
+        c = fgetc(file);
+    }
+
+    if (c != EOF) {
+        ungetc(c, file); // push back the first non-whitespace
+    }
+    return c; // return the non-whitespace (or EOF)
+}
+
+
+// Helper function to compare keywords against a string
+int is_keyword(const char *str) {
+    static const char *keywords [] = {
+        "class", "if", "else", "is", "null", "return", "var", "while", "Ifj",
+        "static", "true", "false", "Num", "String", "Null"
+    };
+
+    static size_t num_keywords = sizeof(keywords) / sizeof(keywords[0]);
+    for (size_t i = 0; i < num_keywords; i++) {
+        if (strcmp(str, keywords[i]) == 0)
+            return 1; // It's a keyword
+    }
+    return 0; // Not a keyword
+}
+
+// Helper function to safely append a character to the buffer and increment the position
+static void buffer_append(char *buffer, size_t *pos, int c, FILE *file, TokenPtr token) {
+    if (*pos >= MAX_BUFFER_LENGTH - 1) {
+        program_error(file, ERR_INTERNAL, 2, token);
+    }
+    buffer[*pos] = c;
+    (*pos)++;
+}
+
+/** 
+ * @brief Scans the input file and generates tokens.
  * @param file Pointer to the file to scan.
  * @return 
  * - `EOF` in token->value if the end of the file was reached.
@@ -33,17 +76,6 @@
  *       memory associated with the token structure. 
  *       Ensure that the file pointer is valid and opened in read mode.
  */
-
-// Helper function to safely append a character to the buffer and increment the position
-static void buffer_append(char *buffer, size_t *pos, int c, FILE *file, TokenPtr token) {
-    if (*pos >= MAX_BUFFER_LENGTH - 1) {
-        buffer[*pos] = '\0';
-        program_error(file, ERR_INTERNAL, 2, token);
-    }
-    buffer[*pos] = c;
-    (*pos)++;
-}
-
 TokenPtr lexer(FILE *file) {
     
     TokenPtr new_token =  token_init();
@@ -55,7 +87,6 @@ TokenPtr lexer(FILE *file) {
     int my_int;
     
     (void) my_int; // to avoid unused variable warning for now
-
 
     c = fgetc(file);
 
@@ -87,7 +118,7 @@ TokenPtr lexer(FILE *file) {
                 state = IDENTIFIER;
             }
             else if (isdigit(c)) {
-                state = our_INT; // can become float later
+                state = OUR_INT; // can become float later
             }
             else if (c == '\\') {
                 state = MULTILINE_STRING_1;
@@ -97,23 +128,51 @@ TokenPtr lexer(FILE *file) {
             }
             break;
 
-        // case STATE: ...
         case IDENTIFIER:
             if (isalnum(c) || c == '_') {
                 buffer_append(buffer, &pos, c, file, new_token); // build identifier
                 c = fgetc(file);
+
             } else {
+                c = skip_whitespace(file);
+                if (c == '.') { // IDENTIF/KEYWORD "."  IDENTIF
+                    buffer_append(buffer, &pos, c, file, new_token);
+                    fgetc(file); // consume the '.'
+                    c = skip_whitespace(file); // peek next non-blank for IN_BUILT_FUNC
+                    state = IN_BUILT_FUNC;
+
+                    break; // go build second part of IDENTIF
+                }
+                
                 buffer[pos] = '\0';
-                ungetc(c, file);
-                token_create(new_token, buffer, NULL, IDENTIFIER);
+                if (is_keyword(buffer)) {
+                    token_create(new_token, buffer, NULL, KEYWORD);
+                } else {
+                    token_create(new_token, buffer, NULL, IDENTIFIER);
+                }
+                //ungetc(c, file); // push back the non-identifier char
+                
                 return new_token;
             }
             break;
+
+        case IN_BUILT_FUNC:
+            if (isalnum(c) || c == '_') {
+                c = fgetc(file); // actually consume it
+                buffer_append(buffer, &pos, c, file, new_token);
+            } else {
+                token_create(new_token, buffer, NULL, IN_BUILT_FUNC);
+                if (c != EOF) ungetc(c, file);
+                buffer[pos] = '\0';
+                return new_token;
+            }
+            break;
+
 
         default:
             break;
         }
     }
-    token_create(new_token, NULL, NULL, EOF);
+    token_create(new_token, NULL, NULL, -1); // EOF token
     return new_token;
 }

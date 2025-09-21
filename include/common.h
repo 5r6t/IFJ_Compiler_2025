@@ -8,6 +8,20 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
+/**
+ * @file common.h
+ * @brief Header file for the lexical analyzer (scanner).
+ *
+ * This header provides:
+ * - Error code definitions.
+ * - Debug macro
+ * - Token structure definition and related function declarations.
+ *
+ * Constants:
+ * - `MAX_BUFFER_LENGTH`: Maximum length for tokens data/id storage.
+ * - State definitions for various token types (e.g., identifiers, strings, operators).
+ */
+
 #ifndef COMMON_H
 #define COMMON_H
 
