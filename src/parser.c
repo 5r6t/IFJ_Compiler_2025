@@ -50,6 +50,13 @@ int PROGRAM(TokenPtr nextToken, FILE *file)
 int PROLOG(TokenPtr nextToken, FILE *file)
 {
     // TODO change this to be more effective using function while_function
+    char keyArray[5] = {
+        "import",
+        "\"ifj25\"",
+        "for",
+        "Ifj",
+    };
+    while_function(keyArray, file, nextToken);
 
     /*
     match("import");
@@ -89,9 +96,22 @@ int FUNCTIONS(TokenPtr nextToken)
 // using strcmp compares target string with token. If token isn`t same as target string error is send to stderr output
 int match(char target[], char token_data[])
 {
+    if (strcmp(target, token_data) != 0)
+    {
+        fprintf(stderr, "error code 2: syntax analyze error, expected: '%s', got '%s' \n", target, token_data);
+        exit(2);
+    }
+    return 0;
 }
 
 // helping function for more pleasing way to check matches and for updating nextToken
-int while_function(char targetStrArr[], FILE *file, TokenPtr nextToken)
+void while_function(char targetStrArr[], FILE *file, TokenPtr nextToken)
 {
+    int i = 0;
+    while (targetStrArr[i] == "\0")
+    {
+        match(targetStrArr[i], nextToken->data);
+        nextToken = lexer(file);
+        i++;
+    }
 }
