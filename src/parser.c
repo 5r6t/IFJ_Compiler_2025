@@ -1,5 +1,5 @@
 //////////////////////////////////////////////
-// filename: common.c                  	    //
+// filename: parser.c                  	    //
 // IFJ_prekladac	varianta - vv-BVS   	//
 // Authors:						  			//
 //  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
@@ -50,68 +50,96 @@ int PROGRAM(TokenPtr nextToken, FILE *file)
 int PROLOG(TokenPtr nextToken, FILE *file)
 {
     // TODO change this to be more effective using function while_function
-    char keyArray[5] = {
+    /*char keyArray[5] = {
         "import",
         "\"ifj25\"",
         "for",
         "Ifj",
+    };*/
+
+    static const target PROLOG_TARGET[] = {
+        {IDENTIFIER, "import"},
+        {STRING, "ifj25"},
+        {IDENTIFIER, "for"},
+        {KW_IFJ, "Ifj"},
+        //{EOL, NULL}
     };
-    while_function(keyArray, file, nextToken);
 
-    /*
-    match("import");
-    match("\"ifj_25\"");
-    match("for");
-    match("Ifj");
-    */
+    static const size_t PROLOG_TARGET_LEN = sizeof(PROLOG_TARGET) / sizeof(PROLOG_TARGET[0]);
 
-    // here should be something to detected End Of Line (EOL)
+    for_function(PROLOG_TARGET, file, nextToken, PROLOG_TARGET_LEN);
+
     return 0;
 }
 
 int CLASS(TokenPtr nextToken, FILE *file)
 {
     // TODO make while and array filled with "class Program { EOL". While would iterated until array is passted then function FUNCTIONS is called and after that check for }
-    match("class", nextToken->data);
-    nextToken = lexer(file); // lookahead
-    match("Program", nextToken->data);
+
+    static const target CLASS_TARGET[] =
+        {
+            {KW_CLASS, "class"},
+            {IDENTIFIER, "Program"},
+            {SPECIAL, "{"}
+            //{EOL, NULL},
+        };
+
+    static const size_t PROLOG_TARGET_LEN = sizeof(CLASS_TARGET) / sizeof(CLASS_TARGET[0]);
+    for_function(CLASS_TARGET, file, nextToken, PROLOG_TARGET_LEN);
+
+    FUNCTIONS(nextToken, file);
     nextToken = lexer(file);
-    match("{", nextToken->data);
-    nextToken = lexer(file);
-    // here should be something to detected End Of Line (EOL)
-    nextToken = lexer(file);
-    FUNCTIONS(nextToken);
-    nextToken = lexer(file);
-    match("}", nextToken->data);
+
+    static const target CLASS_TARGET_END = {SPECIAL, "}"};
+    match(&CLASS_TARGET_END, nextToken);
+
     return 0;
 }
 
-int FUNCTIONS(TokenPtr nextToken)
+int FUNCTIONS(TokenPtr nextToken, FILE *file)
 {
-    if (match("static", nextToken->data))
-    {
-    }
 }
 
 // using strcmp compares target string with token. If token isn`t same as target string error is send to stderr output
-int match(char target[], char token_data[])
+/**
+ * @brief checks if expected terminal and actual terminal are same
+ * @param target expected terminal
+ * @param token actual terminal
+ *
+ * @return wrong terminal will trigger stderr and program will end, correct terminal will return 0
+ */
+int match(const target *target, TokenPtr token)
 {
-    if (strcmp(target, token_data) != 0)
+    if (target->type != token->type)
     {
-        fprintf(stderr, "error code 2: syntax analyze error, expected: '%s', got '%s' \n", target, token_data);
-        exit(2);
+        parser_error(*target, token);
+    }
+    else
+    {
+        if (target->type == IDENTIFIER && target->data != NULL)
+        {
+            if (strcmp(target->data, token->data) != 0)
+            {
+                parser_error(*target, token);
+            }
+        }
+        return 0;
     }
     return 0;
 }
 
 // helping function for more pleasing way to check matches and for updating nextToken
-void while_function(char targetStrArr[], FILE *file, TokenPtr nextToken)
+void for_function(target TARGE_SEQ[], FILE *file, TokenPtr nextToken, size_t TARGE_SEQ_LEN)
 {
-    int i = 0;
-    while (targetStrArr[i] == "\0")
+    for (int i = 0; i < TARGE_SEQ_LEN; i++)
     {
-        match(targetStrArr[i], nextToken->data);
+        match(&TARGE_SEQ[i], nextToken);
         nextToken = lexer(file);
-        i++;
     }
+}
+
+void parser_error(target target, TokenPtr token)
+{
+    fprintf(stderr, "error code 2: syntax analyze error, expected: '%s', got '%s' \n", target.data, token->data);
+    exit(2);
 }
