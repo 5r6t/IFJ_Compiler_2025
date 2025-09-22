@@ -26,25 +26,46 @@
 
 #define MAX_BUFFER_LENGTH 1024
 
+#define L_EOF -1
 #define START 0
-#define CMP_OPERATOR 1          // id=*, data=NULL, type=1
-#define NOT_EQUAL 2             // id=*, data=NULL, type=2
-#define SPECIAL 3               // id=*, data=NULL, type=3
-#define ARITHMETICAL 4          // id=*, data=NULL, type=4
+#define CMP_OPERATOR 1
+#define NOT_EQUAL 2
+#define SPECIAL 3       
+#define ARITHMETICAL 4  
 #define COMMENT 5               
-#define STRING 6                // id=NULL, data=*, type=6
+#define STRING 6             
 #define STRING_SPECIAL 7        
 #define MULTILINE_STRING_1 8    
-#define MULTILINE_STRING_2 9    // id=NULL, data=*, type=9
-#define IDENTIFIER 10           // id=*, data=NULL, type=10
-#define OUR_INT 11              // id=NULL, data=*, type=11
-#define OUR_DOUBLE 12           // id=NULL, data=*, type=12
+#define MULTILINE_STRING_2 9  
+#define IDENTIFIER 10           
+#define OUR_INT 11   
+#define OUR_DOUBLE 12          
 #define UNARY_PLUS 13
 #define UNARY_MINUS 14
 #define IN_BUILT_FUNC 15
-#define KEYWORD 16
+
+#define KW_CLASS 16
+#define KW_IF 17
+#define KW_ELSE 18
+#define KW_IS 19
+#define KW_NULL 20
+#define KW_RETURN 21
+#define KW_VAR 22
+#define KW_WHILE 23
+#define KW_IFJ 24
+#define KW_STATIC 25
+#define KW_TRUE 26
+#define KW_FALSE 27
+#define KW_NUM 28
+#define KW_STRING 29
+#define KW_NULL_TYPE 30
 
 # include <common.h>
+
+struct KeywordEntry {
+    const char *word;
+    int type;
+};
 
 TokenPtr lexer(FILE *file);
 

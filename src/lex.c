@@ -26,34 +26,54 @@
  * on recognized patterns (e.g., identifiers, strings, operators, special characters...).
  */
 
- // Helper function to skip whitespace characters and return the next non-whitespace character
+/**
+ * @brief Skips whitespace characters in the input file.
+ * @param file Pointer to the file to read from.
+ * @return The next non-whitespace character, or EOF if the end of the file
+ * 
+ * this function is for consuming whitespace characters
+ * you need to call ungetc() if you are planning to just peek
+*/
 int skip_whitespace(FILE *file) {
     int c = fgetc(file);
-
     while (c != EOF && isblank(c)) {
         c = fgetc(file);
     }
-
-    if (c != EOF) {
-        ungetc(c, file); // push back the first non-whitespace
-    }
-    return c; // return the non-whitespace (or EOF)
+     return c; // return the non-whitespace (or EOF)
 }
 
+static const struct KeywordEntry keyword_table[] = {
+    {"class", KW_CLASS},
+    {"if", KW_IF},
+    {"else", KW_ELSE},
+    {"is", KW_IS},
+    {"null", KW_NULL},
+    {"return", KW_RETURN},
+    {"var", KW_VAR},
+    {"while", KW_WHILE},
+    {"Ifj", KW_IFJ},
+    {"static", KW_STATIC},
+    {"true", KW_TRUE},
+    {"false", KW_FALSE},
+    {"Num", KW_NUM},
+    {"String", KW_STRING},
+    {"Null", KW_NULL_TYPE}
+};
 
-// Helper function to compare keywords against a string
-int is_keyword(const char *str) {
-    static const char *keywords [] = {
-        "class", "if", "else", "is", "null", "return", "var", "while", "Ifj",
-        "static", "true", "false", "Num", "String", "Null"
-    };
+static const size_t keyword_count = sizeof(keyword_table) / sizeof(keyword_table[0]);
 
-    static size_t num_keywords = sizeof(keywords) / sizeof(keywords[0]);
-    for (size_t i = 0; i < num_keywords; i++) {
-        if (strcmp(str, keywords[i]) == 0)
-            return 1; // It's a keyword
+/**
+ * @brief Checks if the token is a keyword and updates its type accordingly.
+ * @param token Pointer to the token to check. 
+ */
+void check_keyword(TokenPtr token) {
+    for (size_t i = 0; i < keyword_count; i++) {
+        if (strcmp(token->id, keyword_table[i].word) == 0) {
+            token->type = keyword_table[i].type;
+            return; // stop after first match
+        }
     }
-    return 0; // Not a keyword
+    // If not found, token->type stays IDENTIFIER
 }
 
 // Helper function to safely append a character to the buffer and increment the position
@@ -137,33 +157,30 @@ TokenPtr lexer(FILE *file) {
                 c = skip_whitespace(file);
                 if (c == '.') { // IDENTIF/KEYWORD "."  IDENTIF
                     buffer_append(buffer, &pos, c, file, new_token);
-                    fgetc(file); // consume the '.'
+                    
                     c = skip_whitespace(file); // peek next non-blank for IN_BUILT_FUNC
+
                     state = IN_BUILT_FUNC;
 
                     break; // go build second part of IDENTIF
                 }
                 
                 buffer[pos] = '\0';
-                if (is_keyword(buffer)) {
-                    token_create(new_token, buffer, NULL, KEYWORD);
-                } else {
-                    token_create(new_token, buffer, NULL, IDENTIFIER);
-                }
-                //ungetc(c, file); // push back the non-identifier char
-                
+                ungetc(c, file); // push back the non-identifier char
+                token_create(new_token, buffer, NULL, IDENTIFIER);
+                check_keyword(new_token);
                 return new_token;
             }
             break;
 
         case IN_BUILT_FUNC:
             if (isalnum(c) || c == '_') {
-                c = fgetc(file); // actually consume it
-                buffer_append(buffer, &pos, c, file, new_token);
+                buffer_append(buffer, &pos, c, file, new_token);\
+                c = fgetc(file); // consume char
+
             } else {
+                buffer[pos] = '\0'; //
                 token_create(new_token, buffer, NULL, IN_BUILT_FUNC);
-                if (c != EOF) ungetc(c, file);
-                buffer[pos] = '\0';
                 return new_token;
             }
             break;
@@ -173,6 +190,6 @@ TokenPtr lexer(FILE *file) {
             break;
         }
     }
-    token_create(new_token, NULL, NULL, -1); // EOF token
+    token_create(new_token, NULL, NULL, L_EOF);
     return new_token;
 }
