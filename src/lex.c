@@ -104,9 +104,6 @@ TokenPtr lexer(FILE *file) {
     int c;
     char buffer[MAX_BUFFER_LENGTH];
     size_t pos = 0; // buffer index
-    int my_int;
-    
-    (void) my_int; // to avoid unused variable warning for now
 
     c = fgetc(file);
 
@@ -115,7 +112,16 @@ TokenPtr lexer(FILE *file) {
         {
         // ignore whitespace for now
         case (START):
-            if (isspace(c)) {
+                
+            if (c == '\n') {
+                do {
+                    c = fgetc(file);
+                } while ( c == '\n');
+                ungetc(c, file); // push back the first non-newline char
+                token_create(new_token, "\\n", NULL, NEWLINE);
+                return new_token;                
+            }
+            else if (isblank(c)) {
                 c = fgetc(file);
                 continue;
             }
@@ -146,6 +152,9 @@ TokenPtr lexer(FILE *file) {
             else {
                 program_error(file, ERR_LEX, 0, NULL);
             }
+
+            new_token->type = state;
+
             break;
 
         case IDENTIFIER:
@@ -159,14 +168,18 @@ TokenPtr lexer(FILE *file) {
                     buffer_append(buffer, &pos, c, file, new_token);
                     
                     c = skip_whitespace(file); // peek next non-blank for IN_BUILT_FUNC
-
                     state = IN_BUILT_FUNC;
 
                     break; // go build second part of IDENTIF
                 }
                 
                 buffer[pos] = '\0';
-                ungetc(c, file); // push back the non-identifier char
+                ungetc(c, file); // push current char back for next token
+                
+                if (buffer[0]=='_' && buffer[1]=='_') {
+                    token_create(new_token, buffer, NULL, ID_GLOBAL_VAR);
+                    return new_token;
+                }
                 token_create(new_token, buffer, NULL, IDENTIFIER);
                 check_keyword(new_token);
                 return new_token;
@@ -190,6 +203,18 @@ TokenPtr lexer(FILE *file) {
             break;
         }
     }
-    token_create(new_token, NULL, NULL, L_EOF);
+
+    // ??? THIS DOES NOT ACCOUNT FOR DATA YET -> DATA BUFFER -> #NEXT_MEETING -> do we even need data??
+    if (new_token->type != -1) //  has a type => definitely a non EOF token
+    {
+        if (pos != 0) {
+            buffer[pos] = '\0';
+            token_create(new_token, buffer, new_token->data, new_token->type);
+        } 
+    }
+    else
+        token_create (new_token, NULL, NULL, FILE_END);
+
+
     return new_token;
 }

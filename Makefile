@@ -41,5 +41,8 @@ $(OBJDIR)/test.o: testing/test.c include/lex.h include/common.h | $(OBJDIR)
 clean:
 	-rm -f $(OBJDIR)/*.o $(TEST_TARGET)
 
-test: 
-	echo "Ifj Ifj . identif identif" | ./build/test 0 /dev/stdin # Run lexer test with input from stdin
+simple_test: 
+	echo "Ifj Ifj . identif  identif" | ./build/test 0 /dev/stdin # Run lexer test with input from stdin !!! DOESN'T ACCEPT NEWLINES !!!
+
+test:
+	./build/test 0 build/test0 2> build/test_out && diff --brief build/test_out build/test_correct

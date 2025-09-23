@@ -26,7 +26,7 @@
 
 #define MAX_BUFFER_LENGTH 1024
 
-#define L_EOF -1
+#define FILE_END -1
 #define START 0
 #define CMP_OPERATOR 1
 #define NOT_EQUAL 2
@@ -59,6 +59,9 @@
 #define KW_NUM 28
 #define KW_STRING 29
 #define KW_NULL_TYPE 30
+
+#define NEWLINE 31
+#define ID_GLOBAL_VAR 32 // identifier for global variable
 
 # include <common.h>
 

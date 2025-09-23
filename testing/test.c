@@ -35,6 +35,8 @@ void lex_test(FILE *file) {
         input_token = lexer(file);
         token_count++;
     }
+    token_print(input_token); // print EOF token
+    token_count++;
     DEBUG_PRINT("\n[SCANNER_TEST] Total tokens scanned: %d\n", token_count);
 }
 

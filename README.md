@@ -4,7 +4,8 @@ IFJ Project by team "automats enjoyers" (team xmervaj00)
 
 ## Useful
 
-[IFJ website](https://www.fit.vut.cz/study/course/IFJ/public/project/index.php.cz)
+- use #NEXT_MEETING for questions regarding coding in your implementations
+- [IFJ website](https://www.fit.vut.cz/study/course/IFJ/public/project/index.php.cz)
 
 ## To-Do
 
