@@ -73,7 +73,7 @@ TokenPtr token_init()
  * @param data String for the token data.
  * @param type Integer representing the token type.
  */
-void token_create(TokenPtr token, const char *id, const char *data, int type)
+void token_update(TokenPtr token, const char *id, const char *data, int type)
 {
     token->id = my_strdup(id);
     token->data = my_strdup(data);

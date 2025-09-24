@@ -60,7 +60,7 @@ typedef struct Target
 } target;
 
 TokenPtr token_init();
-void token_create(TokenPtr token, const char *id, const char *data, int type);
+void token_update(TokenPtr token, const char *id, const char *data, int type);
 void token_free(TokenPtr token);
 void token_print(TokenPtr token);
 
