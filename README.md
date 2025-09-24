@@ -31,10 +31,10 @@ Code should be done by November 18. !!!
 
 Submission of the entire project - 3.12.2025 
 ---
-@repo created on 22.9.2024
+@repo created on 16.9.2025
 
 ## LL1 rules
-
+```js
 / is EOL
 
 - PROGRAM ::= PROLOG CLASS 
@@ -85,3 +85,4 @@ Submission of the entire project - 3.12.2025
 - IF_STAT ::= if ( EXPRESSION ) { / FUNC_BODY } / else { / FUNC_BODY } /
 - WHILE ::= while ( EXPRESSION ) { / FUNC_BODY } /
 - RETURN ::= return EXPRESSION /
+```
