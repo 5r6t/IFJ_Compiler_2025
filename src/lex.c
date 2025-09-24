@@ -138,7 +138,7 @@ TokenPtr lexer(FILE *file) {
 				state = ARITHMETICAL;
 			}
 			else if (c == '\"') {
-				state = STRING;
+				state = STRING; // STRING or MULTI_LINE_STRING
 			}
 			else if (isalpha(c) || c == '_') {
 				state = IDENTIFIER;
@@ -151,10 +151,9 @@ TokenPtr lexer(FILE *file) {
 			}
 
 			new_token->type = state;
-
 			break;
 
-		case IDENTIFIER:
+		case IDENTIFIER: {
 			if (isalnum(c) || c == '_') {
 				buffer_append(buffer, &pos, c, file, new_token); // build identifier
 				c = fgetc(file);
@@ -188,8 +187,9 @@ TokenPtr lexer(FILE *file) {
 				return new_token;
 			}
 			break;
+		} // end IDENTIFIER
 
-		case IN_BUILT_FUNC:
+		case IN_BUILT_FUNC: {
 			if (isalnum(c) || c == '_') {
 				buffer_append(buffer, &pos, c, file, new_token);
 				\
@@ -201,15 +201,14 @@ TokenPtr lexer(FILE *file) {
 				return new_token;
 			}
 			break;
+		} // end IN_BUILT_FUNC
 
-		case STRING:
+		case STRING: {
 			c = fgetc(file); // consume char
-			DEBUG_PRINT("STRING CHAR: %c\n", c);
 			if (c == '\\') { // special char
 				state = STRING_SPECIAL;
 			}
 			else if (c == '\"') { // end of string
-				DEBUG_PRINT("STRING DONE\n");
 				buffer[pos] = '\0';
 				token_update(new_token, NULL, buffer, STRING);
 				return new_token;
@@ -223,10 +222,10 @@ TokenPtr lexer(FILE *file) {
 				buffer_append(buffer, &pos, c, file, new_token); // build string
 
 			break;
+		} // end STRING
 
-		case STRING_SPECIAL:
+		case STRING_SPECIAL: {
 			c = fgetc(file);
-			DEBUG_PRINT("STRING SPECIAL CHAR: %c\n", c);
 
 			if (c == EOF || c == '\n') {
 				buffer[pos] = '\0';
@@ -235,20 +234,45 @@ TokenPtr lexer(FILE *file) {
 			}
 
 			switch (c) {
-			case 'n':
-			case 't':
-			case 'r':
-			case '"':
-			case '\\':
-				buffer_append(buffer, &pos, '\\', file, new_token);
-				buffer_append(buffer, &pos, c, file, new_token);
-				break;
+				case 'n':
+					buffer_append(buffer, &pos, '\n', file, new_token);
+					break;
+				case 't':
+					buffer_append(buffer, &pos, '\t', file, new_token);
+					break;
+				case 'r':
+					buffer_append(buffer, &pos, '\r', file, new_token);
+					break;
+				case '"':
+					buffer_append(buffer, &pos, '\"', file, new_token);
+					break;
+				case '\\':
+					buffer_append(buffer, &pos, '\\', file, new_token);
+					break;
+				case 'x': {
+					char hex[3];
+					hex[0] =  fgetc(file);
+					hex[1] =  fgetc(file);
+					hex[2] = '\0';
+
+					if (!isxdigit(hex[0]) || !isxdigit(hex[1])) {
+						buffer[pos] = '\0';
+						token_update(new_token, NULL, buffer, STRING);
+						program_error(file, ERR_LEX, 3, new_token); // invalid hex escape
+					}
+					unsigned char val = (unsigned char) strtol(hex, NULL, 16); // convert hex to char
+					buffer_append(buffer, &pos, val, file, new_token);
+					break;
+				}
+				default:
+					buffer[pos] = '\0';
+					token_update(new_token, NULL, buffer, STRING);
+					program_error(file, ERR_LEX, 2, new_token); // invalid escape
 			}
-			case 'x':
 
 			state = STRING;
 			break;
-
+		} // end STRING_SPECIAL
 
 		default:
 			DEBUG_PRINT("UNKNOWN REEEEEEEEEe");
