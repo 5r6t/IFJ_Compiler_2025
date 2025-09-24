@@ -22,7 +22,7 @@
 void parser(FILE *file)
 {
     TokenPtr nextToken = lexer(file); // lookahead -> maybe i shouldn`t declare nextToken here, something to think about
-    PROGRAM(nextToken, file);
+    PROGRAM(&nextToken, file);
     /*if (PROGRAM(nextToken, file))
     {
         return 0;
@@ -150,7 +150,7 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file)
         nextToken = lexer(file);
         PAR(nextToken, file); // dont forget to iterate nextToken inside this function!!!
         for_function(FUNC_DEF_SEQ, file, nextToken, FUNC_DEF_SEQ_LEN);
-        FUNC_BODY(); // dont forget to iterate nextToken inside this function!!!
+        FUNC_BODY(nextToken, file); // dont forget to iterate nextToken inside this function!!!
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
         return 0;
     }
@@ -160,14 +160,14 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file)
         FUNC_GET.data = NULL;
         // FUNC_DEF.type = EOL;
         advance(&FUNC_GET, nextToken, file);
-        FUNC_BODY(); // dont forget to iterate nextToken inside this function!!!
+        FUNC_BODY(nextToken, file); // dont forget to iterate nextToken inside this function!!!
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
         return 0;
     }
     else if ((*nextToken)->type == CMP_OPERATOR) // setter
     {
         for_function(FUNC_SET_SEQ, file, nextToken, FUNC_SET_SEQ_LEN);
-        FUNC_BODY(); // dont forget to iterate nextToken inside this function!!!
+        FUNC_BODY(nextToken, file); // dont forget to iterate nextToken inside this function!!!
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
         return 0;
     }
@@ -185,7 +185,7 @@ int PAR(TokenPtr *nextToken, FILE *file)
     if ((*nextToken)->type == IDENTIFIER)
     {
         advance(&PAR_FIRST, nextToken, file);
-        NEXT_PAR(); // dont forget to iterate nextToken inside this function!!!
+        NEXT_PAR(nextToken, file); // dont forget to iterate nextToken inside this function!!!
         return 0;
     }
     else if ((*nextToken)->type == SPECIAL)
@@ -200,8 +200,48 @@ int PAR(TokenPtr *nextToken, FILE *file)
     }
 }
 
-int FUNC_BODY()
+int NEXT_PAR(TokenPtr *nextToken, FILE *file)
 {
+    static const target NEXT_PAR_FIRST = {SPECIAL, ","};
+    static const target NEXT_PAR_FOLLOW = {SPECIAL, ")"};
+    if ((*nextToken)->type == SPECIAL)
+    {
+        advance(&NEXT_PAR_FIRST, nextToken, file);
+        NEXT_PAR(nextToken, file);
+        return 0;
+    }
+    else if ((*nextToken)->type == SPECIAL)
+    {
+        match(&NEXT_PAR_FOLLOW, nextToken);
+        return 0;
+    }
+    else
+    {
+        parser_error(NEXT_PAR_FIRST, nextToken);
+        exit(2);
+    }
+}
+
+int FUNC_BODY(TokenPtr *nextToken, FILE *file)
+{
+    static const target FUNC_BODY_DECL_SEQ[] =
+        {
+            {KW_VAR, "var"},
+            {IDENTIFIER, NULL},
+            {NEWLINE, NULL}};
+
+    size_t FUNC_BODY_DECL_SEQ_LEN = sizeof(FUNC_BODY_DECL_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
+
+    if ((*nextToken)->type == KW_VAR)
+    {
+        for_function(FUNC_BODY_DECL_SEQ, file, nextToken, FUNC_BODY_DECL_SEQ_LEN);
+        FUNC_BODY(nextToken, file);
+        return 0;
+    }
+    else if ((*nextToken)->type == IDENTIFIER)
+    {
+        // TODO -> finish this function
+    }
 }
 
 // using strcmp compares target string with token. If token isn`t same as target string error is send to stderr output
