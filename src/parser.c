@@ -224,13 +224,63 @@ int NEXT_PAR(TokenPtr *nextToken, FILE *file)
 
 int FUNC_BODY(TokenPtr *nextToken, FILE *file)
 {
+    static const target DUMMY_EXPRESSION = {IDENTIFIER, NULL};
+    static const target RETURN_FIRST = {KW_RETURN, NULL};
+    static const target RETURN_END = {NEWLINE, NULL};
+    static const target FUNC_BODY_FOLLOW = {SPECIAL, "}"};
+
+    static const target FUNC_INTRO_SEQ[] =
+        {
+            {SPECIAL, "("},
+            {NEWLINE, NULL}};
+
     static const target FUNC_BODY_DECL_SEQ[] =
         {
             {KW_VAR, "var"},
             {IDENTIFIER, NULL},
             {NEWLINE, NULL}};
 
+    static const target VAR_ASS_CALL_GET_SEQ[] =
+        {
+            {IDENTIFIER, NULL},
+            {CMP_OPERATOR, "="}};
+
+    static const target IF_STATMENT_START_SEQ[] =
+        {
+            {KW_IF, "if"},
+            {SPECIAL, "("}};
+
+    static const target IF_STATMENT_MIDDLE_SEQ[] =
+        {
+            {SPECIAL, ")"},
+            {SPECIAL, "{"},
+            {NEWLINE, NULL}};
+
+    static const target IF_STATMENT_ELSE_BRANCH_SEQ[] =
+        {
+            {SPECIAL, "}"},
+            {KW_ELSE, NULL},
+            {SPECIAL, "{"},
+            {NEWLINE, NULL}};
+
+    static const target END_SEQ[] =
+        {
+            {SPECIAL, "}"},
+            {NEWLINE, NULL}};
+
+    static const target WHILE_START_SEQ[] =
+        {
+            {KW_WHILE, NULL},
+            {SPECIAL, "("}};
+
+    size_t IF_STATMENT_ELSE_BRANCH_SEQ_LEN = sizeof(IF_STATMENT_ELSE_BRANCH_SEQ) / sizeof(IF_STATMENT_ELSE_BRANCH_SEQ[0]);
+    size_t IF_STATMENT_MIDDLE_SEQ_LEN = sizeof(IF_STATMENT_MIDDLE_SEQ) / sizeof(IF_STATMENT_MIDDLE_SEQ[0]);
+    size_t IF_STATMENT_START_SEQ_LEN = sizeof(IF_STATMENT_START_SEQ) / sizeof(IF_STATMENT_START_SEQ[0]);
+    size_t VAR_ASS_CALL_GET_SEQ_LEN = sizeof(VAR_ASS_CALL_GET_SEQ) / sizeof(VAR_ASS_CALL_GET_SEQ[0]);
     size_t FUNC_BODY_DECL_SEQ_LEN = sizeof(FUNC_BODY_DECL_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
+    size_t WHILE_START_SEQ_LEN = sizeof(WHILE_START_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
+    size_t FUNC_INTRO_SEQ_LEN = sizeof(FUNC_INTRO_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
+    size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
 
     if ((*nextToken)->type == KW_VAR)
     {
@@ -238,10 +288,82 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file)
         FUNC_BODY(nextToken, file);
         return 0;
     }
-    else if ((*nextToken)->type == IDENTIFIER)
+    else if ((*nextToken)->type == IDENTIFIER) // beware GLOBAL ID can be here used as name so this must function should work different
     {
-        // TODO -> finish this function
+        for_function(VAR_ASS_CALL_GET_SEQ, file, nextToken, FUNC_BODY_DECL_SEQ_LEN);
+        RSA(nextToken, file);
+        return 0;
     }
+    else if ((*nextToken)->type == KW_IF) // if statment
+    {
+        for_function(IF_STATMENT_START_SEQ, file, nextToken, IF_STATMENT_START_SEQ_LEN);
+        // Here I will give control to PSA, for now I will use dummy expresion
+        advance(&DUMMY_EXPRESSION, nextToken, file);
+        for_function(IF_STATMENT_MIDDLE_SEQ, file, nextToken, IF_STATMENT_MIDDLE_SEQ_LEN);
+        FUNC_BODY(nextToken, file);
+        for_function(IF_STATMENT_ELSE_BRANCH_SEQ, file, nextToken, IF_STATMENT_ELSE_BRANCH_SEQ_LEN);
+        FUNC_BODY(nextToken, file);
+        for_function(END_SEQ, file, nextToken, END_SEQ_LEN);
+        FUNC_BODY(nextToken, file);
+        return 0;
+    }
+    else if ((*nextToken)->type == KW_WHILE)
+    {
+        for_function(WHILE_START_SEQ, file, nextToken, WHILE_START_SEQ_LEN);
+        // Here I will give control to PSA, for now I will use dummy expresion
+        advance(&DUMMY_EXPRESSION, nextToken, file);
+        for_function(IF_STATMENT_MIDDLE_SEQ, file, nextToken, IF_STATMENT_MIDDLE_SEQ_LEN);
+        FUNC_BODY(nextToken, file);
+        for_function(END_SEQ, file, nextToken, END_SEQ_LEN);
+        FUNC_BODY(nextToken, file);
+        return 0;
+    }
+    else if ((*nextToken)->type == KW_RETURN)
+    {
+        advance(&RETURN_FIRST, nextToken, file);
+        // Here I will give control to PSA, for now I will use dummy expresion
+        advance(&DUMMY_EXPRESSION, nextToken, file);
+        advance(&RETURN_END, nextToken, file);
+        FUNC_BODY(nextToken, file);
+        return 0;
+    }
+    else if ((*nextToken)->type == SPECIAL)
+    {
+        for_function(FUNC_INTRO_SEQ, file, nextToken, FUNC_INTRO_SEQ_LEN);
+        FUNC_BODY(nextToken, file);
+        advance(&RETURN_END, nextToken, file);
+        FUNC_BODY(nextToken, file);
+        return 0;
+    }
+    else if ((*nextToken)->type == SPECIAL)
+    {
+        match(&FUNC_BODY_FOLLOW, nextToken);
+        return 0;
+    }
+    else
+    {
+        fprintf(stderr, "ERRRORRRRR");
+        exit(2);
+    }
+}
+
+int RSA(TokenPtr *nextToken, FILE *file)
+{
+    if ((*nextToken)->type == IDENTIFIER)
+    {
+        nextToken = lexer(file);
+        FUNC_TYPE();
+        if ((*nextToken)->type != NEWLINE)
+        {
+            // error capture
+            exit(2);
+        }
+        return 0;
+    }
+}
+
+int FUNC_TYPE()
+{
 }
 
 // using strcmp compares target string with token. If token isn`t same as target string error is send to stderr output
