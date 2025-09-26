@@ -10,6 +10,7 @@
 
 #include "../include/common.h"
 #include "../include/lex.h"
+#include "../include/parser.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -17,6 +18,8 @@
 
 /*NOTES:
    - once in time should call semantic analyze to make AST from simulated derivation tree -> quit confused how to do that
+   - LOGIC ERROR -> few function will be kill withou chcecking all rules -> create (or remake match to) peek function
+   - problem with arg_name using peek function check if there is valid token type if yes token will be processed (token will be used to created AST node ), must thing of way how to processed all arg at once or not
 */
 
 void parser(FILE *file)
@@ -77,7 +80,7 @@ int CLASS(TokenPtr *nextToken, FILE *file)
     // nextToken = lexer(file);
 
     static const target CLASS_TARGET_END = {SPECIAL, "}"};
-    match(&CLASS_TARGET_END, nextToken);
+    advance(&CLASS_TARGET_END, nextToken, file);
 
     return 0;
 }
@@ -92,13 +95,13 @@ int FUNCTIONS(TokenPtr *nextToken, FILE *file)
         FUNC_NAME(nextToken, file);        // dont forget to iterate nextToken inside this function!!!
         FUNC_GET_SET_DEF(nextToken, file); // dont forget to iterate nextToken inside this function!!!
         FUNCTIONS(nextToken, file);
-        nextToken = lexer(file);
+        *nextToken = lexer(file);
         return 0;
     }
     else if ((*nextToken)->type == SPECIAL)
     {
         static const target FUNCTIONS_FOLLOW = {SPECIAL, "}"};
-        match(&FUNCTIONS_FOLLOW, nextToken);
+        match(&FUNCTIONS_FOLLOW, *nextToken);
         return 0;
     }
     else // should call program error
@@ -126,7 +129,7 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file)
             {CMP_OPERATOR, "="},
             {SPECIAL, "("},
             {IDENTIFIER, NULL},
-            (SPECIAL, ")"),
+            {SPECIAL, ")"},
             {SPECIAL, "{"},
             {NEWLINE, NULL}};
 
@@ -145,18 +148,18 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file)
     size_t FUNC_DEF_SEQ_LEN = sizeof(FUNC_DEF_SEQ) / sizeof(FUNC_DEF_SEQ[0]);
     size_t FUNC_GET_SET_DEF_END_LEN = sizeof(FUNC_GET_SET_DEF_END) / sizeof(FUNC_GET_SET_DEF_END[0]);
 
-    if (match(&FUNC_DEF, nextToken) == 0) // definition of function -> should call semantic analyzer to check if function id is already used -> beware of shadowing!!!
+    if (match(&FUNC_DEF, *nextToken) == 0) // definition of function -> should call semantic analyzer to check if function id is already used -> beware of shadowing!!!
     {
-        nextToken = lexer(file);
+        *nextToken = lexer(file);
         PAR(nextToken, file); // dont forget to iterate nextToken inside this function!!!
         for_function(FUNC_DEF_SEQ, file, nextToken, FUNC_DEF_SEQ_LEN);
         FUNC_BODY(nextToken, file); // dont forget to iterate nextToken inside this function!!!
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
         return 0;
     }
-    else if (match(&FUNC_GET, nextToken) == 0) // getter -> should I call semantic analyzer here too?
+    else if (match(&FUNC_GET, *nextToken) == 0) // getter -> should I call semantic analyzer here too? FATAL OVERSIGTH: THIS WILL KILL THE PROGRAM WITHOUT CHCEKING ALL RULES FIRST
     {
-        nextToken = lexer(file);
+        *nextToken = lexer(file);
         FUNC_GET.data = NULL;
         // FUNC_DEF.type = EOL;
         advance(&FUNC_GET, nextToken, file);
@@ -190,12 +193,12 @@ int PAR(TokenPtr *nextToken, FILE *file)
     }
     else if ((*nextToken)->type == SPECIAL)
     {
-        match(&PAR_FOLLOW, nextToken);
+        match(&PAR_FOLLOW, *nextToken);
         return 0;
     }
     else
     {
-        parser_error(PAR_FIRST, nextToken);
+        parser_error(PAR_FIRST, *nextToken);
         exit(2);
     }
 }
@@ -210,14 +213,13 @@ int NEXT_PAR(TokenPtr *nextToken, FILE *file)
         NEXT_PAR(nextToken, file);
         return 0;
     }
-    else if ((*nextToken)->type == SPECIAL)
+    else if (match(&NEXT_PAR_FOLLOW, *nextToken))
     {
-        match(&NEXT_PAR_FOLLOW, nextToken);
         return 0;
     }
     else
     {
-        parser_error(NEXT_PAR_FIRST, nextToken);
+        parser_error(NEXT_PAR_FIRST, *nextToken);
         exit(2);
     }
 }
@@ -278,8 +280,8 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file)
     size_t IF_STATMENT_START_SEQ_LEN = sizeof(IF_STATMENT_START_SEQ) / sizeof(IF_STATMENT_START_SEQ[0]);
     size_t VAR_ASS_CALL_GET_SEQ_LEN = sizeof(VAR_ASS_CALL_GET_SEQ) / sizeof(VAR_ASS_CALL_GET_SEQ[0]);
     size_t FUNC_BODY_DECL_SEQ_LEN = sizeof(FUNC_BODY_DECL_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
-    size_t WHILE_START_SEQ_LEN = sizeof(WHILE_START_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
-    size_t FUNC_INTRO_SEQ_LEN = sizeof(FUNC_INTRO_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
+    size_t WHILE_START_SEQ_LEN = sizeof(WHILE_START_SEQ) / sizeof(WHILE_START_SEQ[0]);
+    size_t FUNC_INTRO_SEQ_LEN = sizeof(FUNC_INTRO_SEQ) / sizeof(FUNC_INTRO_SEQ[0]);
     size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
 
     if ((*nextToken)->type == KW_VAR)
@@ -290,7 +292,7 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file)
     }
     else if ((*nextToken)->type == IDENTIFIER) // beware GLOBAL ID can be here used as name so this must function should work different
     {
-        for_function(VAR_ASS_CALL_GET_SEQ, file, nextToken, FUNC_BODY_DECL_SEQ_LEN);
+        for_function(VAR_ASS_CALL_GET_SEQ, file, nextToken, VAR_ASS_CALL_GET_SEQ_LEN);
         RSA(nextToken, file);
         return 0;
     }
@@ -337,7 +339,7 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file)
     }
     else if ((*nextToken)->type == SPECIAL)
     {
-        match(&FUNC_BODY_FOLLOW, nextToken);
+        match(&FUNC_BODY_FOLLOW, *nextToken);
         return 0;
     }
     else
@@ -351,18 +353,56 @@ int RSA(TokenPtr *nextToken, FILE *file)
 {
     if ((*nextToken)->type == IDENTIFIER)
     {
-        nextToken = lexer(file);
-        FUNC_TYPE();
+        (*nextToken) = lexer(file);
+        FUNC_TYPE(nextToken, file);
         if ((*nextToken)->type != NEWLINE)
         {
             // error capture
             exit(2);
         }
         return 0;
+    } // there can be a expression -> give control to PSA
+    else
+    {
+        fprintf(stderr, "SYNTAX ERROR");
+        exit(2);
     }
 }
 
-int FUNC_TYPE()
+int FUNC_TYPE(TokenPtr *nextToken, FILE *file)
+{
+    target FUNC_TYPE_FIRST = {SPECIAL, "("}; // this struct is modifable because i didn`t want to create another struct
+    if ((*nextToken)->type == SPECIAL)
+    {
+        advance(&FUNC_TYPE_FIRST, nextToken, file);
+        ARG(nextToken, file);
+        FUNC_TYPE_FIRST.data = ")";
+        advance(&FUNC_TYPE_FIRST, nextToken, file);
+        return 0;
+    }
+    else if ((*nextToken)->type == NEWLINE)
+    {
+        return 0;
+    }
+    else
+    {
+        fprintf(stderr, "SYNTAX ERROR");
+        exit(2);
+    }
+}
+
+int ARG(TokenPtr *nextToken, FILE *file)
+{
+    // PROBLEM THERE IS NUMBER OF THINGS THAT CAN BE ANOTHER RULE TO FOLLOW, I NEED A EFFECTIVE WAY TO DETERMINT WHICH TO PEAK AND CONTINUEff
+    ARG_NAME(nextToken, file);
+    *nextToken = lexer(file);
+}
+
+int NEXT_ARG(TokenPtr *nextToken, FILE *file)
+{
+}
+
+int ARG_NAME(TokenPtr *nextToken, FILE *file)
 {
 }
 
@@ -387,7 +427,7 @@ int match(const target *target, TokenPtr token)
             if (token->data == NULL)
             {
                 fprintf(stderr, "SEGFAULT, token pointer is empty and you are trying reach something you can`t idiot\n");
-                exit;
+                exit(2);
             }
 
             if (strcmp(target->data, token->data) != 0)
@@ -401,9 +441,9 @@ int match(const target *target, TokenPtr token)
 }
 
 // helping function for more pleasing way to check matches and for updating nextToken
-void for_function(target TARGE_SEQ[], FILE *file, TokenPtr *nextToken, size_t TARGE_SEQ_LEN)
+void for_function(const target TARGE_SEQ[], FILE *file, TokenPtr *nextToken, size_t TARGE_SEQ_LEN)
 {
-    for (int i = 0; i < TARGE_SEQ_LEN; i++)
+    for (size_t i = 0; i < TARGE_SEQ_LEN; i++)
     {
         // match(&TARGE_SEQ[i], nextToken);
         // nextToken = lexer(file);
@@ -423,6 +463,6 @@ void parser_error(target target, TokenPtr token)
  */
 void advance(const target *target, TokenPtr *token, FILE *file)
 {
-    match(target, token);
+    match(target, *token);
     *token = lexer(file);
 }
