@@ -28,14 +28,14 @@
 
 /**
  * @brief Skips whitespace characters in the input file.
- * @param file Pointer to the file to read from.
+ * @param file Pointer to the file to read from
+ * @param c The current character read from the file
  * @return The next non-whitespace character, or EOF if the end of the file
  *
  * this function is for consuming whitespace characters
  * you need to call ungetc() if you are planning to just peek
 */
-int skip_whitespace(FILE *file) {
-	int c = fgetc(file);
+int skip_whitespace(FILE *file, int c) {
 	while (c != EOF && isblank(c)) {
 		c = fgetc(file);
 	}
@@ -70,6 +70,9 @@ void check_keyword(TokenPtr token) {
 	for (size_t i = 0; i < keyword_count; i++) {
 		if (strcmp(token->id, keyword_table[i].word) == 0) {
 			token->type = keyword_table[i].type;
+			if (token->type == KW_NULL) {
+				token_update(token, NULL, "null", KW_NULL);
+			}
 			return; // stop after first match
 		}
 	}
@@ -102,7 +105,7 @@ TokenPtr lexer(FILE *file) {
 
 	int state = START;
 	int c;
-	char buffer[MAX_BUFFER_LENGTH];
+	char buffer[MAX_BUFFER_LENGTH] = {0};
 	size_t pos = 0; // buffer index
 
 	c = fgetc(file);
@@ -114,12 +117,7 @@ TokenPtr lexer(FILE *file) {
 		case (START):
 
 			if (c == '\n') {
-				do {
-					c = fgetc(file);
-				} while ( c == '\n');
-				ungetc(c, file); // push back the first non-newline char
-				token_update(new_token, "\\n", NULL, NEWLINE);
-				return new_token;
+				state = NEWLINE;
 			}
 			else if (isblank(c)) {
 				c = fgetc(file);
@@ -152,35 +150,49 @@ TokenPtr lexer(FILE *file) {
 
 			new_token->type = state;
 			break;
-
-		case IDENTIFIER: {
+		
+		case NEWLINE: {
+			do {
+				c = fgetc(file);
+			} while ( c == '\n');
+			ungetc(c, file); // push back the first non-newline char
+			token_update(new_token, "\\n", NULL, NEWLINE);
+			return new_token;
+		} // end NEWLINE
+		
+		case IDENTIFIER: { /// FUUUUCK
 			if (isalnum(c) || c == '_') {
 				buffer_append(buffer, &pos, c, file, new_token); // build identifier
 				c = fgetc(file);
 
 			} else {
-				c = skip_whitespace(file);
+				c = skip_whitespace(file, c); // peek next non-blank for IN_BUILT_FUNC
 				if (c == '.') { // IDENTIF/KEYWORD "."  IDENTIF
 					buffer_append(buffer, &pos, c, file, new_token);
-
-					c = skip_whitespace(file); // peek next non-blank for IN_BUILT_FUNC
 					state = IN_BUILT_FUNC;
+					c = fgetc(file); //consume the dot
+					
+					// ?? I AM SORRY FOR THIS ??
+					// but I can't cram 3tokens into one otherwise
+					if (isblank(c)) skip_whitespace(file, c);
+					else if (c == '\n') { 
+						// I'll allow one newline, just one idc
+						c = fgetc(file);
+					}
+					if(isblank(c)) c = skip_whitespace(file, c); // check again, sob
 
 					break; // go build second part of IDENTIF
 				}
 
 				buffer[pos] = '\0';
-				ungetc(c, file); // push current char back for next token
+				ungetc(c, file);
 
-				if (buffer[0]=='_' && buffer[1]=='_') {
+				if (pos > 1 && buffer[0]=='_' && buffer[1]=='_') {
 					token_update(new_token, buffer, NULL, ID_GLOBAL_VAR);
 					return new_token;
 				}
 
-				if (strcmp(buffer, "null") == 0)
-					token_update(new_token, NULL, "null", KW_NULL);
-				else
-					token_update(new_token, buffer, NULL, IDENTIFIER);
+				token_update(new_token, buffer, NULL, IDENTIFIER); //!!!!
 
 				check_keyword(new_token);
 
@@ -190,9 +202,14 @@ TokenPtr lexer(FILE *file) {
 		} // end IDENTIFIER
 
 		case IN_BUILT_FUNC: {
+
+			static bool one_n = false;
+			if ( one_n == false && c == '\n') {
+				one_n = true;
+				continue;
+			}
 			if (isalnum(c) || c == '_') {
 				buffer_append(buffer, &pos, c, file, new_token);
-				\
 				c = fgetc(file); // consume char
 
 			} else {
@@ -204,7 +221,7 @@ TokenPtr lexer(FILE *file) {
 		} // end IN_BUILT_FUNC
 
 		case STRING: {
-			c = fgetc(file); // consume char
+			c = fgetc(file);
 			if (c == '\\') { // special char
 				state = STRING_SPECIAL;
 			}
@@ -251,8 +268,8 @@ TokenPtr lexer(FILE *file) {
 					break;
 				case 'x': {
 					char hex[3];
-					hex[0] =  fgetc(file);
-					hex[1] =  fgetc(file);
+					hex[0] = fgetc(file);
+					hex[1] = fgetc(file);
 					hex[2] = '\0';
 
 					if (!isxdigit(hex[0]) || !isxdigit(hex[1])) {
@@ -273,6 +290,32 @@ TokenPtr lexer(FILE *file) {
 			state = STRING;
 			break;
 		} // end STRING_SPECIAL
+
+		case ARITHMETICAL: {
+			int temp = c;
+			c = fgetc(file);
+
+			if (temp == '/' && c == '/') { // not a division, a comment // IDENTIFIER FUCKING IT UP
+				state = COMMENT;
+				break;
+			}
+			else if (temp == '/' && c == '*') {
+
+			}
+			break;
+		} // end ARITHMETICAL
+
+		case COMMENT: { // single-line comment = newline token
+			c = fgetc(file);
+			if (c == '\n') {
+				state = NEWLINE;
+			}
+			break;
+		} // end COMMENT
+
+		case -2590: {
+			break;
+		} // end MULTILINE_COMMENT
 
 		default:
 			DEBUG_PRINT("UNKNOWN REEEEEEEEEe");

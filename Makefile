@@ -45,4 +45,4 @@ simple_test:
 	echo "\"Ahoj\n\"Sve'te \\\x22\"" | ./build/test 0 /dev/stdin
 
 test:
-	./build/test 0 build/test0 
+	./build/test 0 build/test.txt 
