@@ -16,8 +16,11 @@ int NEXT_PAR(TokenPtr *nextToken, FILE *file);
 int FUNC_BODY(TokenPtr *nextToken, FILE *file);
 int RSA(TokenPtr *nextToken, FILE *file);
 int FUNC_TYPE(TokenPtr *nextToken, FILE *file);
+int ARG(TokenPtr *nextToken, FILE *file);
+int NEXT_ARG(TokenPtr *nextToken, FILE *file);
+int ARG_NAME(TokenPtr *nextToken, FILE *file);
 
-int match(const target *target, TokenPtr token);
+int peek(const target *target, TokenPtr token);
 void for_function(const target TARGE_SEQ[], FILE *file, TokenPtr *nextToken, size_t TARGE_SEQ_LEN);
 void parser_error(target target, TokenPtr token);
 void advance(const target *target, TokenPtr *token, FILE *file);

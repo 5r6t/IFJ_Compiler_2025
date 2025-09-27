@@ -87,6 +87,7 @@ int CLASS(TokenPtr *nextToken, FILE *file)
 
 int FUNCTIONS(TokenPtr *nextToken, FILE *file)
 {
+    static const target FUNCTIONS_FOLLOW = {SPECIAL, "}"};
 
     if ((*nextToken)->type == KW_STATIC)
     {
@@ -98,17 +99,15 @@ int FUNCTIONS(TokenPtr *nextToken, FILE *file)
         *nextToken = lexer(file);
         return 0;
     }
-    else if ((*nextToken)->type == SPECIAL)
+    else if (peek(&FUNCTIONS_FOLLOW, *nextToken)) // epsilon
     {
-        static const target FUNCTIONS_FOLLOW = {SPECIAL, "}"};
-        match(&FUNCTIONS_FOLLOW, *nextToken);
         return 0;
     }
     else // should call program error
     {
-        fprintf(stderr, "error 2");
-        exit(2);
+        program_error(file, 2, 4, *nextToken);
     }
+    return 1;
 }
 
 int FUNC_NAME(TokenPtr *nextToken, FILE *file)
@@ -148,7 +147,7 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file)
     size_t FUNC_DEF_SEQ_LEN = sizeof(FUNC_DEF_SEQ) / sizeof(FUNC_DEF_SEQ[0]);
     size_t FUNC_GET_SET_DEF_END_LEN = sizeof(FUNC_GET_SET_DEF_END) / sizeof(FUNC_GET_SET_DEF_END[0]);
 
-    if (match(&FUNC_DEF, *nextToken) == 0) // definition of function -> should call semantic analyzer to check if function id is already used -> beware of shadowing!!!
+    if (peek(&FUNC_DEF, *nextToken) == 0) // definition of function -> should call semantic analyzer to check if function id is already used -> beware of shadowing!!!
     {
         *nextToken = lexer(file);
         PAR(nextToken, file); // dont forget to iterate nextToken inside this function!!!
@@ -157,7 +156,7 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file)
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
         return 0;
     }
-    else if (match(&FUNC_GET, *nextToken) == 0) // getter -> should I call semantic analyzer here too? FATAL OVERSIGTH: THIS WILL KILL THE PROGRAM WITHOUT CHCEKING ALL RULES FIRST
+    else if (peek(&FUNC_GET, *nextToken) == 0) // getter -> should I call semantic analyzer here too? FATAL OVERSIGTH: THIS WILL KILL THE PROGRAM WITHOUT CHCEKING ALL RULES FIRST
     {
         *nextToken = lexer(file);
         FUNC_GET.data = NULL;
@@ -176,9 +175,9 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file)
     }
     else // should call program error
     {
-        fprintf(stderr, "error 2");
-        exit(2);
+        program_error(file, 2, 4, *nextToken);
     }
+    return 1;
 }
 
 int PAR(TokenPtr *nextToken, FILE *file)
@@ -193,7 +192,7 @@ int PAR(TokenPtr *nextToken, FILE *file)
     }
     else if ((*nextToken)->type == SPECIAL)
     {
-        match(&PAR_FOLLOW, *nextToken);
+        peek(&PAR_FOLLOW, *nextToken);
         return 0;
     }
     else
@@ -201,6 +200,7 @@ int PAR(TokenPtr *nextToken, FILE *file)
         parser_error(PAR_FIRST, *nextToken);
         exit(2);
     }
+    return 1;
 }
 
 int NEXT_PAR(TokenPtr *nextToken, FILE *file)
@@ -213,7 +213,7 @@ int NEXT_PAR(TokenPtr *nextToken, FILE *file)
         NEXT_PAR(nextToken, file);
         return 0;
     }
-    else if (match(&NEXT_PAR_FOLLOW, *nextToken))
+    else if (peek(&NEXT_PAR_FOLLOW, *nextToken)) // epsilon
     {
         return 0;
     }
@@ -222,6 +222,7 @@ int NEXT_PAR(TokenPtr *nextToken, FILE *file)
         parser_error(NEXT_PAR_FIRST, *nextToken);
         exit(2);
     }
+    return 1;
 }
 
 int FUNC_BODY(TokenPtr *nextToken, FILE *file)
@@ -337,16 +338,15 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file)
         FUNC_BODY(nextToken, file);
         return 0;
     }
-    else if ((*nextToken)->type == SPECIAL)
+    else if (peek(&FUNC_BODY_FOLLOW, *nextToken)) // epsilon
     {
-        match(&FUNC_BODY_FOLLOW, *nextToken);
         return 0;
     }
     else
     {
-        fprintf(stderr, "ERRRORRRRR");
-        exit(2);
+        program_error(file, 2, 4, *nextToken);
     }
+    return 1;
 }
 
 int RSA(TokenPtr *nextToken, FILE *file)
@@ -367,6 +367,7 @@ int RSA(TokenPtr *nextToken, FILE *file)
         fprintf(stderr, "SYNTAX ERROR");
         exit(2);
     }
+    return 1;
 }
 
 int FUNC_TYPE(TokenPtr *nextToken, FILE *file)
@@ -389,21 +390,81 @@ int FUNC_TYPE(TokenPtr *nextToken, FILE *file)
         fprintf(stderr, "SYNTAX ERROR");
         exit(2);
     }
+    return 1;
 }
 
 int ARG(TokenPtr *nextToken, FILE *file)
 {
+    static const target ARG_FOLLOW = {SPECIAL, ")"};
     // PROBLEM THERE IS NUMBER OF THINGS THAT CAN BE ANOTHER RULE TO FOLLOW, I NEED A EFFECTIVE WAY TO DETERMINT WHICH TO PEAK AND CONTINUEff
-    ARG_NAME(nextToken, file);
-    *nextToken = lexer(file);
+    if (ARG_NAME(nextToken, file))
+    {
+        // create node
+        *nextToken = lexer(file);
+        NEXT_ARG(nextToken, file);
+        *nextToken = lexer(file);
+        return 0;
+    }
+    else if (peek(&ARG_FOLLOW, *nextToken)) // epsilon
+    {
+        return 0;
+    }
+    else
+    {
+        program_error(file, 2, 4, *nextToken);
+    }
+    return 1;
 }
 
 int NEXT_ARG(TokenPtr *nextToken, FILE *file)
 {
+    static const target NEXT_ARG_FIRST = {SPECIAL, ","}; // look at it again please
+    static const target NEXT_ARG_FOLLOW = {SPECIAL, ")"};
+    if (peek(&NEXT_ARG_FIRST, *nextToken))
+    {
+        *nextToken = lexer(file);
+        ARG_NAME(nextToken, file);
+        *nextToken = lexer(file);
+        return 0;
+    }
+    else if (peek(&NEXT_ARG_FOLLOW, *nextToken)) // epsilon
+    {
+        return 0;
+    }
+    else
+    {
+        program_error(file, 2, 4, *nextToken);
+    }
+    return 1; // unnecessary return -> gcc will cry if omitted
 }
 
 int ARG_NAME(TokenPtr *nextToken, FILE *file)
 {
+    static const target ARG_NAME_FIRST[] = {
+        {OUR_INT, NULL},
+        {IDENTIFIER, NULL},
+        {ID_GLOBAL_VAR, NULL},
+        {STRING, NULL},
+        {OUR_DOUBLE, NULL}};
+
+    size_t ARG_NAME_FIRST_LEN = sizeof(ARG_NAME_FIRST) / sizeof(ARG_NAME_FIRST[0]);
+    int correctTokenType = 0;
+    size_t i = 0;
+
+    while (i < ARG_NAME_FIRST_LEN) // need rework
+    {
+        if (peek(&ARG_NAME_FIRST[i], *nextToken))
+        {
+            correctTokenType = 1;
+        }
+        if (correctTokenType == 1)
+        {
+            return 0;
+        }
+        i++;
+    }
+    program_error(file, 2, 4, *nextToken);
+    return 1;
 }
 
 // using strcmp compares target string with token. If token isn`t same as target string error is send to stderr output
@@ -414,11 +475,11 @@ int ARG_NAME(TokenPtr *nextToken, FILE *file)
  *
  * @return wrong terminal will trigger stderr and program will end, correct terminal will return 0
  */
-int match(const target *target, TokenPtr token)
+int peek(const target *target, TokenPtr token)
 {
     if (target->type != token->type)
     {
-        parser_error(*target, token);
+        return 1;
     }
     else
     {
@@ -432,7 +493,7 @@ int match(const target *target, TokenPtr token)
 
             if (strcmp(target->data, token->data) != 0)
             {
-                parser_error(*target, token);
+                return 1;
             }
         }
         return 0;
@@ -451,18 +512,15 @@ void for_function(const target TARGE_SEQ[], FILE *file, TokenPtr *nextToken, siz
     }
 }
 
-void parser_error(target target, TokenPtr token)
-{
-    fprintf(stderr, "error code 2: syntax analyze error, expected: '%s', got '%s' \n", target.data, token->data);
-    exit(2);
-}
-
 /**
  * @brief check lookahead with function match and then iterate it
  * @return return next lookahead token
  */
 void advance(const target *target, TokenPtr *token, FILE *file)
 {
-    match(target, *token);
+    if (peek(target, *token) != 0)
+    {
+        program_error(file, 2, 4, *token);
+    }
     *token = lexer(file);
 }
