@@ -40,7 +40,7 @@
 #define MULTILINE_STRING_1 8    
 #define MULTILINE_STRING_2 9  
 #define IDENTIFIER 10           
-#define OUR_INT 11   
+#define NUMERICAL 11   
 #define OUR_DOUBLE 12          
 #define UNARY_PLUS 13
 #define UNARY_MINUS 14
@@ -64,6 +64,7 @@
 
 #define NEWLINE 31
 #define ID_GLOBAL_VAR 32 // identifier for global variable
+#define BLOCK_COMMENT 33
 
 struct KeywordEntry {
     const char *word;

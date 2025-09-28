@@ -80,12 +80,41 @@ void check_keyword(TokenPtr token) {
 }
 
 // Helper function to safely append a character to the buffer and increment the position
-static void buffer_append(char *buffer, size_t *pos, int c, FILE *file, TokenPtr token) {
+static void buffer_append(char *buffer, size_t *pos, int c, FILE *file) {
 	if (*pos >= MAX_BUFFER_LENGTH - 1) {
-		program_error(file, ERR_INTERNAL, 2, token);
+		program_error(file, ERR_INTERNAL, 2, NULL);
 	}
 	buffer[*pos] = c;
 	(*pos)++;
+	buffer[*pos] = '\0'; // Null-terminate the buffer
+}
+
+static void buffer_append_str(char *buffer, size_t *pos,
+                              const char *str, FILE *file) {
+    while (*str) {
+        buffer_append(buffer, pos, *str++, file);
+    }
+}
+
+// Save the last token when EOF is reached
+static void save_penultimate_token(TokenPtr new_token, char *buffer, size_t pos) {
+	// DOES NOT ACCOUNT FOR DATA YET
+	if (pos != 0 && new_token->type != FILE_END) {
+		switch (new_token->type) {
+		case IDENTIFIER:
+			token_update(new_token, buffer, NULL, new_token->type);
+			break;
+
+		case NUMERICAL:
+			token_update(new_token, buffer, NULL, new_token->type);
+			break;
+
+		default:
+			break;
+		}
+	} else {
+		token_update(new_token, NULL, NULL, FILE_END);
+	}
 }
 
 /**
@@ -113,7 +142,6 @@ TokenPtr lexer(FILE *file) {
 	while(c != EOF) {
 		switch (state)
 		{
-		// ignore whitespace for now
 		case (START):
 
 			if (c == '\n') {
@@ -123,7 +151,7 @@ TokenPtr lexer(FILE *file) {
 				c = fgetc(file);
 				continue;
 			}
-			else if (strchr("(){}[]|@;:,.?'", c)) {
+			else if (strchr("(){},.", c)) { // for ternary expansion, then add '?' and ':' here too
 				state = SPECIAL;
 			}
 			else if (strchr("<=>", c)) {
@@ -142,7 +170,7 @@ TokenPtr lexer(FILE *file) {
 				state = IDENTIFIER;
 			}
 			else if (isdigit(c)) {
-				state = OUR_INT; // can become float later
+				state = NUMERICAL;
 			}
 			else {
 				program_error(file, ERR_LEX, 0, NULL);
@@ -160,31 +188,12 @@ TokenPtr lexer(FILE *file) {
 			return new_token;
 		} // end NEWLINE
 		
-		case IDENTIFIER: { /// FUUUUCK
+		case IDENTIFIER: {
 			if (isalnum(c) || c == '_') {
-				buffer_append(buffer, &pos, c, file, new_token); // build identifier
+				buffer_append(buffer, &pos, c, file); // build identifier
 				c = fgetc(file);
 
 			} else {
-				c = skip_whitespace(file, c); // peek next non-blank for IN_BUILT_FUNC
-				if (c == '.') { // IDENTIF/KEYWORD "."  IDENTIF
-					buffer_append(buffer, &pos, c, file, new_token);
-					state = IN_BUILT_FUNC;
-					c = fgetc(file); //consume the dot
-					
-					// ?? I AM SORRY FOR THIS ??
-					// but I can't cram 3tokens into one otherwise
-					if (isblank(c)) skip_whitespace(file, c);
-					else if (c == '\n') { 
-						// I'll allow one newline, just one idc
-						c = fgetc(file);
-					}
-					if(isblank(c)) c = skip_whitespace(file, c); // check again, sob
-
-					break; // go build second part of IDENTIF
-				}
-
-				buffer[pos] = '\0';
 				ungetc(c, file);
 
 				if (pos > 1 && buffer[0]=='_' && buffer[1]=='_') {
@@ -192,8 +201,7 @@ TokenPtr lexer(FILE *file) {
 					return new_token;
 				}
 
-				token_update(new_token, buffer, NULL, IDENTIFIER); //!!!!
-
+				token_update(new_token, buffer, NULL, IDENTIFIER);
 				check_keyword(new_token);
 
 				return new_token;
@@ -201,24 +209,6 @@ TokenPtr lexer(FILE *file) {
 			break;
 		} // end IDENTIFIER
 
-		case IN_BUILT_FUNC: {
-
-			static bool one_n = false;
-			if ( one_n == false && c == '\n') {
-				one_n = true;
-				continue;
-			}
-			if (isalnum(c) || c == '_') {
-				buffer_append(buffer, &pos, c, file, new_token);
-				c = fgetc(file); // consume char
-
-			} else {
-				buffer[pos] = '\0'; //
-				token_update(new_token, buffer, NULL, IN_BUILT_FUNC);
-				return new_token;
-			}
-			break;
-		} // end IN_BUILT_FUNC
 
 		case STRING: {
 			c = fgetc(file);
@@ -226,17 +216,15 @@ TokenPtr lexer(FILE *file) {
 				state = STRING_SPECIAL;
 			}
 			else if (c == '\"') { // end of string
-				buffer[pos] = '\0';
 				token_update(new_token, NULL, buffer, STRING);
 				return new_token;
 			}
 			else if (c == '\n') {
-				buffer[pos] = '\0';
 				token_update(new_token, NULL, buffer, STRING);
 				program_error(file, ERR_LEX, 1, new_token); // unterminated string
 			}
 			else
-				buffer_append(buffer, &pos, c, file, new_token); // build string
+				buffer_append(buffer, &pos, c, file); // build string
 
 			break;
 		} // end STRING
@@ -245,26 +233,25 @@ TokenPtr lexer(FILE *file) {
 			c = fgetc(file);
 
 			if (c == EOF || c == '\n') {
-				buffer[pos] = '\0';
 				token_update(new_token, NULL, buffer, STRING);
 				program_error(file, ERR_LEX, 1, new_token);
 			}
 
 			switch (c) {
 				case 'n':
-					buffer_append(buffer, &pos, '\n', file, new_token);
+					buffer_append(buffer, &pos, '\n', file);
 					break;
 				case 't':
-					buffer_append(buffer, &pos, '\t', file, new_token);
+					buffer_append(buffer, &pos, '\t', file);
 					break;
 				case 'r':
-					buffer_append(buffer, &pos, '\r', file, new_token);
+					buffer_append(buffer, &pos, '\r', file);
 					break;
 				case '"':
-					buffer_append(buffer, &pos, '\"', file, new_token);
+					buffer_append(buffer, &pos, '\"', file);
 					break;
 				case '\\':
-					buffer_append(buffer, &pos, '\\', file, new_token);
+					buffer_append(buffer, &pos, '\\', file);
 					break;
 				case 'x': {
 					char hex[3];
@@ -273,16 +260,14 @@ TokenPtr lexer(FILE *file) {
 					hex[2] = '\0';
 
 					if (!isxdigit(hex[0]) || !isxdigit(hex[1])) {
-						buffer[pos] = '\0';
 						token_update(new_token, NULL, buffer, STRING);
 						program_error(file, ERR_LEX, 3, new_token); // invalid hex escape
 					}
 					unsigned char val = (unsigned char) strtol(hex, NULL, 16); // convert hex to char
-					buffer_append(buffer, &pos, val, file, new_token);
+					buffer_append(buffer, &pos, val, file);
 					break;
 				}
 				default:
-					buffer[pos] = '\0';
 					token_update(new_token, NULL, buffer, STRING);
 					program_error(file, ERR_LEX, 2, new_token); // invalid escape
 			}
@@ -292,49 +277,109 @@ TokenPtr lexer(FILE *file) {
 		} // end STRING_SPECIAL
 
 		case ARITHMETICAL: {
-			int temp = c;
-			c = fgetc(file);
+			int temp = c;        // operator candidate
+			c = fgetc(file);     // lookahead
 
-			if (temp == '/' && c == '/') { // not a division, a comment // IDENTIFIER FUCKING IT UP
-				state = COMMENT;
-				break;
+			if (temp == '/') {
+				if (c == '/') {
+					state = COMMENT;
+					ungetc(c, file); // put back the second '/'
+					break;
+				} else if (c == '*') {
+					state = BLOCK_COMMENT; // NOT IMPLEMENTED YET
+					break;
+				} else {
+					ungetc(c, file);
+					buffer_append(buffer, &pos, temp, file);
+					token_update(new_token, buffer, NULL, ARITHMETICAL);
+					return new_token;
+				}
 			}
-			else if (temp == '/' && c == '*') {
 
-			}
-			break;
+			// For +, -, *
+			ungetc(c, file);
+			buffer_append(buffer, &pos, temp, file);
+			token_update(new_token, buffer, NULL, ARITHMETICAL);
+			return new_token;
 		} // end ARITHMETICAL
 
-		case COMMENT: { // single-line comment = newline token
+		case COMMENT: { 
 			c = fgetc(file);
+			token_update(new_token, "\\n", NULL, NEWLINE); // update in advance (possible EOF)
 			if (c == '\n') {
-				state = NEWLINE;
+				state = NEWLINE; // single-line comment = newline token
 			}
 			break;
 		} // end COMMENT
 
-		case -2590: {
+		case SPECIAL: {
+			buffer_append(buffer, &pos, c, file);
+			token_update(new_token, buffer, NULL, SPECIAL);
+			return new_token;
 			break;
-		} // end MULTILINE_COMMENT
+		} // end SPECIAL
+
+		case CMP_OPERATOR: {
+			buffer_append(buffer, &pos, c, file); // first char (<, >, =, or !)
+			c = fgetc(file);
+
+			if (buffer[0] == '=') {
+				if (c == '=') { // only "=="
+					buffer_append(buffer, &pos, c, file);
+				} else {
+					ungetc(c, file); // single "=" is assignment
+					token_update(new_token, buffer, NULL, SPECIAL); 
+					return new_token;
+				}
+			}
+			else if (buffer[0] == '<' || buffer[0] == '>') {
+				if (c == '=') { // <= or >=
+					buffer_append(buffer, &pos, c, file);
+				} else {
+					ungetc(c, file); // just < or >
+				}
+			}
+
+			token_update(new_token, buffer, NULL, CMP_OPERATOR);
+			return new_token;
+		} // end CMP_OPERATOR
+		
+		case NOT_EQUAL: {
+			c = fgetc(file);
+			
+			if (c == '=') {
+				token_update(new_token, "!=", NULL, NOT_EQUAL);
+				return new_token;
+			}
+			buffer_append(buffer, &pos, '!', file);
+			buffer_append(buffer, &pos, c, file);
+			token_update(new_token, buffer, NULL, NOT_EQUAL);
+			program_error(file, ERR_LEX, 4, new_token); // invalid usage: '!' must be followed by '='
+			
+			break;
+		} // end NOT_EQUAL
+
+		case NUMERICAL: { // NOT FULLY IMPLEMENTED YET
+			if (isdigit(c)) {
+				buffer_append(buffer, &pos, c, file);
+				// stay in NUMERICAL, next iteration of outer while will grab next digit
+			} else {
+				ungetc(c, file);  // put back the non-digit
+				token_update(new_token, NULL, buffer, NUMERICAL);
+				return new_token;
+			}
+			c = fgetc(file);
+			break;
+		} // end NUMERICAL
 
 		default:
-			DEBUG_PRINT("UNKNOWN REEEEEEEEEe");
-			program_error(file, ERR_INTERNAL, 1, new_token);
+			program_error(file, ERR_INTERNAL, 1, new_token); // unknown token
 			break;
 		}
 	} // while(!EOF)
 
-	// ??? THIS DOES NOT ACCOUNT FOR DATA YET -> DATA BUFFER -> #NEXT_MEETING -> do we even need data??
-	if (new_token->type != FILE_END) //  has a type => definitely a non EOF token
-	{
-		if (pos != 0) {
-			buffer[pos] = '\0';
-			token_update(new_token, buffer, new_token->data, new_token->type);
-		}
-	}
-	else
-		token_update (new_token, NULL, NULL, FILE_END);
 
-
+	save_penultimate_token(new_token, buffer, pos);
+	(void)buffer_append_str; // REMOVE , JUST SO COMPILER DOESNT Complain
 	return new_token;
 }

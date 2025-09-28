@@ -123,7 +123,7 @@ const char *token_type_name(int type) {
         [MULTILINE_STRING_1] = "MULTILINE_STRING_1",
         [MULTILINE_STRING_2] = "MULTILINE_STRING_2",
         [IDENTIFIER] = "IDENTIFIER",
-        [OUR_INT] = "OUR_INT",
+        [NUMERICAL] = "NUMERICAL",
         [OUR_DOUBLE] = "OUR_DOUBLE",
         [UNARY_PLUS] = "UNARY_PLUS",
         [UNARY_MINUS] = "UNARY_MINUS",
