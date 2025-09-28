@@ -30,16 +30,16 @@
 #define START 0
 #define CMP_OPERATOR 1
 #define NOT_EQUAL 2
-#define SPECIAL 3       
-#define ARITHMETICAL 4  
-#define COMMENT 5               
-#define STRING 6             
-#define STRING_SPECIAL 7        
-#define MULTILINE_STRING_1 8    
-#define MULTILINE_STRING_2 9  
-#define IDENTIFIER 10           
-#define OUR_INT 11   
-#define OUR_DOUBLE 12          
+#define SPECIAL 3
+#define ARITHMETICAL 4
+#define COMMENT 5
+#define STRING 6
+#define STRING_SPECIAL 7
+#define MULTILINE_STRING_1 8
+#define MULTILINE_STRING_2 9
+#define IDENTIFIER 10
+#define OUR_INT 11
+#define OUR_DOUBLE 12
 #define UNARY_PLUS 13
 #define UNARY_MINUS 14
 #define IN_BUILT_FUNC 15
@@ -63,9 +63,10 @@
 #define NEWLINE 31
 #define ID_GLOBAL_VAR 32 // identifier for global variable
 
-# include <common.h>
+#include "common.h"
 
-struct KeywordEntry {
+struct KeywordEntry
+{
     const char *word;
     int type;
 };
