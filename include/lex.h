@@ -24,7 +24,7 @@
 #ifndef LEX_H
 #define LEX_H
 
-# include "common.h"
+#include "common.h"
 
 #define MAX_BUFFER_LENGTH 1024
 
@@ -66,7 +66,8 @@
 #define ID_GLOBAL_VAR 32 // identifier for global variable
 #define BLOCK_COMMENT 33
 
-struct KeywordEntry {
+struct KeywordEntry
+{
     const char *word;
     int type;
 };
