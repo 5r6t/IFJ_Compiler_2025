@@ -9,6 +9,8 @@
 //////////////////////////////////////////////
 
 #include "../include/common.h"
+#include "../include/lex.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -106,6 +108,50 @@ void token_free(TokenPtr token)
     }
 }
 
+// TABLE for printing token types as strings, not numbers
+const char *token_type_name(int type) {
+    // Must match the defines in lex.h
+    static const char *names[] = {
+        [START] = "START",
+        [CMP_OPERATOR] = "CMP_OPERATOR",
+        [NOT_EQUAL] = "NOT_EQUAL",
+        [SPECIAL] = "SPECIAL",
+        [ARITHMETICAL] = "ARITHMETICAL",
+        [COMMENT] = "COMMENT",
+        [STRING] = "STRING",
+        [STRING_SPECIAL] = "STRING_SPECIAL",
+        [MULTILINE_STRING_1] = "MULTILINE_STRING_1",
+        [MULTILINE_STRING_2] = "MULTILINE_STRING_2",
+        [IDENTIFIER] = "IDENTIFIER",
+        [OUR_INT] = "OUR_INT",
+        [OUR_DOUBLE] = "OUR_DOUBLE",
+        [UNARY_PLUS] = "UNARY_PLUS",
+        [UNARY_MINUS] = "UNARY_MINUS",
+        [IN_BUILT_FUNC] = "IN_BUILT_FUNC",
+        [KW_CLASS] = "KW_CLASS",
+        [KW_IF] = "KW_IF",
+        [KW_ELSE] = "KW_ELSE",
+        [KW_IS] = "KW_IS",
+        [KW_NULL] = "KW_NULL",
+        [KW_RETURN] = "KW_RETURN",
+        [KW_VAR] = "KW_VAR",
+        [KW_WHILE] = "KW_WHILE",
+        [KW_IFJ] = "KW_IFJ",
+        [KW_STATIC] = "KW_STATIC",
+        [KW_TRUE] = "KW_TRUE",
+        [KW_FALSE] = "KW_FALSE",
+        [KW_NUM] = "KW_NUM",
+        [KW_STRING] = "KW_STRING",
+        [KW_NULL_TYPE] = "KW_NULL_TYPE",
+        [NEWLINE] = "NEWLINE",
+        [ID_GLOBAL_VAR] = "ID_GLOBAL_VAR"
+    };
+    if (type == FILE_END) return "FILE_END";
+    if (type >= 0 && type < (int)(sizeof(names)/sizeof(names[0])) && names[type])
+        return names[type];
+    return NULL;
+}
+
 /**
  * @brief Prints the token's details for debugging purposes.
  *
@@ -118,10 +164,17 @@ void token_print(TokenPtr token)
     if (token == NULL)
         return;
 
-    DEBUG_PRINT("[TOKEN] ID: '%10s' | TYPE: %3d | DATA: '%s'\n",
-                token->id ? token->id : "N/A",
-                token->type,
-                token->data ? token->data : "N/A");
+    const char *type_name = token_type_name(token->type);
+    if (type_name)
+        DEBUG_PRINT("[TOKEN] ID: '%12s' | TYPE: %15s | DATA: '%s'\n",
+                    token->id ? token->id : "N/A",
+                    type_name,
+                    token->data ? token->data : "N/A");
+    else
+        DEBUG_PRINT("[TOKEN] ID: '%12s' | TYPE: %3d | DATA: '%s'\n",
+                    token->id ? token->id : "N/A",
+                    token->type,
+                    token->data ? token->data : "N/A");
 }
 
 char *error_list[] = {
