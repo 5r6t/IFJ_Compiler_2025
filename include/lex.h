@@ -19,6 +19,7 @@
  * Constants:
  * - `MAX_BUFFER_LENGTH`: Maximum length for tokens data/id storage.
  * - State definitions for various token types (e.g., identifiers, strings, operators).
+ * - lex.c and common.c depend on these definitions. 
  */
 
 #ifndef LEX_H
@@ -28,43 +29,52 @@
 
 #define MAX_BUFFER_LENGTH 1024
 
-#define FILE_END -1
-#define START 0
-#define CMP_OPERATOR 1
-#define NOT_EQUAL 2
-#define SPECIAL 3       
-#define ARITHMETICAL 4  
-#define COMMENT 5               
-#define STRING 6             
-#define STRING_SPECIAL 7        
-#define MULTILINE_STRING_1 8    
-#define MULTILINE_STRING_2 9  
-#define IDENTIFIER 10           
-#define NUMERICAL 11   
-#define OUR_DOUBLE 12          
-#define UNARY_PLUS 13
-#define UNARY_MINUS 14
-#define IN_BUILT_FUNC 15
+#define FILE_END        -1
 
-#define KW_CLASS 16
-#define KW_IF 17
-#define KW_ELSE 18
-#define KW_IS 19
-#define KW_NULL 20
-#define KW_RETURN 21
-#define KW_VAR 22
-#define KW_WHILE 23
-#define KW_IFJ 24
-#define KW_STATIC 25
-#define KW_TRUE 26
-#define KW_FALSE 27
-#define KW_NUM 28
-#define KW_STRING 29
-#define KW_NULL_TYPE 30
+// Core tokens
+#define START            0
+#define IDENTIFIER       1
+#define ID_GLOBAL_VAR    2
+#define NUMERICAL        3
+#define STRING           4
+#define STRING_SPECIAL   5
+#define MULTILINE_STRING_1 6
+#define MULTILINE_STRING_2 7
 
-#define NEWLINE 31
-#define ID_GLOBAL_VAR 32 // identifier for global variable
-#define BLOCK_COMMENT 33
+// Operators
+#define CMP_OPERATOR     8
+#define NOT_EQUAL        9
+#define ARITHMETICAL     10
+#define UNARY_PLUS       11
+#define UNARY_MINUS      12
+
+// Specials & punctuation
+#define SPECIAL          13
+#define NEWLINE          14
+
+// Comments
+#define COMMENT          15
+#define BLOCK_COMMENT    16
+
+// Keywords
+#define KW_CLASS         17
+#define KW_ELSE          18
+#define KW_FALSE         19
+#define KW_FOR           20
+#define KW_IF            21
+#define KW_IFJ           22
+#define KW_IMPORT        23
+#define KW_IS            24
+#define KW_NULL          25
+#define KW_NULL_TYPE     26
+#define KW_NUM           27
+#define KW_RETURN        28
+#define KW_STATIC        29
+#define KW_STRING        30
+#define KW_TRUE          31
+#define KW_VAR           32
+#define KW_WHILE         33
+
 
 struct KeywordEntry
 {

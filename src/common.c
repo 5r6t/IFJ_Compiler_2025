@@ -124,10 +124,8 @@ const char *token_type_name(int type) {
         [MULTILINE_STRING_2] = "MULTILINE_STRING_2",
         [IDENTIFIER] = "IDENTIFIER",
         [NUMERICAL] = "NUMERICAL",
-        [OUR_DOUBLE] = "OUR_DOUBLE",
         [UNARY_PLUS] = "UNARY_PLUS",
         [UNARY_MINUS] = "UNARY_MINUS",
-        [IN_BUILT_FUNC] = "IN_BUILT_FUNC",
         [KW_CLASS] = "KW_CLASS",
         [KW_IF] = "KW_IF",
         [KW_ELSE] = "KW_ELSE",
@@ -143,6 +141,8 @@ const char *token_type_name(int type) {
         [KW_NUM] = "KW_NUM",
         [KW_STRING] = "KW_STRING",
         [KW_NULL_TYPE] = "KW_NULL_TYPE",
+        [KW_IMPORT] = "KW_IMPORT",
+        [KW_FOR] = "KW_FOR",
         [NEWLINE] = "NEWLINE",
         [ID_GLOBAL_VAR] = "ID_GLOBAL_VAR"
     };
