@@ -469,7 +469,7 @@ int ARG_NAME(TokenPtr *nextToken, FILE *file)
     int correctTokenType = 0;
     size_t i = 0;
 
-    while (i < ARG_NAME_FIRST_LEN) // need rework
+    while (i < ARG_NAME_FIRST_LEN)
     {
         if (peek(&ARG_NAME_FIRST[i], *nextToken))
         {
