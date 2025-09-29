@@ -11,6 +11,7 @@
 #include "../include/common.h"
 #include "../include/lex.h"
 #include "../include/parser.h"
+#include "../include/ast.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -18,6 +19,8 @@
 
 /*NOTES:
    - once in time should call semantic analyze to make AST from simulated derivation tree -> quit confused how to do that
+   ├─ shouldn't it create an AST during analysis, i.e., when it recognizes the structure, it creates a suitable AST node?
+   └─ maybe change funciton types from int to ASTptr so we can assemble the tree
    - LOGIC ERROR -> few function will be kill withou chcecking all rules -> create (or remake match to) peek function
    - problem with arg_name using peek function check if there is valid token type if yes token will be processed (token will be used to created AST node ), must thing of way how to processed all arg at once or not
 */
@@ -76,6 +79,13 @@ int CLASS(TokenPtr *nextToken, FILE *file)
     static const size_t PROLOG_TARGET_LEN = sizeof(CLASS_TARGET) / sizeof(CLASS_TARGET[0]);
     for_function(CLASS_TARGET, file, nextToken, PROLOG_TARGET_LEN);
 
+    // create ASTnode for class Program - TODO
+    /*
+    ASTptr class_node = (ASTptr)malloc(sizeof(struct ASTnode));
+    ASTptr->type = CLASS_NODE;
+    ASTptr->program.child = FUNCTIONS(nextToken, file);
+    */
+
     FUNCTIONS(nextToken, file);
     // nextToken = lexer(file);
 
@@ -90,7 +100,14 @@ int FUNCTIONS(TokenPtr *nextToken, FILE *file)
     static const target FUNCTIONS_FOLLOW = {SPECIAL, "}"};
 
     if ((*nextToken)->type == KW_STATIC)
-    {
+    {   
+        /* // TODO
+        ASTptr func_node = (ASTptr)malloc(sizeof(struct ASTnode));
+        func_node->type = FUNC_NODE;
+        func_node->func.name = FUNC_NAME(nextToken, file);
+        func_node->func.params = FUNC_GET_SET_DEF(nextToken, file);
+        func_node->func.body = FUNCTIONS(nextToken, file);
+        */
         static const target FUNCTIONS_FIRST = {KW_STATIC, "static"};
         advance(&FUNCTIONS_FIRST, nextToken, file);
         FUNC_NAME(nextToken, file);        // dont forget to iterate nextToken inside this function!!!
@@ -98,6 +115,7 @@ int FUNCTIONS(TokenPtr *nextToken, FILE *file)
         FUNCTIONS(nextToken, file);
         *nextToken = lexer(file);
         return 0;
+        // return func_node;
     }
     else if (peek(&FUNCTIONS_FOLLOW, *nextToken)) // epsilon
     {
