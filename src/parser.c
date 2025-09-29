@@ -19,24 +19,15 @@
 
 /*NOTES:
    - once in time should call semantic analyze to make AST from simulated derivation tree -> quit confused how to do that
-   ├─ shouldn't it create an AST during analysis, i.e., when it recognizes the structure, it creates a suitable AST node?
-   └─ maybe change funciton types from int to ASTptr so we can assemble the tree
-   - LOGIC ERROR -> few function will be kill withou chcecking all rules -> create (or remake match to) peek function
+   ├─ shouldn't it create an AST during analysis, i.e., when it recognizes the structure, it creates a suitable AST node? -> A: yes, it will be call at the end of function
+   └─ maybe change funciton types from int to ASTptr so we can assemble the tree -> A: yes but first i want to finish LL rules
    - problem with arg_name using peek function check if there is valid token type if yes token will be processed (token will be used to created AST node ), must thing of way how to processed all arg at once or not
 */
 
-void parser(FILE *file)
+void parser(FILE *file) // change return type to ASTnode
 {
     TokenPtr nextToken = lexer(file); // lookahead -> maybe i shouldn`t declare nextToken here, something to think about
     PROGRAM(&nextToken, file);
-    /*if (PROGRAM(nextToken, file))
-    {
-        return 0;
-    }
-    else
-    {
-        return 1; // change to error code that is most fitting
-    }*/
 }
 
 int PROGRAM(TokenPtr *nextToken, FILE *file) // maybe I should return ast nodes (required to have tree -> define in semantic analyze)
@@ -48,7 +39,7 @@ int PROGRAM(TokenPtr *nextToken, FILE *file) // maybe I should return ast nodes 
     return 0;
 }
 
-int PROLOG(TokenPtr *nextToken, FILE *file)
+int PROLOG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     // TODO change this to be more effective using function while_function
     static const target PROLOG_TARGET[] = {
@@ -65,7 +56,7 @@ int PROLOG(TokenPtr *nextToken, FILE *file)
     return 0;
 }
 
-int CLASS(TokenPtr *nextToken, FILE *file)
+int CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     // TODO make while and array filled with "class Program { EOL". While would iterated until array is passted then function FUNCTIONS is called and after that check for }
 
@@ -95,13 +86,13 @@ int CLASS(TokenPtr *nextToken, FILE *file)
     return 0;
 }
 
-int FUNCTIONS(TokenPtr *nextToken, FILE *file)
+int FUNCTIONS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target FUNCTIONS_FOLLOW = {SPECIAL, "}"};
 
     if ((*nextToken)->type == KW_STATIC)
-    {   
-        /* // TODO
+    {
+        /* // TODO -> need to talk with ya about this
         ASTptr func_node = (ASTptr)malloc(sizeof(struct ASTnode));
         func_node->type = FUNC_NODE;
         func_node->func.name = FUNC_NAME(nextToken, file);
@@ -128,14 +119,36 @@ int FUNCTIONS(TokenPtr *nextToken, FILE *file)
     return 1;
 }
 
-int FUNC_NAME(TokenPtr *nextToken, FILE *file)
+int FUNC_NAME(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    static const target FUNC_NAME_TARGET = {IDENTIFIER, NULL};
-    advance(&FUNC_NAME_TARGET, nextToken, file); // is nextToken pointer?
-    return 0;
+    static const target FUNC_NAME_SEQ[] =
+        {
+            {KW_IFJ, NULL},
+            {SPECIAL, "."},
+            {IDENTIFIER, NULL}};
+
+    size_t FUNC_NAME_SEQ_LEN = sizeof(FUNC_NAME_SEQ) / sizeof(FUNC_NAME_SEQ[0]);
+    // static const target FUNC_NAME_TARGET = {IDENTIFIER, NULL};
+    if ((*nextToken)->type == IDENTIFIER)
+    {
+        // advance(&FUNC_NAME_TARGET, nextToken, file); // is nextToken pointer?
+        *nextToken = lexer(file);
+        return 0;
+    }
+    else if ((*nextToken)->type == KW_IFJ)
+    {
+        for_function(&FUNC_NAME_SEQ, file, nextToken, FUNC_NAME_SEQ_LEN);
+        return 0;
+    }
+
+    else
+    {
+        program_error(file, 2, 4, nextToken);
+    }
+    return 1;
 }
 
-int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file)
+int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     target FUNC_DEF = {SPECIAL, "("};
 
@@ -198,7 +211,7 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file)
     return 1;
 }
 
-int PAR(TokenPtr *nextToken, FILE *file)
+int PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target PAR_FIRST = {IDENTIFIER, NULL};
     static const target PAR_FOLLOW = {SPECIAL, ")"};
@@ -221,7 +234,7 @@ int PAR(TokenPtr *nextToken, FILE *file)
     return 1;
 }
 
-int NEXT_PAR(TokenPtr *nextToken, FILE *file)
+int NEXT_PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target NEXT_PAR_FIRST = {SPECIAL, ","};
     static const target NEXT_PAR_FOLLOW = {SPECIAL, ")"};
@@ -243,12 +256,13 @@ int NEXT_PAR(TokenPtr *nextToken, FILE *file)
     return 1;
 }
 
-int FUNC_BODY(TokenPtr *nextToken, FILE *file)
+int FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target DUMMY_EXPRESSION = {IDENTIFIER, NULL};
     static const target RETURN_FIRST = {KW_RETURN, NULL};
-    static const target RETURN_END = {NEWLINE, NULL};
+    static const target FUNC_BODY_END = {NEWLINE, NULL};
     static const target FUNC_BODY_FOLLOW = {SPECIAL, "}"};
+    static const target VAR_ASS_CALL_GET = {CMP_OPERATOR, "="};
 
     static const target FUNC_INTRO_SEQ[] =
         {
@@ -294,24 +308,36 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file)
             {KW_WHILE, NULL},
             {SPECIAL, "("}};
 
+    static const target IN_BUILT_FUNC_SEQ[] =
+        {
+            {SPECIAL, "."},
+            {IDENTIFIER, NULL},
+            {SPECIAL, "("}};
+
     size_t IF_STATMENT_ELSE_BRANCH_SEQ_LEN = sizeof(IF_STATMENT_ELSE_BRANCH_SEQ) / sizeof(IF_STATMENT_ELSE_BRANCH_SEQ[0]);
     size_t IF_STATMENT_MIDDLE_SEQ_LEN = sizeof(IF_STATMENT_MIDDLE_SEQ) / sizeof(IF_STATMENT_MIDDLE_SEQ[0]);
     size_t IF_STATMENT_START_SEQ_LEN = sizeof(IF_STATMENT_START_SEQ) / sizeof(IF_STATMENT_START_SEQ[0]);
     size_t VAR_ASS_CALL_GET_SEQ_LEN = sizeof(VAR_ASS_CALL_GET_SEQ) / sizeof(VAR_ASS_CALL_GET_SEQ[0]);
     size_t FUNC_BODY_DECL_SEQ_LEN = sizeof(FUNC_BODY_DECL_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
+    size_t IN_BUILT_FUNC_SEQ_LEN = sizeof(IN_BUILT_FUNC_SEQ) / sizeof(IN_BUILT_FUNC_SEQ[0]);
     size_t WHILE_START_SEQ_LEN = sizeof(WHILE_START_SEQ) / sizeof(WHILE_START_SEQ[0]);
     size_t FUNC_INTRO_SEQ_LEN = sizeof(FUNC_INTRO_SEQ) / sizeof(FUNC_INTRO_SEQ[0]);
     size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
 
-    if ((*nextToken)->type == KW_VAR)
+    if ((*nextToken)->type == KW_VAR) // rework -> Add var name as function
     {
-        for_function(FUNC_BODY_DECL_SEQ, file, nextToken, FUNC_BODY_DECL_SEQ_LEN);
+        // for_function(FUNC_BODY_DECL_SEQ, file, nextToken, FUNC_BODY_DECL_SEQ_LEN);
+        *nextToken = lexer(file);
+        VAR_NAME(nextToken, file);
+        advance(&FUNC_BODY_END, nextToken, file);
         FUNC_BODY(nextToken, file);
         return 0;
     }
-    else if ((*nextToken)->type == IDENTIFIER) // beware GLOBAL ID can be here used as name so this must function should work different
+    else if (VAR_NAME(nextToken, file)) // beware GLOBAL ID can be here used as name so this must function should work different
     {
-        for_function(VAR_ASS_CALL_GET_SEQ, file, nextToken, VAR_ASS_CALL_GET_SEQ_LEN);
+        // for_function(VAR_ASS_CALL_GET_SEQ, file, nextToken, VAR_ASS_CALL_GET_SEQ_LEN);
+        //  here should be creation of node for ast or something, should discus with Honza
+        advance(&VAR_ASS_CALL_GET, nextToken, file);
         RSA(nextToken, file);
         return 0;
     }
@@ -344,7 +370,7 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file)
         advance(&RETURN_FIRST, nextToken, file);
         // Here I will give control to PSA, for now I will use dummy expresion
         advance(&DUMMY_EXPRESSION, nextToken, file);
-        advance(&RETURN_END, nextToken, file);
+        advance(&FUNC_BODY_END, nextToken, file);
         FUNC_BODY(nextToken, file);
         return 0;
     }
@@ -352,7 +378,7 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file)
     {
         for_function(FUNC_INTRO_SEQ, file, nextToken, FUNC_INTRO_SEQ_LEN);
         FUNC_BODY(nextToken, file);
-        advance(&RETURN_END, nextToken, file);
+        advance(&FUNC_BODY_END, nextToken, file);
         FUNC_BODY(nextToken, file);
         return 0;
     }
@@ -367,7 +393,7 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file)
     return 1;
 }
 
-int RSA(TokenPtr *nextToken, FILE *file)
+int RSA(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     if ((*nextToken)->type == IDENTIFIER)
     {
@@ -380,6 +406,9 @@ int RSA(TokenPtr *nextToken, FILE *file)
         }
         return 0;
     } // there can be a expression -> give control to PSA
+    else if ((*nextToken)->type == KW_IFJ)
+    {
+    }
     else
     {
         fprintf(stderr, "SYNTAX ERROR");
@@ -388,7 +417,7 @@ int RSA(TokenPtr *nextToken, FILE *file)
     return 1;
 }
 
-int FUNC_TYPE(TokenPtr *nextToken, FILE *file)
+int FUNC_TYPE(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     target FUNC_TYPE_FIRST = {SPECIAL, "("}; // this struct is modifable because i didn`t want to create another struct
     if ((*nextToken)->type == SPECIAL)
@@ -411,10 +440,10 @@ int FUNC_TYPE(TokenPtr *nextToken, FILE *file)
     return 1;
 }
 
-int ARG(TokenPtr *nextToken, FILE *file)
+int ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target ARG_FOLLOW = {SPECIAL, ")"};
-    // PROBLEM THERE IS NUMBER OF THINGS THAT CAN BE ANOTHER RULE TO FOLLOW, I NEED A EFFECTIVE WAY TO DETERMINT WHICH TO PEAK AND CONTINUEff
+
     if (ARG_NAME(nextToken, file))
     {
         // create node
@@ -434,7 +463,7 @@ int ARG(TokenPtr *nextToken, FILE *file)
     return 1;
 }
 
-int NEXT_ARG(TokenPtr *nextToken, FILE *file)
+int NEXT_ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target NEXT_ARG_FIRST = {SPECIAL, ","}; // look at it again please
     static const target NEXT_ARG_FOLLOW = {SPECIAL, ")"};
@@ -456,17 +485,22 @@ int NEXT_ARG(TokenPtr *nextToken, FILE *file)
     return 1; // unnecessary return -> gcc will cry if omitted
 }
 
-int ARG_NAME(TokenPtr *nextToken, FILE *file)
+int ARG_NAME(TokenPtr *nextToken, FILE *file) // THIS NEEDS TO BE INT -> NODE WILL BE CREATE IN FUNCTION ARG AND NEXT_ARG
 {
     static const target ARG_NAME_FIRST[] = {
-        {OUR_INT, NULL},
+        {NUMERICAL, NULL},
         {IDENTIFIER, NULL},
         {ID_GLOBAL_VAR, NULL},
-        {STRING, NULL},
-        {OUR_DOUBLE, NULL}};
+        {STRING, NULL}};
 
     size_t ARG_NAME_FIRST_LEN = sizeof(ARG_NAME_FIRST) / sizeof(ARG_NAME_FIRST[0]);
-    int correctTokenType = 0;
+
+    if (nameHelperFunc(nextToken, ARG_NAME_FIRST, ARG_NAME_FIRST_LEN))
+    {
+        return 0;
+    }
+    program_error(file, 2, 4, *nextToken);
+    /*int correctTokenType = 0;
     size_t i = 0;
 
     while (i < ARG_NAME_FIRST_LEN)
@@ -481,7 +515,37 @@ int ARG_NAME(TokenPtr *nextToken, FILE *file)
         }
         i++;
     }
-    program_error(file, 2, 4, *nextToken);
+    program_error(file, 2, 4, *nextToken);*/
+    return 1;
+}
+
+int VAR_NAME(TokenPtr *nextToken, FILE *file)
+{
+    static const target VAR_NAME_SEQ[] = {
+        {IDENTIFIER, NULL},
+        {ID_GLOBAL_VAR, NULL}};
+
+    size_t VAR_NAME_SEQ_LEN = sizeof(VAR_NAME_SEQ) / sizeof(VAR_NAME_SEQ[0]);
+
+    if (nameHelperFunc(nextToken, VAR_NAME_SEQ, VAR_NAME_SEQ_LEN))
+    {
+        return 0;
+    }
+    program_error(file, 2, 4, nextToken);
+    return 1;
+}
+
+int nameHelperFunc(TokenPtr *nextToken, const target *target[], size_t target_len)
+{
+    size_t i = 0;
+    while (i < target_len)
+    {
+        if (peek(target[i], nextToken))
+        {
+            return 0;
+        }
+        i++;
+    }
     return 1;
 }
 
