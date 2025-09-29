@@ -50,6 +50,9 @@ static const struct KeywordEntry keyword_table[] = {
 	{"null", KW_NULL},
 	{"return", KW_RETURN},
 	{"var", KW_VAR},
+	{"import", KW_IMPORT},
+	{"for", KW_FOR},
+	{"for", KW_FOR},
 	{"while", KW_WHILE},
 	{"Ifj", KW_IFJ},
 	{"static", KW_STATIC},
@@ -102,11 +105,17 @@ static void save_penultimate_token(TokenPtr new_token, char *buffer, size_t pos)
 	if (pos != 0 && new_token->type != FILE_END) {
 		switch (new_token->type) {
 		case IDENTIFIER:
-			token_update(new_token, buffer, NULL, new_token->type);
+			if (pos > 1 && buffer[0]=='_' && buffer[1]=='_') {
+					token_update(new_token, buffer, NULL, ID_GLOBAL_VAR);
+					return;
+				}
+
+			token_update(new_token, buffer, NULL, IDENTIFIER);
+			check_keyword(new_token);
 			break;
 
 		case NUMERICAL:
-			token_update(new_token, buffer, NULL, new_token->type);
+			token_update(new_token, NULL, buffer, new_token->type);
 			break;
 
 		default:
