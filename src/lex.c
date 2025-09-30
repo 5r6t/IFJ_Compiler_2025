@@ -15,7 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <stdbool.h>
 
 /**
  * @file lex.c
@@ -26,21 +25,11 @@
  * on recognized patterns (e.g., identifiers, strings, operators, special characters...).
  */
 
-/**
- * @brief Skips whitespace characters in the input file.
- * @param file Pointer to the file to read from
- * @param c The current character read from the file
- * @return The next non-whitespace character, or EOF if the end of the file
- *
- * this function is for consuming whitespace characters
- * you need to call ungetc() if you are planning to just peek
-*/
-int skip_whitespace(FILE *file, int c) {
-	while (c != EOF && isblank(c)) {
-		c = fgetc(file);
-	}
-	return c; // return the non-whitespace (or EOF)
-}
+#define FINALIZE_NUM() do { \
+    ungetc(c, file); \
+    token_update(token, NULL, buffer, NUMERICAL); \
+} while (0)
+
 
 static const struct KeywordEntry keyword_table[] = {
 	{"class", KW_CLASS},
@@ -82,6 +71,19 @@ void check_keyword(TokenPtr token) {
 	// If not found, token->type stays IDENTIFIER
 }
 
+/**
+ * @brief Skips whitespace characters in the input file.
+ * @param file Pointer to the file to read from
+ * @param c The current character read from the file
+ * @return The next non-whitespace character, or EOF if the end of the file
+*/
+int skip_whitespace(FILE *file, int c) {
+	while (c != EOF && isblank(c)) {
+		c = fgetc(file);
+	}
+	return c; // return the non-whitespace (or EOF)
+}
+
 // Helper function to safely append a character to the buffer and increment the position
 static void buffer_append(char *buffer, size_t *pos, int c, FILE *file) {
 	if (*pos >= MAX_BUFFER_LENGTH - 1) {
@@ -99,9 +101,103 @@ static void buffer_append_str(char *buffer, size_t *pos,
     }
 }
 
+/**
+ * @brief Function implementing 
+ * FSM for creating Num type, can be called when a number token is needed to be built
+ * @return TokenPtr num_token
+ */
+typedef enum {
+    NUM_START,
+    NUM_DEC,
+    NUM_HEX_START,
+    NUM_HEX,
+    NUM_FRAC,
+    NUM_EXP_START,
+    NUM_EXP_SIGN,
+    NUM_EXP,
+} NumState;
+
+int numerizer (TokenPtr token, int c, FILE* file) {
+
+	NumState state = NUM_START;
+	char buffer[MAX_BUFFER_LENGTH] = {0};
+	size_t pos = 0;
+
+	while (c != EOF) {
+		switch (state) {
+			case NUM_START: {
+				if (isdigit(c)) {
+					buffer_append(buffer, &pos, c, file);
+					c = fgetc(file);
+					state = NUM_DEC;
+				} else {
+					return 0; // error
+				}
+			break;
+			} // end NUM_START
+			case NUM_DEC:{
+				if (isdigit(c)) {
+					// continue building
+					buffer_append(buffer, &pos, c, file);
+				} else if (c == '.') {
+					// go to fraction
+					buffer_append(buffer, &pos, c, file);
+					state = NUM_FRAC;
+				} else if (c == 'e' || c == 'E') {
+					// go to exponent
+					buffer_append(buffer, &pos, c, file);
+					state = NUM_EXP_SIGN;
+				} else {
+					FINALIZE_NUM();
+					return 1; // done
+				}
+				c = fgetc(file);
+			break;
+			} // end NUM_DEC
+			case NUM_FRAC: {
+				if (isdigit(c)) {
+					buffer_append(buffer, &pos, c, file);
+				}
+				else if (c == 'e' || c == 'E') {
+					if (buffer[pos-1] == '.') {
+						return 0; // error: ends with dot before exponent
+					}
+					buffer_append(buffer, &pos, c, file);
+					state = NUM_EXP_SIGN;
+				}
+				else {
+					FINALIZE_NUM();
+					if (buffer[pos-1] == '.')
+						return 0; // error
+					return 1;     // done
+				}
+				c = fgetc(file);
+			break;
+			} // end NUM_FRAC
+			case NUM_EXP_SIGN: {
+				if (c == '-' || c == '+' || isdigit(c)) {
+					buffer_append(buffer, &pos, c, file);
+				} else {
+					return 0; // error
+				}
+				c = fgetc(file);
+			break;
+			} // end NUM_EXP_SIGN
+			case NUM_HEX: {
+			break;
+			} // end NUM_HEX
+
+			default:
+				return 0;
+		} // switch state
+	} // loop until EOF
+	ungetc(c, file); 
+	token_update(token, NULL, buffer, NUMERICAL); // unfinished token, most likely
+	return 0;
+}
+
 // Save the last token when EOF is reached
 static void save_penultimate_token(TokenPtr new_token, char *buffer, size_t pos) {
-	// DOES NOT ACCOUNT FOR DATA YET
 	if (pos != 0 && new_token->type != FILE_END) {
 		switch (new_token->type) {
 		case IDENTIFIER:
@@ -217,7 +313,6 @@ TokenPtr lexer(FILE *file) {
 			}
 			break;
 		} // end IDENTIFIER
-
 
 		case STRING: {
 			c = fgetc(file);
@@ -368,18 +463,16 @@ TokenPtr lexer(FILE *file) {
 			break;
 		} // end NOT_EQUAL
 
-		case NUMERICAL: { // NOT FULLY IMPLEMENTED YET
-			if (isdigit(c)) {
-				buffer_append(buffer, &pos, c, file);
-				// stay in NUMERICAL, next iteration of outer while will grab next digit
-			} else {
-				ungetc(c, file);  // put back the non-digit
-				token_update(new_token, NULL, buffer, NUMERICAL);
+		case NUMERICAL: {
+			token_update(new_token, NULL, NULL, NUMERICAL);
+			if (numerizer(new_token, c, file)) {
 				return new_token;
+			} else {
+				program_error(file, ERR_LEX, 1, new_token);
 			}
-			c = fgetc(file);
 			break;
-		} // end NUMERICAL
+		}
+
 
 		default:
 			program_error(file, ERR_INTERNAL, 1, new_token); // unknown token

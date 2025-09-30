@@ -32,13 +32,13 @@
 #define FILE_END        -1
 
 // Core tokens
-#define START            0
+#define START            0 // Lex States Only
 #define IDENTIFIER       1
 #define ID_GLOBAL_VAR    2
 #define NUMERICAL        3
 #define STRING           4
-#define STRING_SPECIAL   5
-#define MULTILINE_STRING_1 6
+#define STRING_SPECIAL   5 // Lex States Only
+#define MULTILINE_STRING_1 6 
 #define MULTILINE_STRING_2 7
 
 // Operators
@@ -53,8 +53,8 @@
 #define NEWLINE          14
 
 // Comments
-#define COMMENT          15
-#define BLOCK_COMMENT    16
+#define COMMENT          15 // Lex States Only
+#define BLOCK_COMMENT    16 // Lex States Only
 
 // Keywords
 #define KW_CLASS         17

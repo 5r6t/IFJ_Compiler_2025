@@ -177,6 +177,7 @@ void token_print(TokenPtr token)
                     token->data ? token->data : "N/A");
 }
 
+/// @brief suggestion -- add defines for error messages?
 char *error_list[] = {
     "\n!!! Internal error has occurred within the program. !!!\n",
     "\n!!! Invalid token has been found during scanning process: !!!\n",
