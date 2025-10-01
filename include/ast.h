@@ -21,7 +21,7 @@ typedef struct ASTnode {
 
         struct {
             char *name; // function name
-            char **params; // parameter array
+            char **paramNames; // parameter array
             int paramCount; // number of parameters, 0 - getter, 1 - setter, n - function
             struct ASTnode *params;
             struct ASTnode *body;
