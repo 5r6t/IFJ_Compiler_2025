@@ -13,6 +13,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <regex.h>
 
 /**
  * @file common.c
@@ -20,7 +21,7 @@
  *
  * This file contains implementations for:
  * - Token initialization, creation, and printing.
- * - String duplication.
+ * - String duplication, regex checks
  * - Error handling and program termination.
  */
 
@@ -65,10 +66,28 @@ TokenPtr token_init()
 }
 
 /**
+ * @brief Tries to match a string against a provided regex pattern (string)
+ * @return 0 on success
+ */
+int regex_match(const char *string, const char *pattern) {
+    regex_t regex;
+    int ret;
+
+    // compile regex
+    ret = regcomp(&regex, pattern, REG_EXTENDED);
+    if (ret) program_error(NULL, ERR_INTERNAL, ERR_MSG_INTERNAL, NULL);
+    
+    // execute regex
+    ret = regexec(&regex, string, 0, NULL, 0);
+    regfree(&regex);
+
+    return ret; // 0 == match
+}
+
+/**
  * @brief Creates a token and initializes its fields.
  *
- * Sets the token's ID, data, and type. The token's fields are dynamically
- * allocated copies of the provided strings.
+ * Token's fields are dynamically allocated copies of the provided strings.
  *
  * @param token Pointer to the token to initialize.
  * @param id String for the token ID.
@@ -92,7 +111,6 @@ void token_free(TokenPtr token)
 {
     if (token != NULL)
     {
-
         if (token->id != NULL)
         {
             free(token->id);
@@ -109,46 +127,47 @@ void token_free(TokenPtr token)
 }
 
 // TABLE for printing token types as strings, not numbers
-const char *token_type_name(int type)
-{
+static const char *names[] = {
+    [START]            = "START",
+    [IDENTIFIER]       = "IDENTIFIER",
+    [ID_GLOBAL_VAR]    = "ID_GLOBAL_VAR",
+    [NUMERICAL]        = "NUMERICAL",
+    [STRING]           = "STRING",
+    [STRING_SPECIAL]   = "STRING_SPECIAL",
+    [MULTILINE_STRING_1] = "MULTILINE_STRING_1",
+    [MULTILINE_STRING_2] = "MULTILINE_STRING_2",
+
+    [CMP_OPERATOR]     = "CMP_OPERATOR",
+    [NOT_EQUAL]        = "NOT_EQUAL",
+    [ARITHMETICAL]     = "ARITHMETICAL",
+
+    [SPECIAL]          = "SPECIAL",
+    [NEWLINE]          = "NEWLINE",
+
+    [COMMENT]          = "COMMENT",
+    [BLOCK_COMMENT]    = "BLOCK_COMMENT",
+
+    [KW_CLASS]         = "KW_CLASS",
+    [KW_ELSE]          = "KW_ELSE",
+    [KW_FOR]           = "KW_FOR",
+    [KW_IF]            = "KW_IF",
+    [KW_IFJ]           = "KW_IFJ",
+    [KW_IMPORT]        = "KW_IMPORT",
+    [KW_IS]            = "KW_IS",
+    [KW_NULL]          = "KW_NULL",        // "null" literal
+    [KW_NULL_TYPE]     = "KW_NULL_TYPE",   // "Null" type
+    [KW_NUM]           = "KW_NUM",
+    [KW_RETURN]        = "KW_RETURN",
+    [KW_STATIC]        = "KW_STATIC",
+    [KW_STRING]        = "KW_STRING",
+    [KW_VAR]           = "KW_VAR",
+    [KW_WHILE]         = "KW_WHILE"
+};
+
+const char *token_type_name(int type) {
     // Must match the defines in lex.h
-    static const char *names[] = {
-        [START] = "START",
-        [CMP_OPERATOR] = "CMP_OPERATOR",
-        [NOT_EQUAL] = "NOT_EQUAL",
-        [SPECIAL] = "SPECIAL",
-        [ARITHMETICAL] = "ARITHMETICAL",
-        [COMMENT] = "COMMENT",
-        [STRING] = "STRING",
-        [STRING_SPECIAL] = "STRING_SPECIAL",
-        [MULTILINE_STRING_1] = "MULTILINE_STRING_1",
-        [MULTILINE_STRING_2] = "MULTILINE_STRING_2",
-        [IDENTIFIER] = "IDENTIFIER",
-        [NUMERICAL] = "NUMERICAL",
-        [UNARY_PLUS] = "UNARY_PLUS",
-        [UNARY_MINUS] = "UNARY_MINUS",
-        [KW_CLASS] = "KW_CLASS",
-        [KW_IF] = "KW_IF",
-        [KW_ELSE] = "KW_ELSE",
-        [KW_IS] = "KW_IS",
-        [KW_NULL] = "KW_NULL",
-        [KW_RETURN] = "KW_RETURN",
-        [KW_VAR] = "KW_VAR",
-        [KW_WHILE] = "KW_WHILE",
-        [KW_IFJ] = "KW_IFJ",
-        [KW_STATIC] = "KW_STATIC",
-        [KW_TRUE] = "KW_TRUE",
-        [KW_FALSE] = "KW_FALSE",
-        [KW_NUM] = "KW_NUM",
-        [KW_STRING] = "KW_STRING",
-        [KW_NULL_TYPE] = "KW_NULL_TYPE",
-        [KW_IMPORT] = "KW_IMPORT",
-        [KW_FOR] = "KW_FOR",
-        [NEWLINE] = "NEWLINE",
-        [ID_GLOBAL_VAR] = "ID_GLOBAL_VAR"};
-    if (type == FILE_END)
-        return "FILE_END";
-    if (type >= 0 && type < (int)(sizeof(names) / sizeof(names[0])) && names[type])
+    if (type == FILE_END) return "FILE_END";
+    if (type >= 0 && type < (int)(sizeof(names)/sizeof(names[0])) && names[type])
         return names[type];
     return NULL;
 }

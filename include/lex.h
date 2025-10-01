@@ -32,49 +32,44 @@
 #define FILE_END        -1
 
 // Core tokens
-#define START            0 // Lex States Only
-#define IDENTIFIER       1
-#define ID_GLOBAL_VAR    2
-#define NUMERICAL        3
-#define STRING           4
-#define STRING_SPECIAL   5 // Lex States Only
-#define MULTILINE_STRING_1 6 
+#define START             0 // Lex States Only
+#define IDENTIFIER        1
+#define ID_GLOBAL_VAR     2
+#define NUMERICAL         3
+#define STRING            4
+#define STRING_SPECIAL    5 // Lex States Only
+#define MULTILINE_STRING_1 6
 #define MULTILINE_STRING_2 7
 
 // Operators
-#define CMP_OPERATOR     8
-#define NOT_EQUAL        9
+#define CMP_OPERATOR      8
+#define NOT_EQUAL         9
 #define ARITHMETICAL     10
-#define UNARY_PLUS       11
-#define UNARY_MINUS      12
 
 // Specials & punctuation
-#define SPECIAL          13
-#define NEWLINE          14
+#define SPECIAL          11
+#define NEWLINE          12
 
 // Comments
-#define COMMENT          15 // Lex States Only
-#define BLOCK_COMMENT    16 // Lex States Only
+#define COMMENT          13 // Lex States Only
+#define BLOCK_COMMENT    14 // Lex States Only
 
 // Keywords
-#define KW_CLASS         17
-#define KW_ELSE          18
-#define KW_FALSE         19
-#define KW_FOR           20
-#define KW_IF            21
-#define KW_IFJ           22
-#define KW_IMPORT        23
-#define KW_IS            24
-#define KW_NULL          25
-#define KW_NULL_TYPE     26
-#define KW_NUM           27
-#define KW_RETURN        28
-#define KW_STATIC        29
-#define KW_STRING        30
-#define KW_TRUE          31
-#define KW_VAR           32
-#define KW_WHILE         33
-
+#define KW_CLASS         15
+#define KW_ELSE          16
+#define KW_FOR           17
+#define KW_IF            18
+#define KW_IFJ           19
+#define KW_IMPORT        20
+#define KW_IS            21
+#define KW_NULL          22   // "null" literal
+#define KW_NULL_TYPE     23   // "Null" type
+#define KW_NUM           24
+#define KW_RETURN        25
+#define KW_STATIC        26
+#define KW_STRING        27
+#define KW_VAR           28
+#define KW_WHILE         29
 
 struct KeywordEntry
 {
@@ -82,6 +77,39 @@ struct KeywordEntry
     int type;
 };
 
+static const struct KeywordEntry keyword_table[] = {
+	{"class", KW_CLASS},
+	{"if", KW_IF},
+	{"else", KW_ELSE},
+	{"is", KW_IS},
+	{"null", KW_NULL},
+	{"return", KW_RETURN},
+	{"var", KW_VAR},
+	{"import", KW_IMPORT},
+	{"for", KW_FOR},
+	{"for", KW_FOR},
+	{"while", KW_WHILE},
+	{"Ifj", KW_IFJ},
+	{"static", KW_STATIC},
+	{"Num", KW_NUM},
+	{"String", KW_STRING},
+	{"Null", KW_NULL_TYPE}
+};
+
+typedef enum {
+    NUM_START,
+    NUM_DEC,
+    NUM_HEX_START,
+    NUM_HEX,
+    NUM_FRAC,
+    NUM_EXP_START,
+    NUM_EXP_SIGN,
+    NUM_EXP,
+} NumState;
+
 TokenPtr lexer(FILE *file);
+void buffer_append(char* buffer, size_t *pos, int c, FILE* file);
+int skip_whitespace(FILE *file, int c);
+void save_penultimate_token(TokenPtr token, char* buffer, size_t* pos, FILE* file);
 
 #endif // LEX_H

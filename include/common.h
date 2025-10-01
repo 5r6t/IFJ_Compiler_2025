@@ -46,6 +46,13 @@
 #define ERR_RUNTIME_ARG 25  // Runtime: invalid builtin parameter type
 #define ERR_RUNTIME_TYPE 26 // Runtime: type mismatch in expr at runtime
 
+// --- ERROR MESSAGE NUMBERS FOR program_error()
+#define ERR_MSG_INTERNAL 0
+#define ERR_MSG_INVALID_TOK 1
+#define ERR_MSG_BUFF_OVERFLOW 2
+#define ERR_MSG_NOT_IMPLEMENTED 3
+#define ERR_MSG_WRONG_SYNTAX 4
+
 typedef struct Token
 {
     char *id;
@@ -66,6 +73,7 @@ void token_free(TokenPtr token);
 void token_print(TokenPtr token);
 
 char *my_strdup(const char *str);
+int regex_match(const char *string, const char *pattern);
 void program_error(FILE *file, int err_type, int err_index, TokenPtr bad_token);
 
 #endif

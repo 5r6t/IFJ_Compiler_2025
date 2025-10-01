@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <regex.h>
 
 /**
  * @file lex.c
@@ -23,6 +24,10 @@
  * Implements a finite state machine (FSM) to tokenize the input from a file.
  * It reads characters, transitions between states, and creates tokens based
  * on recognized patterns (e.g., identifiers, strings, operators, special characters...).
+ *
+ * Functions validate_num, save_penultimate token exist to improve robustness
+ * of lexer (accepting identifiers and numbers at EOF) -- not possible in functional code
+ *
  */
 
 #define FINALIZE_NUM() do { \
@@ -30,27 +35,14 @@
     token_update(token, NULL, buffer, NUMERICAL); \
 } while (0)
 
+#define APPEND_TO_BUFFER() do { \
+	buffer_append(buffer, &pos, c, file); \
+} while (0)
 
-static const struct KeywordEntry keyword_table[] = {
-	{"class", KW_CLASS},
-	{"if", KW_IF},
-	{"else", KW_ELSE},
-	{"is", KW_IS},
-	{"null", KW_NULL},
-	{"return", KW_RETURN},
-	{"var", KW_VAR},
-	{"import", KW_IMPORT},
-	{"for", KW_FOR},
-	{"for", KW_FOR},
-	{"while", KW_WHILE},
-	{"Ifj", KW_IFJ},
-	{"static", KW_STATIC},
-	{"true", KW_TRUE},
-	{"false", KW_FALSE},
-	{"Num", KW_NUM},
-	{"String", KW_STRING},
-	{"Null", KW_NULL_TYPE}
-};
+#define LEX_INVAL_TOK_ERR() do { \
+	program_error(file, ERR_LEX, ERR_MSG_INVALID_TOK, token); \
+} while (0)
+
 
 static const size_t keyword_count = sizeof(keyword_table) / sizeof(keyword_table[0]);
 
@@ -68,7 +60,7 @@ void check_keyword(TokenPtr token) {
 			return; // stop after first match
 		}
 	}
-	// If not found, token->type stays IDENTIFIER
+	return; // If not found, token->type stays IDENTIFIER
 }
 
 /**
@@ -85,37 +77,21 @@ int skip_whitespace(FILE *file, int c) {
 }
 
 // Helper function to safely append a character to the buffer and increment the position
-static void buffer_append(char *buffer, size_t *pos, int c, FILE *file) {
+void buffer_append(char *buffer, size_t *pos, int c, FILE *file) {
 	if (*pos >= MAX_BUFFER_LENGTH - 1) {
-		program_error(file, ERR_INTERNAL, 2, NULL);
+		program_error(file, ERR_INTERNAL, ERR_MSG_BUFF_OVERFLOW, NULL);
 	}
 	buffer[*pos] = c;
 	(*pos)++;
 	buffer[*pos] = '\0'; // Null-terminate the buffer
 }
 
-static void buffer_append_str(char *buffer, size_t *pos,
-                              const char *str, FILE *file) {
-    while (*str) {
-        buffer_append(buffer, pos, *str++, file);
-    }
-}
-
 /**
- * @brief Function implementing 
+ * @brief Function implementing
  * FSM for creating Num type, can be called when a number token is needed to be built
  * @return TokenPtr num_token
  */
-typedef enum {
-    NUM_START,
-    NUM_DEC,
-    NUM_HEX_START,
-    NUM_HEX,
-    NUM_FRAC,
-    NUM_EXP_START,
-    NUM_EXP_SIGN,
-    NUM_EXP,
-} NumState;
+
 
 int numerizer (TokenPtr token, int c, FILE* file) {
 
@@ -125,100 +101,164 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 
 	while (c != EOF) {
 		switch (state) {
-			case NUM_START: {
-				if (isdigit(c)) {
-					buffer_append(buffer, &pos, c, file);
-					c = fgetc(file);
-					state = NUM_DEC;
-				} else {
-					return 0; // error
-				}
-			break;
-			} // end NUM_START
-			case NUM_DEC:{
-				if (isdigit(c)) {
-					// continue building
-					buffer_append(buffer, &pos, c, file);
-				} else if (c == '.') {
-					// go to fraction
-					buffer_append(buffer, &pos, c, file);
-					state = NUM_FRAC;
-				} else if (c == 'e' || c == 'E') {
-					// go to exponent
-					buffer_append(buffer, &pos, c, file);
-					state = NUM_EXP_SIGN;
-				} else {
-					FINALIZE_NUM();
-					return 1; // done
-				}
+		case NUM_START: {
+			if (isdigit(c)) {
+				APPEND_TO_BUFFER();
 				c = fgetc(file);
-			break;
-			} // end NUM_DEC
-			case NUM_FRAC: {
-				if (isdigit(c)) {
-					buffer_append(buffer, &pos, c, file);
-				}
-				else if (c == 'e' || c == 'E') {
-					if (buffer[pos-1] == '.') {
-						return 0; // error: ends with dot before exponent
-					}
-					buffer_append(buffer, &pos, c, file);
-					state = NUM_EXP_SIGN;
+				if (buffer[0] == '0' && tolower(c) == 'x') {
+					state = NUM_HEX_START;
 				}
 				else {
-					FINALIZE_NUM();
-					if (buffer[pos-1] == '.')
-						return 0; // error
-					return 1;     // done
+					state = NUM_DEC;
 				}
-				c = fgetc(file);
+			} else {
+				return 0; // error
+			}
 			break;
-			} // end NUM_FRAC
-			case NUM_EXP_SIGN: {
-				if (c == '-' || c == '+' || isdigit(c)) {
-					buffer_append(buffer, &pos, c, file);
-				} else {
+		} // end NUM_START
+		case NUM_DEC: {
+			if (isdigit(c)) {
+				// continue building
+				APPEND_TO_BUFFER();
+				if (buffer[0] == '0') {
+					token_update(token, NULL, buffer, NUMERICAL);
 					return 0; // error
 				}
-				c = fgetc(file);
+			} else if (c == '.') {
+				// go to fraction
+				APPEND_TO_BUFFER();
+				state = NUM_FRAC;
+			} else if (tolower(c) == 'e') {
+				// go to exponent
+				APPEND_TO_BUFFER();
+				state = NUM_EXP_SIGN;
+			} else {
+				FINALIZE_NUM();
+				return 1; // done
+			}
+			c = fgetc(file);
 			break;
-			} // end NUM_EXP_SIGN
-			case NUM_HEX: {
+		} // end NUM_DEC
+		case NUM_FRAC: {
+			if (isdigit(c)) {
+				// continue building
+				APPEND_TO_BUFFER();
+			}
+			else if (c == 'e' || c == 'E') {
+				// go to exponent
+				if (buffer[pos-1] == '.') {
+					return 0; // error: ends with dot before exponent
+				}
+				APPEND_TO_BUFFER();
+				state = NUM_EXP_SIGN;
+			}
+			else {
+				FINALIZE_NUM();
+				if (buffer[pos-1] == '.')
+					return 0; // error
+				return 1;     // done
+			}
+			c = fgetc(file);
 			break;
-			} // end NUM_HEX
+		} // end NUM_FRAC
+		case NUM_EXP_SIGN: {
+			APPEND_TO_BUFFER();
+			if (c == '-' || c == '+' || isdigit(c)) {
+				// go to decimal part of exp
+				state = NUM_EXP;
+			} else {
+				FINALIZE_NUM();
+				return 0; // error
+			}
 
-			default:
-				return 0;
+			c = fgetc(file);
+			if (!isdigit(c)) {
+				APPEND_TO_BUFFER();
+				FINALIZE_NUM();
+				return 0; // error
+			}
+			break;
+		} // end NUM_EXP_SIGN
+		case NUM_EXP: {
+			if (isdigit(c)) {
+				// comtinue building
+				APPEND_TO_BUFFER();
+			}
+			else {
+				FINALIZE_NUM();
+				if (strchr("+-.", c)) {
+					// cannot have fractions as 2nd part of exp
+					return 0; // error
+				}
+				return 1; // done
+			}
+			c = fgetc(file);
+			break;
+		} // end NUM_EXP
+		case NUM_HEX_START: {
+			APPEND_TO_BUFFER(); // append x
+			c = fgetc(file);
+			state = NUM_HEX;
+			break;
+		} // end NUM_HEX_START
+		case NUM_HEX: {
+			if(isxdigit(c)) {
+				APPEND_TO_BUFFER();
+			} else {
+				FINALIZE_NUM();
+				if (pos == 2) {
+					return 0; // error: missing hex digits
+				}
+				return 1;
+			}
+			c = fgetc(file);
+			break;
+		} // end NUM_HEX
+
+		default:
+			return 0;
 		} // switch state
 	} // loop until EOF
-	ungetc(c, file); 
-	token_update(token, NULL, buffer, NUMERICAL); // unfinished token, most likely
-	return 0;
+	ungetc(c,file);
+	save_penultimate_token(token, buffer, &pos, file);
+	return 1; // done, EOF pushed back
+}
+
+
+// helper - checks if the string corresponds to Num type regex
+int validate_num(char *NumStr) {
+	const char *num_pattern = "^(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$";
+	const char *num_hex_pattern = "^0[xX][0-9a-fA-F]+$";
+	return regex_match(NumStr, num_pattern) == 0 ||
+	       regex_match(NumStr, num_hex_pattern) == 0;
 }
 
 // Save the last token when EOF is reached
-static void save_penultimate_token(TokenPtr new_token, char *buffer, size_t pos) {
-	if (pos != 0 && new_token->type != FILE_END) {
-		switch (new_token->type) {
+// not needed in final implementation, helps test individual tokens
+void save_penultimate_token(TokenPtr token, char* buffer, size_t* pos, FILE* file) {
+	if (pos != 0 && token->type != FILE_END) {
+		switch (token->type) {
 		case IDENTIFIER:
-			if (pos > 1 && buffer[0]=='_' && buffer[1]=='_') {
-					token_update(new_token, buffer, NULL, ID_GLOBAL_VAR);
-					return;
-				}
-
-			token_update(new_token, buffer, NULL, IDENTIFIER);
-			check_keyword(new_token);
+			if (*pos > 1 && buffer[0]=='_' && buffer[1]=='_') {
+				token_update(token, buffer, NULL, ID_GLOBAL_VAR);
+				return;
+			}
+			token_update(token, buffer, NULL, IDENTIFIER);
+			check_keyword(token);
 			break;
 
 		case NUMERICAL:
-			token_update(new_token, NULL, buffer, new_token->type);
+			token_update(token, NULL, buffer, token->type);
+			if (validate_num(token->data) == 0) {
+				LEX_INVAL_TOK_ERR();
+			}
 			break;
 
 		default:
 			break;
 		}
 	} else {
-		token_update(new_token, NULL, NULL, FILE_END);
+		token_update(token, NULL, NULL, FILE_END);
 	}
 }
 
@@ -235,7 +275,7 @@ static void save_penultimate_token(TokenPtr new_token, char *buffer, size_t pos)
  */
 TokenPtr lexer(FILE *file) {
 
-	TokenPtr new_token =  token_init();
+	TokenPtr token =  token_init();
 
 	int state = START;
 	int c;
@@ -278,38 +318,38 @@ TokenPtr lexer(FILE *file) {
 				state = NUMERICAL;
 			}
 			else {
-				program_error(file, ERR_LEX, 0, NULL);
+				program_error(file, ERR_LEX, ERR_MSG_NOT_IMPLEMENTED, NULL);
 			}
 
-			new_token->type = state;
+			token->type = state;
 			break;
-		
+
 		case NEWLINE: {
 			do {
 				c = fgetc(file);
 			} while ( c == '\n');
 			ungetc(c, file); // push back the first non-newline char
-			token_update(new_token, "\\n", NULL, NEWLINE);
-			return new_token;
+			token_update(token, "\\n", NULL, NEWLINE);
+			return token;
 		} // end NEWLINE
-		
+
 		case IDENTIFIER: {
 			if (isalnum(c) || c == '_') {
-				buffer_append(buffer, &pos, c, file); // build identifier
+				APPEND_TO_BUFFER(); // build identifier
 				c = fgetc(file);
 
 			} else {
 				ungetc(c, file);
 
 				if (pos > 1 && buffer[0]=='_' && buffer[1]=='_') {
-					token_update(new_token, buffer, NULL, ID_GLOBAL_VAR);
-					return new_token;
+					token_update(token, buffer, NULL, ID_GLOBAL_VAR);
+					return token;
 				}
 
-				token_update(new_token, buffer, NULL, IDENTIFIER);
-				check_keyword(new_token);
+				token_update(token, buffer, NULL, IDENTIFIER);
+				check_keyword(token);
 
-				return new_token;
+				return token;
 			}
 			break;
 		} // end IDENTIFIER
@@ -320,15 +360,15 @@ TokenPtr lexer(FILE *file) {
 				state = STRING_SPECIAL;
 			}
 			else if (c == '\"') { // end of string
-				token_update(new_token, NULL, buffer, STRING);
-				return new_token;
+				token_update(token, NULL, buffer, STRING);
+				return token;
 			}
 			else if (c == '\n') {
-				token_update(new_token, NULL, buffer, STRING);
-				program_error(file, ERR_LEX, 1, new_token); // unterminated string
+				token_update(token, NULL, buffer, STRING);
+				LEX_INVAL_TOK_ERR(); // unterminated string
 			}
 			else
-				buffer_append(buffer, &pos, c, file); // build string
+				APPEND_TO_BUFFER(); // build string
 
 			break;
 		} // end STRING
@@ -337,43 +377,43 @@ TokenPtr lexer(FILE *file) {
 			c = fgetc(file);
 
 			if (c == EOF || c == '\n') {
-				token_update(new_token, NULL, buffer, STRING);
-				program_error(file, ERR_LEX, 1, new_token);
+				token_update(token, NULL, buffer, STRING);
+				LEX_INVAL_TOK_ERR();
 			}
 
 			switch (c) {
-				case 'n':
-					buffer_append(buffer, &pos, '\n', file);
-					break;
-				case 't':
-					buffer_append(buffer, &pos, '\t', file);
-					break;
-				case 'r':
-					buffer_append(buffer, &pos, '\r', file);
-					break;
-				case '"':
-					buffer_append(buffer, &pos, '\"', file);
-					break;
-				case '\\':
-					buffer_append(buffer, &pos, '\\', file);
-					break;
-				case 'x': {
-					char hex[3];
-					hex[0] = fgetc(file);
-					hex[1] = fgetc(file);
-					hex[2] = '\0';
+			case 'n':
+				buffer_append(buffer, &pos, '\n', file);
+				break;
+			case 't':
+				buffer_append(buffer, &pos, '\t', file);
+				break;
+			case 'r':
+				buffer_append(buffer, &pos, '\r', file);
+				break;
+			case '"':
+				buffer_append(buffer, &pos, '\"', file);
+				break;
+			case '\\':
+				buffer_append(buffer, &pos, '\\', file);
+				break;
+			case 'x': {
+				char hex[3];
+				hex[0] = fgetc(file);
+				hex[1] = fgetc(file);
+				hex[2] = '\0';
 
-					if (!isxdigit(hex[0]) || !isxdigit(hex[1])) {
-						token_update(new_token, NULL, buffer, STRING);
-						program_error(file, ERR_LEX, 3, new_token); // invalid hex escape
-					}
-					unsigned char val = (unsigned char) strtol(hex, NULL, 16); // convert hex to char
-					buffer_append(buffer, &pos, val, file);
-					break;
+				if (!isxdigit(hex[0]) || !isxdigit(hex[1])) {
+					token_update(token, NULL, buffer, STRING);
+					LEX_INVAL_TOK_ERR(); // invalid hex escape
 				}
-				default:
-					token_update(new_token, NULL, buffer, STRING);
-					program_error(file, ERR_LEX, 2, new_token); // invalid escape
+				unsigned char val = (unsigned char) strtol(hex, NULL, 16); // convert hex to char
+				buffer_append(buffer, &pos, val, file);
+				break;
+			}
+			default:
+				token_update(token, NULL, buffer, STRING);
+				LEX_INVAL_TOK_ERR(); // invalid escape
 			}
 
 			state = STRING;
@@ -395,21 +435,21 @@ TokenPtr lexer(FILE *file) {
 				} else {
 					ungetc(c, file);
 					buffer_append(buffer, &pos, temp, file);
-					token_update(new_token, buffer, NULL, ARITHMETICAL);
-					return new_token;
+					token_update(token, buffer, NULL, ARITHMETICAL);
+					return token;
 				}
 			}
 
 			// For +, -, *
 			ungetc(c, file);
 			buffer_append(buffer, &pos, temp, file);
-			token_update(new_token, buffer, NULL, ARITHMETICAL);
-			return new_token;
+			token_update(token, buffer, NULL, ARITHMETICAL);
+			return token;
 		} // end ARITHMETICAL
 
-		case COMMENT: { 
+		case COMMENT: {
 			c = fgetc(file);
-			token_update(new_token, "\\n", NULL, NEWLINE); // update in advance (possible EOF)
+			token_update(token, "\\n", NULL, NEWLINE); // update in advance (possible EOF)
 			if (c == '\n') {
 				state = NEWLINE; // single-line comment = newline token
 			}
@@ -417,71 +457,69 @@ TokenPtr lexer(FILE *file) {
 		} // end COMMENT
 
 		case SPECIAL: {
-			buffer_append(buffer, &pos, c, file);
-			token_update(new_token, buffer, NULL, SPECIAL);
-			return new_token;
+			APPEND_TO_BUFFER();
+			token_update(token, buffer, NULL, SPECIAL);
+			return token;
 			break;
 		} // end SPECIAL
 
 		case CMP_OPERATOR: {
-			buffer_append(buffer, &pos, c, file); // first char (<, >, =, or !)
+			APPEND_TO_BUFFER(); // first char (<, >, =, or !)
 			c = fgetc(file);
 
 			if (buffer[0] == '=') {
 				if (c == '=') { // only "=="
-					buffer_append(buffer, &pos, c, file);
+					APPEND_TO_BUFFER();
 				} else {
 					ungetc(c, file); // single "=" is assignment
-					token_update(new_token, buffer, NULL, SPECIAL); 
-					return new_token;
+					token_update(token, buffer, NULL, SPECIAL);
+					return token;
 				}
 			}
 			else if (buffer[0] == '<' || buffer[0] == '>') {
 				if (c == '=') { // <= or >=
-					buffer_append(buffer, &pos, c, file);
+					APPEND_TO_BUFFER();
 				} else {
 					ungetc(c, file); // just < or >
 				}
 			}
 
-			token_update(new_token, buffer, NULL, CMP_OPERATOR);
-			return new_token;
+			token_update(token, buffer, NULL, CMP_OPERATOR);
+			return token;
 		} // end CMP_OPERATOR
-		
+
 		case NOT_EQUAL: {
 			c = fgetc(file);
-			
+
 			if (c == '=') {
-				token_update(new_token, "!=", NULL, NOT_EQUAL);
-				return new_token;
+				token_update(token, "!=", NULL, NOT_EQUAL);
+				return token;
 			}
 			buffer_append(buffer, &pos, '!', file);
-			buffer_append(buffer, &pos, c, file);
-			token_update(new_token, buffer, NULL, NOT_EQUAL);
-			program_error(file, ERR_LEX, 4, new_token); // invalid usage: '!' must be followed by '='
-			
+			APPEND_TO_BUFFER();
+			token_update(token, buffer, NULL, NOT_EQUAL);
+			LEX_INVAL_TOK_ERR(); // invalid usage: '!' must be followed by '='
+
 			break;
 		} // end NOT_EQUAL
 
 		case NUMERICAL: {
-			token_update(new_token, NULL, NULL, NUMERICAL);
-			if (numerizer(new_token, c, file)) {
-				return new_token;
+			token_update(token, NULL, NULL, NUMERICAL);
+			if (numerizer(token, c, file)) {
+				return token;
 			} else {
-				program_error(file, ERR_LEX, 1, new_token);
+				LEX_INVAL_TOK_ERR();
 			}
 			break;
 		}
 
 
 		default:
-			program_error(file, ERR_INTERNAL, 1, new_token); // unknown token
-			break;
+			program_error(file, ERR_INTERNAL, ERR_MSG_NOT_IMPLEMENTED, token); // unknown token
 		}
 	} // while(!EOF)
 
 
-	save_penultimate_token(new_token, buffer, pos);
-	(void)buffer_append_str; // REMOVE , JUST SO COMPILER DOESNT Complain
-	return new_token;
+	save_penultimate_token(token, buffer, &pos, file);
+	return token;
 }
