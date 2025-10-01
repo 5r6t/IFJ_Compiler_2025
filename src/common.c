@@ -109,7 +109,8 @@ void token_free(TokenPtr token)
 }
 
 // TABLE for printing token types as strings, not numbers
-const char *token_type_name(int type) {
+const char *token_type_name(int type)
+{
     // Must match the defines in lex.h
     static const char *names[] = {
         [START] = "START",
@@ -144,10 +145,10 @@ const char *token_type_name(int type) {
         [KW_IMPORT] = "KW_IMPORT",
         [KW_FOR] = "KW_FOR",
         [NEWLINE] = "NEWLINE",
-        [ID_GLOBAL_VAR] = "ID_GLOBAL_VAR"
-    };
-    if (type == FILE_END) return "FILE_END";
-    if (type >= 0 && type < (int)(sizeof(names)/sizeof(names[0])) && names[type])
+        [ID_GLOBAL_VAR] = "ID_GLOBAL_VAR"};
+    if (type == FILE_END)
+        return "FILE_END";
+    if (type >= 0 && type < (int)(sizeof(names) / sizeof(names[0])) && names[type])
         return names[type];
     return NULL;
 }
@@ -183,7 +184,7 @@ char *error_list[] = {
     "\n!!! Invalid token has been found during scanning process: !!!\n",
     "\n!!! String has reached the implementation limit !!!\n", // MAX_BUFFER_LENGTH
     "\nProblem has occurred during scanning. Logic not implemented yet? Problem with:\n",
-    "\n!!!Error: wrong syntax found\n"};
+    "\n!!!Error: wrong syntax found (Tak tohle je spatne a ja te zabiju) \n"};
 
 /**
  * @brief Closes a file and exits the program with an error code.

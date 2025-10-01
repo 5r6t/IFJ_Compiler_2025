@@ -57,6 +57,7 @@ typedef struct Target
 {
     int type;
     char *data;
+    char *id;
 } target;
 
 TokenPtr token_init();

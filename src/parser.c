@@ -43,11 +43,11 @@ int PROLOG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     // TODO change this to be more effective using function while_function
     static const target PROLOG_TARGET[] = {
-        {IDENTIFIER, "import"}, // data are used for expression not identificator
-        {STRING, "ifj25"},
-        {IDENTIFIER, "for"},
-        {KW_IFJ, "Ifj"},
-        {NEWLINE, NULL}};
+        {IDENTIFIER, "import", NULL}, // data are used for expression not identificator
+        {STRING, "ifj25", NULL},
+        {IDENTIFIER, "for", NULL},
+        {KW_IFJ, "Ifj", NULL},
+        {NEWLINE, NULL, NULL}};
 
     static const size_t PROLOG_TARGET_LEN = sizeof(PROLOG_TARGET) / sizeof(PROLOG_TARGET[0]);
 
@@ -62,10 +62,10 @@ int CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 
     static const target CLASS_TARGET[] =
         {
-            {KW_CLASS, "class"},
-            {IDENTIFIER, "Program"},
-            {SPECIAL, "{"},
-            {NEWLINE, NULL}};
+            {KW_CLASS, "class", NULL},
+            {IDENTIFIER, "Program", NULL},
+            {SPECIAL, "{", NULL},
+            {NEWLINE, NULL, NULL}};
 
     static const size_t PROLOG_TARGET_LEN = sizeof(CLASS_TARGET) / sizeof(CLASS_TARGET[0]);
     for_function(CLASS_TARGET, file, nextToken, PROLOG_TARGET_LEN);
@@ -80,7 +80,7 @@ int CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     FUNCTIONS(nextToken, file);
     // nextToken = lexer(file);
 
-    static const target CLASS_TARGET_END = {SPECIAL, "}"};
+    static const target CLASS_TARGET_END = {SPECIAL, "}", NULL};
     advance(&CLASS_TARGET_END, nextToken, file);
 
     return 0;
@@ -88,7 +88,7 @@ int CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 
 int FUNCTIONS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    static const target FUNCTIONS_FOLLOW = {SPECIAL, "}"};
+    static const target FUNCTIONS_FOLLOW = {SPECIAL, "}", NULL};
 
     if ((*nextToken)->type == KW_STATIC)
     {
@@ -99,12 +99,11 @@ int FUNCTIONS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
         func_node->func.params = FUNC_GET_SET_DEF(nextToken, file);
         func_node->func.body = FUNCTIONS(nextToken, file);
         */
-        static const target FUNCTIONS_FIRST = {KW_STATIC, "static"};
+        static const target FUNCTIONS_FIRST = {KW_STATIC, "static", NULL};
         advance(&FUNCTIONS_FIRST, nextToken, file);
         FUNC_NAME(nextToken, file);        // dont forget to iterate nextToken inside this function!!!
         FUNC_GET_SET_DEF(nextToken, file); // dont forget to iterate nextToken inside this function!!!
         FUNCTIONS(nextToken, file);
-        *nextToken = lexer(file);
         return 0;
         // return func_node;
     }
@@ -121,13 +120,13 @@ int FUNCTIONS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 
 int FUNC_NAME(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    static const target FUNC_NAME_SEQ[] =
+    /*static const target FUNC_NAME_SEQ[] =
         {
-            {KW_IFJ, NULL},
-            {SPECIAL, "."},
-            {IDENTIFIER, NULL}};
+            {KW_IFJ, NULL, NULL},
+            {SPECIAL, ".", NULL},
+            {IDENTIFIER, NULL, NULL}};
 
-    size_t FUNC_NAME_SEQ_LEN = sizeof(FUNC_NAME_SEQ) / sizeof(FUNC_NAME_SEQ[0]);
+    size_t FUNC_NAME_SEQ_LEN = sizeof(FUNC_NAME_SEQ) / sizeof(FUNC_NAME_SEQ[0]);*/
     // static const target FUNC_NAME_TARGET = {IDENTIFIER, NULL};
     if ((*nextToken)->type == IDENTIFIER)
     {
@@ -135,44 +134,44 @@ int FUNC_NAME(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
         *nextToken = lexer(file);
         return 0;
     }
-    else if ((*nextToken)->type == KW_IFJ)
+    /*else if ((*nextToken)->type == KW_IFJ)
     {
-        for_function(&FUNC_NAME_SEQ, file, nextToken, FUNC_NAME_SEQ_LEN);
+        for_function(FUNC_NAME_SEQ, file, nextToken, FUNC_NAME_SEQ_LEN);
         return 0;
-    }
+    }*/
 
     else
     {
-        program_error(file, 2, 4, nextToken);
+        program_error(file, 2, 4, *nextToken);
     }
     return 1;
 }
 
 int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    target FUNC_DEF = {SPECIAL, "("};
+    target FUNC_DEF = {SPECIAL, "(", NULL};
 
-    target FUNC_GET = {SPECIAL, "{"};
+    target FUNC_GET = {SPECIAL, "{", NULL};
 
-    target FUNC_SET_SEQ[] =
+    static const target FUNC_SET_SEQ[] =
         {
-            {CMP_OPERATOR, "="},
-            {SPECIAL, "("},
-            {IDENTIFIER, NULL},
-            {SPECIAL, ")"},
-            {SPECIAL, "{"},
-            {NEWLINE, NULL}};
+            {CMP_OPERATOR, "=", NULL},
+            {SPECIAL, "(", NULL},
+            {IDENTIFIER, NULL, NULL},
+            {SPECIAL, ")", NULL},
+            {SPECIAL, "{", NULL},
+            {NEWLINE, NULL, NULL}};
 
     target FUNC_DEF_SEQ[] =
         {
-            {SPECIAL, ")"},
-            {SPECIAL, "{"},
-            {NEWLINE, NULL}};
+            {SPECIAL, ")", NULL},
+            {SPECIAL, "{", NULL},
+            {NEWLINE, NULL, NULL}};
 
     target FUNC_GET_SET_DEF_END[] = // last two lexem in rules for FUNC_GET_SET_DEF are same -> } EOL
         {
-            {SPECIAL, "}"},
-            {NEWLINE, NULL}};
+            {SPECIAL, "}", NULL},
+            {NEWLINE, NULL, NULL}};
 
     size_t FUNC_SET_SEQ_LEN = sizeof(FUNC_SET_SEQ) / sizeof(FUNC_SET_SEQ[0]);
     size_t FUNC_DEF_SEQ_LEN = sizeof(FUNC_DEF_SEQ) / sizeof(FUNC_DEF_SEQ[0]);
@@ -191,7 +190,7 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file) // change return type to A
     {
         *nextToken = lexer(file);
         FUNC_GET.data = NULL;
-        // FUNC_DEF.type = EOL;
+        FUNC_DEF.type = NEWLINE;
         advance(&FUNC_GET, nextToken, file);
         FUNC_BODY(nextToken, file); // dont forget to iterate nextToken inside this function!!!
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
@@ -213,8 +212,8 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file) // change return type to A
 
 int PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    static const target PAR_FIRST = {IDENTIFIER, NULL};
-    static const target PAR_FOLLOW = {SPECIAL, ")"};
+    static const target PAR_FIRST = {IDENTIFIER, NULL, NULL};
+    static const target PAR_FOLLOW = {SPECIAL, ")", NULL};
     if ((*nextToken)->type == IDENTIFIER)
     {
         advance(&PAR_FIRST, nextToken, file);
@@ -228,16 +227,15 @@ int PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     }
     else
     {
-        parser_error(PAR_FIRST, *nextToken);
-        exit(2);
+        program_error(file, 2, 4, *nextToken);
     }
     return 1;
 }
 
 int NEXT_PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    static const target NEXT_PAR_FIRST = {SPECIAL, ","};
-    static const target NEXT_PAR_FOLLOW = {SPECIAL, ")"};
+    static const target NEXT_PAR_FIRST = {SPECIAL, ",", NULL};
+    static const target NEXT_PAR_FOLLOW = {SPECIAL, ")", NULL};
     if ((*nextToken)->type == SPECIAL)
     {
         advance(&NEXT_PAR_FIRST, nextToken, file);
@@ -250,76 +248,68 @@ int NEXT_PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     }
     else
     {
-        parser_error(NEXT_PAR_FIRST, *nextToken);
-        exit(2);
+        program_error(file, 2, 4, *nextToken);
     }
     return 1;
 }
 
 int FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    static const target DUMMY_EXPRESSION = {IDENTIFIER, NULL};
-    static const target RETURN_FIRST = {KW_RETURN, NULL};
-    static const target FUNC_BODY_END = {NEWLINE, NULL};
-    static const target FUNC_BODY_FOLLOW = {SPECIAL, "}"};
-    static const target VAR_ASS_CALL_GET = {CMP_OPERATOR, "="};
+    static const target DUMMY_EXPRESSION = {IDENTIFIER, NULL, NULL};
+    static const target RETURN_FIRST = {KW_RETURN, NULL, NULL};
+    static const target FUNC_BODY_END = {NEWLINE, NULL, NULL};
+    static const target FUNC_BODY_FOLLOW = {SPECIAL, "}", NULL};
+    static const target VAR_ASS_CALL_GET = {CMP_OPERATOR, "=", NULL};
 
     static const target FUNC_INTRO_SEQ[] =
         {
-            {SPECIAL, "("},
-            {NEWLINE, NULL}};
+            {SPECIAL, "(", NULL},
+            {NEWLINE, NULL, NULL}};
 
-    static const target FUNC_BODY_DECL_SEQ[] =
+    /*static const target FUNC_BODY_DECL_SEQ[] =
         {
-            {KW_VAR, "var"},
-            {IDENTIFIER, NULL},
-            {NEWLINE, NULL}};
+            {KW_VAR, "var", NULL},
+            {IDENTIFIER, NULL, NULL},
+            {NEWLINE, NULL, NULL}};*/
 
-    static const target VAR_ASS_CALL_GET_SEQ[] =
+    /*static const target VAR_ASS_CALL_GET_SEQ[] =
         {
-            {IDENTIFIER, NULL},
-            {CMP_OPERATOR, "="}};
+            {IDENTIFIER, NULL, NULL},
+            {CMP_OPERATOR, "=", NULL}};*/
 
     static const target IF_STATMENT_START_SEQ[] =
         {
-            {KW_IF, "if"},
-            {SPECIAL, "("}};
+            {KW_IF, "if", NULL},
+            {SPECIAL, "(", NULL}};
 
     static const target IF_STATMENT_MIDDLE_SEQ[] =
         {
-            {SPECIAL, ")"},
-            {SPECIAL, "{"},
-            {NEWLINE, NULL}};
+            {SPECIAL, ")", NULL},
+            {SPECIAL, "{", NULL},
+            {NEWLINE, NULL, NULL}};
 
     static const target IF_STATMENT_ELSE_BRANCH_SEQ[] =
         {
-            {SPECIAL, "}"},
-            {KW_ELSE, NULL},
-            {SPECIAL, "{"},
-            {NEWLINE, NULL}};
+            {SPECIAL, "}", NULL},
+            {KW_ELSE, NULL, NULL},
+            {SPECIAL, "{", NULL},
+            {NEWLINE, NULL, NULL}};
 
     static const target END_SEQ[] =
         {
-            {SPECIAL, "}"},
-            {NEWLINE, NULL}};
+            {SPECIAL, "}", NULL},
+            {NEWLINE, NULL, NULL}};
 
     static const target WHILE_START_SEQ[] =
         {
-            {KW_WHILE, NULL},
-            {SPECIAL, "("}};
-
-    static const target IN_BUILT_FUNC_SEQ[] =
-        {
-            {SPECIAL, "."},
-            {IDENTIFIER, NULL},
-            {SPECIAL, "("}};
+            {KW_WHILE, NULL, NULL},
+            {SPECIAL, "(", NULL}};
 
     size_t IF_STATMENT_ELSE_BRANCH_SEQ_LEN = sizeof(IF_STATMENT_ELSE_BRANCH_SEQ) / sizeof(IF_STATMENT_ELSE_BRANCH_SEQ[0]);
     size_t IF_STATMENT_MIDDLE_SEQ_LEN = sizeof(IF_STATMENT_MIDDLE_SEQ) / sizeof(IF_STATMENT_MIDDLE_SEQ[0]);
     size_t IF_STATMENT_START_SEQ_LEN = sizeof(IF_STATMENT_START_SEQ) / sizeof(IF_STATMENT_START_SEQ[0]);
-    size_t VAR_ASS_CALL_GET_SEQ_LEN = sizeof(VAR_ASS_CALL_GET_SEQ) / sizeof(VAR_ASS_CALL_GET_SEQ[0]);
-    size_t FUNC_BODY_DECL_SEQ_LEN = sizeof(FUNC_BODY_DECL_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
-    size_t IN_BUILT_FUNC_SEQ_LEN = sizeof(IN_BUILT_FUNC_SEQ) / sizeof(IN_BUILT_FUNC_SEQ[0]);
+    // size_t VAR_ASS_CALL_GET_SEQ_LEN = sizeof(VAR_ASS_CALL_GET_SEQ) / sizeof(VAR_ASS_CALL_GET_SEQ[0]);
+    // size_t FUNC_BODY_DECL_SEQ_LEN = sizeof(FUNC_BODY_DECL_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
     size_t WHILE_START_SEQ_LEN = sizeof(WHILE_START_SEQ) / sizeof(WHILE_START_SEQ[0]);
     size_t FUNC_INTRO_SEQ_LEN = sizeof(FUNC_INTRO_SEQ) / sizeof(FUNC_INTRO_SEQ[0]);
     size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
@@ -365,7 +355,7 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
         FUNC_BODY(nextToken, file);
         return 0;
     }
-    else if ((*nextToken)->type == KW_RETURN)
+    else if ((*nextToken)->type == KW_RETURN) // mozne miesto na prerobenie
     {
         advance(&RETURN_FIRST, nextToken, file);
         // Here I will give control to PSA, for now I will use dummy expresion
@@ -395,6 +385,20 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 
 int RSA(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
+    static const target IN_BUILT_FUNC_SEQ[] =
+        {
+            {SPECIAL, ".", NULL},
+            {IDENTIFIER, NULL, NULL},
+            {SPECIAL, "(", NULL}};
+
+    static const target END_SEQ[] =
+        {
+            {SPECIAL, ")", NULL},
+            {NEWLINE, NULL, NULL}};
+
+    size_t IN_BUILT_FUNC_SEQ_LEN = sizeof(IN_BUILT_FUNC_SEQ) / sizeof(IN_BUILT_FUNC_SEQ[0]);
+    size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
+
     if ((*nextToken)->type == IDENTIFIER)
     {
         (*nextToken) = lexer(file);
@@ -408,18 +412,21 @@ int RSA(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     } // there can be a expression -> give control to PSA
     else if ((*nextToken)->type == KW_IFJ)
     {
+        for_function(IN_BUILT_FUNC_SEQ, file, nextToken, IN_BUILT_FUNC_SEQ_LEN);
+        ARG(nextToken, file);
+        for_function(END_SEQ, file, nextToken, END_SEQ_LEN);
+        return 0;
     }
     else
     {
-        fprintf(stderr, "SYNTAX ERROR");
-        exit(2);
+        program_error(file, 2, 4, *nextToken);
     }
     return 1;
 }
 
 int FUNC_TYPE(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    target FUNC_TYPE_FIRST = {SPECIAL, "("}; // this struct is modifable because i didn`t want to create another struct
+    target FUNC_TYPE_FIRST = {SPECIAL, "(", NULL}; // this struct is modifable because i didn`t want to create another struct
     if ((*nextToken)->type == SPECIAL)
     {
         advance(&FUNC_TYPE_FIRST, nextToken, file);
@@ -434,22 +441,20 @@ int FUNC_TYPE(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     }
     else
     {
-        fprintf(stderr, "SYNTAX ERROR");
-        exit(2);
+        program_error(file, 2, 4, *nextToken);
     }
     return 1;
 }
 
 int ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    static const target ARG_FOLLOW = {SPECIAL, ")"};
+    static const target ARG_FOLLOW = {SPECIAL, ")", NULL};
 
     if (ARG_NAME(nextToken, file))
     {
         // create node
         *nextToken = lexer(file);
-        NEXT_ARG(nextToken, file);
-        *nextToken = lexer(file);
+        NEXT_ARG(nextToken, file); // nextToken was itareted in this function
         return 0;
     }
     else if (peek(&ARG_FOLLOW, *nextToken)) // epsilon
@@ -465,8 +470,8 @@ int ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 
 int NEXT_ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    static const target NEXT_ARG_FIRST = {SPECIAL, ","}; // look at it again please
-    static const target NEXT_ARG_FOLLOW = {SPECIAL, ")"};
+    static const target NEXT_ARG_FIRST = {SPECIAL, ",", NULL}; // look at it again please
+    static const target NEXT_ARG_FOLLOW = {SPECIAL, ")", NULL};
     if (peek(&NEXT_ARG_FIRST, *nextToken))
     {
         *nextToken = lexer(file);
@@ -488,16 +493,16 @@ int NEXT_ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 int ARG_NAME(TokenPtr *nextToken, FILE *file) // THIS NEEDS TO BE INT -> NODE WILL BE CREATE IN FUNCTION ARG AND NEXT_ARG
 {
     static const target ARG_NAME_FIRST[] = {
-        {NUMERICAL, NULL},
-        {IDENTIFIER, NULL},
-        {ID_GLOBAL_VAR, NULL},
-        {STRING, NULL}};
+        {NUMERICAL, NULL, NULL},
+        {IDENTIFIER, NULL, NULL},
+        {ID_GLOBAL_VAR, NULL, NULL},
+        {STRING, NULL, NULL}};
 
     size_t ARG_NAME_FIRST_LEN = sizeof(ARG_NAME_FIRST) / sizeof(ARG_NAME_FIRST[0]);
 
     if (nameHelperFunc(nextToken, ARG_NAME_FIRST, ARG_NAME_FIRST_LEN))
     {
-        return 0;
+        return 1;
     }
     program_error(file, 2, 4, *nextToken);
     /*int correctTokenType = 0;
@@ -516,37 +521,37 @@ int ARG_NAME(TokenPtr *nextToken, FILE *file) // THIS NEEDS TO BE INT -> NODE WI
         i++;
     }
     program_error(file, 2, 4, *nextToken);*/
-    return 1;
+    return 0;
 }
 
 int VAR_NAME(TokenPtr *nextToken, FILE *file)
 {
     static const target VAR_NAME_SEQ[] = {
-        {IDENTIFIER, NULL},
-        {ID_GLOBAL_VAR, NULL}};
+        {IDENTIFIER, NULL, NULL},
+        {ID_GLOBAL_VAR, NULL, NULL}};
 
     size_t VAR_NAME_SEQ_LEN = sizeof(VAR_NAME_SEQ) / sizeof(VAR_NAME_SEQ[0]);
 
     if (nameHelperFunc(nextToken, VAR_NAME_SEQ, VAR_NAME_SEQ_LEN))
     {
-        return 0;
+        return 1;
     }
-    program_error(file, 2, 4, nextToken);
-    return 1;
+    program_error(file, 2, 4, *nextToken);
+    return 0;
 }
 
-int nameHelperFunc(TokenPtr *nextToken, const target *target[], size_t target_len)
+int nameHelperFunc(TokenPtr *nextToken, const target *target, size_t target_len)
 {
     size_t i = 0;
     while (i < target_len)
     {
-        if (peek(target[i], nextToken))
+        if (peek(&target[i], *nextToken))
         {
-            return 0;
+            return 1;
         }
         i++;
     }
-    return 1;
+    return 0;
 }
 
 // using strcmp compares target string with token. If token isn`t same as target string error is send to stderr output
@@ -584,12 +589,10 @@ int peek(const target *target, TokenPtr token)
 }
 
 // helping function for more pleasing way to check matches and for updating nextToken
-void for_function(const target TARGE_SEQ[], FILE *file, TokenPtr *nextToken, size_t TARGE_SEQ_LEN)
+void for_function(const target *TARGE_SEQ, FILE *file, TokenPtr *nextToken, size_t TARGE_SEQ_LEN)
 {
     for (size_t i = 0; i < TARGE_SEQ_LEN; i++)
     {
-        // match(&TARGE_SEQ[i], nextToken);
-        // nextToken = lexer(file);
         advance(&TARGE_SEQ[i], nextToken, file);
     }
 }
