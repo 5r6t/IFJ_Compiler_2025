@@ -87,12 +87,9 @@ void buffer_append(char *buffer, size_t *pos, int c, FILE *file) {
 }
 
 /**
- * @brief Function implementing
- * FSM for creating Num type, can be called when a number token is needed to be built
+ * @brief Function implementing FSM for creating Num type
  * @return TokenPtr num_token
  */
-
-
 int numerizer (TokenPtr token, int c, FILE* file) {
 
 	NumState state = NUM_START;
@@ -225,6 +222,56 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 }
 
 
+/**
+ * @brief Function implementing FSM to check validity of (nested) block comments
+ * @note Assumes sequence of `/`, `*` has been reached, e.g. using fgetc(),  next char 
+ * would be the comments body.. until final `*`,`/`
+ */
+
+typedef enum {
+	NC_seek,
+	NC_star,
+	NC_slash
+} NC_state;
+
+int no_comment (FILE *file) {
+	int c = 0;
+	NC_state state = NC_seek;
+	size_t nest_lvl = 1; // inside a comment already
+
+	while (c != EOF) {
+		switch(state) {
+			case NC_seek: {
+				c = fgetc(file);
+				if (c == '*') state = NC_star;
+				else if (c == '/') state = NC_slash;
+				break;
+			}
+			case NC_star: {
+				// can decrease nest level
+				c = fgetc(file);
+				if (c == '/') {
+					nest_lvl--;
+					if (nest_lvl == 0) return 1;
+				}
+				state = NC_seek;
+				break;
+			}
+			case NC_slash: {
+				// can increase nest level
+				c = fgetc(file);
+				if (c == '*') nest_lvl++;
+				state = NC_seek;
+				break;
+			}
+
+			default:
+				break;
+		}
+	}
+	return 0;
+}
+
 // helper - checks if the string corresponds to Num type regex
 int validate_num(char *NumStr) {
 	const char *num_pattern = "^(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$";
@@ -287,8 +334,7 @@ TokenPtr lexer(FILE *file) {
 	while(c != EOF) {
 		switch (state)
 		{
-		case (START):
-
+		case (START): {
 			if (c == '\n') {
 				state = NEWLINE;
 			}
@@ -323,6 +369,7 @@ TokenPtr lexer(FILE *file) {
 
 			token->type = state;
 			break;
+		} // end START
 
 		case NEWLINE: {
 			do {
@@ -430,7 +477,7 @@ TokenPtr lexer(FILE *file) {
 					ungetc(c, file); // put back the second '/'
 					break;
 				} else if (c == '*') {
-					state = BLOCK_COMMENT; // NOT IMPLEMENTED YET
+					state = BLOCK_COMMENT;
 					break;
 				} else {
 					ungetc(c, file);
@@ -455,6 +502,16 @@ TokenPtr lexer(FILE *file) {
 			}
 			break;
 		} // end COMMENT
+
+		case BLOCK_COMMENT: { // BLOCK COMMENTS can be nested,
+			if (!no_comment(file)) {
+				token_update(token, NULL, NULL, BLOCK_COMMENT);
+				program_error(file, ERR_MSG_UNENCLOSED_COMM, ERR_LEX, token);
+			}
+			c = fgetc(file);
+			state = START;
+			break;
+		}
 
 		case SPECIAL: {
 			APPEND_TO_BUFFER();
@@ -513,9 +570,8 @@ TokenPtr lexer(FILE *file) {
 			break;
 		}
 
-
 		default:
-			program_error(file, ERR_INTERNAL, ERR_MSG_NOT_IMPLEMENTED, token); // unknown token
+			program_error(file, ERR_MSG_NOT_IMPLEMENTED, ERR_LEX, token); // unknown token
 		}
 	} // while(!EOF)
 

@@ -52,6 +52,7 @@
 #define ERR_MSG_BUFF_OVERFLOW 2
 #define ERR_MSG_NOT_IMPLEMENTED 3
 #define ERR_MSG_WRONG_SYNTAX 4
+#define ERR_MSG_UNENCLOSED_COMM 5
 
 typedef struct Token
 {

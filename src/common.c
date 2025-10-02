@@ -202,8 +202,10 @@ char *error_list[] = {
     "\n!!! Internal error has occurred within the program. !!!\n",
     "\n!!! Invalid token has been found during scanning process: !!!\n",
     "\n!!! String has reached the implementation limit !!!\n", // MAX_BUFFER_LENGTH
-    "\nProblem has occurred during scanning. Logic not implemented yet? Problem with:\n",
-    "\n!!!Error: wrong syntax found (Tak tohle je spatne a ja te zabiju) \n"};
+    "\n!!! Problem has occurred during scanning. Logic not implemented yet? Problem with:\n",
+    "\n!!! Error: wrong syntax found (Tak tohle je spatne a ja te zabiju) \n",
+    "\n!!! Unenclosed comment found - Valve please fix. !!! "
+};
 
 /**
  * @brief Closes a file and exits the program with an error code.
