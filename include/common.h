@@ -56,8 +56,8 @@
 
 typedef struct Token
 {
-    char *id;
     int type;
+    char *id;
     char *data;
 } *TokenPtr;
 

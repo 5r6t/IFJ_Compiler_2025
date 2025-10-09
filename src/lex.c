@@ -129,9 +129,13 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 				// go to exponent
 				APPEND_TO_BUFFER();
 				state = NUM_EXP_SIGN;
-			} else {
+			} else if (isspace(c)) {
 				FINALIZE_NUM();
 				return 1; // done
+			}
+			else { 
+				ungetc(c, file);
+				LEX_INVAL_TOK_ERR(); 
 			}
 			c = fgetc(file);
 			break;
@@ -273,6 +277,7 @@ int no_comment (FILE *file) {
 }
 
 // helper - checks if the string corresponds to Num type regex
+// used only in save_penultimate_token -- lexer is an FSM, it doesn't need it
 int validate_num(char *NumStr) {
 	const char *num_pattern = "^(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$";
 	const char *num_hex_pattern = "^0[xX][0-9a-fA-F]+$";
@@ -322,7 +327,7 @@ void save_penultimate_token(TokenPtr token, char* buffer, size_t* pos, FILE* fil
  */
 TokenPtr lexer(FILE *file) {
 
-	TokenPtr token =  token_init();
+	TokenPtr token = token_init();
 
 	int state = START;
 	int c;
@@ -359,6 +364,7 @@ TokenPtr lexer(FILE *file) {
 			}
 			else if (isalpha(c) || c == '_') {
 				state = IDENTIFIER;
+				APPEND_TO_BUFFER(); // start building identifier
 			}
 			else if (isdigit(c)) {
 				state = NUMERICAL;
@@ -381,14 +387,24 @@ TokenPtr lexer(FILE *file) {
 		} // end NEWLINE
 
 		case IDENTIFIER: {
+			c = fgetc(file);
+
 			if (isalnum(c) || c == '_') {
 				APPEND_TO_BUFFER(); // build identifier
-				c = fgetc(file);
-
 			} else {
+				
+				if(!isspace(c) && c != EOF) 
+					LEX_INVAL_TOK_ERR();
 				ungetc(c, file);
-
-				if (pos > 1 && buffer[0]=='_' && buffer[1]=='_') {
+				// "_" invalid by itself
+				if (pos == 1 && buffer[0] == '_') { 
+					LEX_INVAL_TOK_ERR(); 
+				}
+				// GLOBAL ID
+				else if (pos > 1 && buffer[0]=='_' && buffer[1]=='_') {
+					// must not start with digit
+					if (!isalpha(buffer[2]) && buffer[2] != '\0' ) 
+						LEX_INVAL_TOK_ERR();
 					token_update(token, buffer, NULL, ID_GLOBAL_VAR);
 					return token;
 				}
@@ -504,7 +520,7 @@ TokenPtr lexer(FILE *file) {
 		} // end COMMENT
 
 		case BLOCK_COMMENT: { // BLOCK COMMENTS can be nested,
-			if (!no_comment(file)) {
+			if (!no_comment(file)) { 
 				token_update(token, NULL, NULL, BLOCK_COMMENT);
 				program_error(file, ERR_MSG_UNENCLOSED_COMM, ERR_LEX, token);
 			}
@@ -516,6 +532,16 @@ TokenPtr lexer(FILE *file) {
 		case SPECIAL: {
 			APPEND_TO_BUFFER();
 			token_update(token, buffer, NULL, SPECIAL);
+			
+			if (c == '.') { // bad float check
+				c = fgetc(file);
+				if (isdigit(c)) {
+					ungetc(c, file);
+					LEX_INVAL_TOK_ERR();
+				}
+				ungetc(c, file);
+			}
+
 			return token;
 			break;
 		} // end SPECIAL

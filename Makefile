@@ -7,7 +7,6 @@
 #//  * Jozef Matus (xmatusj00) / karfisk 	 //
 #//  * Jan Hájek (xhajekj00) / Wekk 		 //
 #//////////////////////////////////////////////
-# Makefile
 
 OBJDIR = build
 CC = gcc
