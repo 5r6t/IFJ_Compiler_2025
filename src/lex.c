@@ -101,26 +101,46 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 		case NUM_START: {
 			if (isdigit(c)) {
 				APPEND_TO_BUFFER();
+				
 				c = fgetc(file);
-				if (buffer[0] == '0' && tolower(c) == 'x') {
-					state = NUM_HEX_START;
+
+				if (buffer[0] == '0') {
+					if (tolower(c) == 'x') {
+						APPEND_TO_BUFFER();
+						state = NUM_HEX;
+						break;
+					} else if (c == '.') {
+						state = NUM_FRAC;
+						break;
+					} else if (tolower(c) == 'e') {
+						APPEND_TO_BUFFER();
+						state = NUM_EXP_SIGN;
+						break;
+					} else if (isblank(c) || c == EOF) {
+						FINALIZE_NUM();
+						return 1; // standalone '0'
+					}
 				}
-				else {
+				// entry digit wasn't '0'
+				else if (c == '.') {
+					APPEND_TO_BUFFER();
+					state = NUM_FRAC;
+					break;
+				} else if (isdigit(c)) {
+					APPEND_TO_BUFFER();
 					state = NUM_DEC;
+					break;
 				}
-			} else {
-				return 0; // error
 			}
-			break;
+			APPEND_TO_BUFFER();
+			FINALIZE_NUM();
+			return 0; // error -- first input wasn't a digit
 		} // end NUM_START
 		case NUM_DEC: {
+			c = fgetc(file);
 			if (isdigit(c)) {
 				// continue building
 				APPEND_TO_BUFFER();
-				if (buffer[0] == '0') {
-					token_update(token, NULL, buffer, NUMERICAL);
-					return 0; // error
-				}
 			} else if (c == '.') {
 				// go to fraction
 				APPEND_TO_BUFFER();
@@ -129,18 +149,18 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 				// go to exponent
 				APPEND_TO_BUFFER();
 				state = NUM_EXP_SIGN;
-			} else if (isspace(c)) {
+			} else if (isspace(c) || c == EOF) {
 				FINALIZE_NUM();
 				return 1; // done
 			}
 			else { 
-				ungetc(c, file);
-				LEX_INVAL_TOK_ERR(); 
+				return 0; // error
 			}
-			c = fgetc(file);
 			break;
 		} // end NUM_DEC
 		case NUM_FRAC: {
+			c = fgetc(file);
+
 			if (isdigit(c)) {
 				// continue building
 				APPEND_TO_BUFFER();
@@ -148,7 +168,7 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 			else if (c == 'e' || c == 'E') {
 				// go to exponent
 				if (buffer[pos-1] == '.') {
-					return 0; // error: ends with dot before exponent
+					return 0; // error -- ends with dot before exponent
 				}
 				APPEND_TO_BUFFER();
 				state = NUM_EXP_SIGN;
@@ -159,66 +179,65 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 					return 0; // error
 				return 1;     // done
 			}
-			c = fgetc(file);
 			break;
 		} // end NUM_FRAC
 		case NUM_EXP_SIGN: {
-			APPEND_TO_BUFFER();
+			c = fgetc(file);
+
 			if (c == '-' || c == '+' || isdigit(c)) {
 				// go to decimal part of exp
-				state = NUM_EXP;
-			} else {
-				FINALIZE_NUM();
-				return 0; // error
-			}
-
-			c = fgetc(file);
-			if (!isdigit(c)) {
 				APPEND_TO_BUFFER();
+				state = NUM_EXP;
+				break;
+			} else {
 				FINALIZE_NUM();
 				return 0; // error
 			}
 			break;
 		} // end NUM_EXP_SIGN
+		case NUM_EXP_START: {
+			c = fgetc(file);
+
+			if (!isdigit(c)) {
+				FINALIZE_NUM();
+				return 0; // error
+			}
+			APPEND_TO_BUFFER();
+			state = NUM_EXP;
+			break;
+		} // end NUM_EXP_START
+
 		case NUM_EXP: {
+			c = fgetc(file);
+
 			if (isdigit(c)) {
 				// comtinue building
 				APPEND_TO_BUFFER();
 			}
 			else {
 				FINALIZE_NUM();
-				if (strchr("+-.", c)) {
-					// cannot have fractions as 2nd part of exp
+				if (strchr("+-.", buffer[pos-1])) {
 					return 0; // error
 				}
 				return 1; // done
 			}
-			c = fgetc(file);
 			break;
 		} // end NUM_EXP
-		case NUM_HEX_START: {
-			APPEND_TO_BUFFER(); // append x
-			c = fgetc(file);
-			state = NUM_HEX;
-			break;
-		} // end NUM_HEX_START
+
 		case NUM_HEX: {
+			c = fgetc(file);
 			if(isxdigit(c)) {
 				APPEND_TO_BUFFER();
 			} else {
 				FINALIZE_NUM();
 				if (pos == 2) {
-					return 0; // error: missing hex digits
+					return 0; // error -- missing hex digits
 				}
 				return 1;
 			}
-			c = fgetc(file);
 			break;
 		} // end NUM_HEX
-
-		default:
-			return 0;
-		} // switch state
+		} // switch
 	} // loop until EOF
 	ungetc(c,file);
 	save_penultimate_token(token, buffer, &pos, file);

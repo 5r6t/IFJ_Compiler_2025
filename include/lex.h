@@ -99,7 +99,6 @@ static const struct KeywordEntry keyword_table[] = {
 typedef enum {
     NUM_START,
     NUM_DEC,
-    NUM_HEX_START,
     NUM_HEX,
     NUM_FRAC,
     NUM_EXP_START,

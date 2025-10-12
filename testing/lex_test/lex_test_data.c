@@ -34,6 +34,7 @@ LexCase lex_good_num_cases[] = {
     { "123e-5", TOK_SEQ({NUMERICAL, NULL, "123e-5"}) },
     { "123e05", TOK_SEQ({NUMERICAL, NULL, "123e05"}) },
     { "0.0",    TOK_SEQ({NUMERICAL, NULL, "0.0"}) },
+    { "0e1",    TOK_SEQ({NUMERICAL, NULL, "0e1"}) },
     { "0.01",   TOK_SEQ({NUMERICAL, NULL, "0.01"}) },
     { "1.2e-3", TOK_SEQ({NUMERICAL, NULL, "1.2e-3"}) },
     { "1.2e03", TOK_SEQ({NUMERICAL, NULL, "1.2e03"}) },
@@ -79,7 +80,7 @@ LexCase lex_good_ident_cases[] = {
 LexCase lex_bad_num_cases[] = {
     { "00",       TOK_SEQ({NUMERICAL, NULL, "00"}) },
     { "01",       TOK_SEQ({NUMERICAL, NULL, "01"}) },
-    { "0x",       TOK_SEQ({NUMERICAL, NULL, "0x"}) },
+    { "1xabc",       TOK_SEQ({NUMERICAL, NULL, "0x"}) },
     { "000123",   TOK_SEQ({NUMERICAL, NULL, "000123"}) },
     { "123.",     TOK_SEQ({NUMERICAL, NULL, "123."}) },
     { "123e",     TOK_SEQ({NUMERICAL, NULL, "123e"}) },

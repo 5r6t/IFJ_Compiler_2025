@@ -1,0 +1,111 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64; rv:143.0) Gecko/20100101 Firefox/143.0" version="28.2.5">
+  <diagram name="Page-1" id="l6FVfe4lyyduIK4Goc2e">
+    <mxGraphModel dx="747" dy="1140" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-18" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="cIKkD63LHuwU_8qpfmqM-1" target="cIKkD63LHuwU_8qpfmqM-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-19" value="0/[x+X]" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="cIKkD63LHuwU_8qpfmqM-18">
+          <mxGeometry x="-0.2585" y="-1" relative="1" as="geometry">
+            <mxPoint x="-5" y="-16" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-20" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="cIKkD63LHuwU_8qpfmqM-1" target="cIKkD63LHuwU_8qpfmqM-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-21" value="[1-9] / [0-9]" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="cIKkD63LHuwU_8qpfmqM-20">
+          <mxGeometry x="0.0463" y="2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-42" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.368;exitY=-0.007;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitPerimeter=0;curved=1;" edge="1" parent="1" source="cIKkD63LHuwU_8qpfmqM-2" target="cIKkD63LHuwU_8qpfmqM-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-43" value="[0-9]/." style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="cIKkD63LHuwU_8qpfmqM-42">
+          <mxGeometry x="-0.0324" relative="1" as="geometry">
+            <mxPoint x="-11" y="-9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-45" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="cIKkD63LHuwU_8qpfmqM-2" target="cIKkD63LHuwU_8qpfmqM-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-3" value="NUM_HEX" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="260" y="90" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-5" value="NUM_FRAC" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="260" y="320" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-8" value="NUM_EXP_SIGN" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="460" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-9" value="NUM_EXP" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="260" y="210" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-10" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;Lexer FSM diagrams&lt;/h1&gt;&lt;p&gt;To implement the lexer FSM, I&#39;ve made a choice to split complicated tasks into smaller FSMs -- divide and conquer.&lt;/p&gt;&lt;p&gt;J.M.&lt;/p&gt;" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="10" y="10" width="250" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-14" value="" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" target="cIKkD63LHuwU_8qpfmqM-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="20" y="360" as="sourcePoint" />
+            <mxPoint x="200" y="420" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-15" value="[0-9]" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="cIKkD63LHuwU_8qpfmqM-14">
+          <mxGeometry x="-0.0214" relative="1" as="geometry">
+            <mxPoint x="-3" y="-8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-26" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="65" y="320" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-1" value="" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="cIKkD63LHuwU_8qpfmqM-26">
+          <mxGeometry width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-25" value="NUM_START" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="cIKkD63LHuwU_8qpfmqM-26">
+          <mxGeometry x="5" y="5" width="110" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-30" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="cIKkD63LHuwU_8qpfmqM-1" target="cIKkD63LHuwU_8qpfmqM-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-31" value="[0-9]/." style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="cIKkD63LHuwU_8qpfmqM-30">
+          <mxGeometry x="0.0066" y="2" relative="1" as="geometry">
+            <mxPoint y="2" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-46" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="cIKkD63LHuwU_8qpfmqM-1" target="cIKkD63LHuwU_8qpfmqM-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-48" value="0/[e+E]" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="cIKkD63LHuwU_8qpfmqM-46">
+          <mxGeometry x="-0.0903" relative="1" as="geometry">
+            <mxPoint x="5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-52" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="260" y="460" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-2" value="" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="cIKkD63LHuwU_8qpfmqM-52">
+          <mxGeometry width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-51" value="NUM_DEC" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="cIKkD63LHuwU_8qpfmqM-52">
+          <mxGeometry x="5" y="5" width="110" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=1;" edge="1" parent="cIKkD63LHuwU_8qpfmqM-52" source="cIKkD63LHuwU_8qpfmqM-2" target="cIKkD63LHuwU_8qpfmqM-2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="140" y="40" />
+              <mxPoint x="140" y="-30" />
+              <mxPoint x="60" y="-30" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cIKkD63LHuwU_8qpfmqM-41" value="[0-9]/[0-9]" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="cIKkD63LHuwU_8qpfmqM-39">
+          <mxGeometry x="0.264" y="-1" relative="1" as="geometry">
+            <mxPoint x="3" y="-8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
