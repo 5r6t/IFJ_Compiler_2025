@@ -19,15 +19,9 @@
 
 /**
  * @file lex.c
- * @brief Scans the input file and generates tokens.
+ * @brief generates a single token from the open file
  *
- * Implements a finite state machine (FSM) to tokenize the input from a file.
- * It reads characters, transitions between states, and creates tokens based
- * on recognized patterns (e.g., identifiers, strings, operators, special characters...).
- *
- * Functions validate_num, save_penultimate token exist to improve robustness
- * of lexer (accepting identifiers and numbers at EOF) -- not possible in functional code
- *
+ * @note Implements a finite state machine (FSM) to tokenize the input
  */
 
 #define FINALIZE_NUM() do { \
@@ -43,7 +37,7 @@
 	program_error(file, ERR_LEX, ERR_MSG_INVALID_TOK, token); \
 } while (0)
 
-
+// calculate the number of keywords in the table
 static const size_t keyword_count = sizeof(keyword_table) / sizeof(keyword_table[0]);
 
 /**
@@ -91,7 +85,6 @@ void buffer_append(char *buffer, size_t *pos, int c, FILE *file) {
  * @return TokenPtr num_token
  */
 int numerizer (TokenPtr token, int c, FILE* file) {
-
 	NumState state = NUM_START;
 	char buffer[MAX_BUFFER_LENGTH] = {0};
 	size_t pos = 0;
@@ -132,8 +125,6 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 					break;
 				}
 			}
-			APPEND_TO_BUFFER();
-			FINALIZE_NUM();
 			return 0; // error -- first input wasn't a digit
 		} // end NUM_START
 		case NUM_DEC: {
@@ -174,9 +165,9 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 				state = NUM_EXP_SIGN;
 			}
 			else {
-				FINALIZE_NUM();
 				if (buffer[pos-1] == '.')
 					return 0; // error
+				FINALIZE_NUM();
 				return 1;     // done
 			}
 			break;
@@ -190,7 +181,6 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 				state = NUM_EXP;
 				break;
 			} else {
-				FINALIZE_NUM();
 				return 0; // error
 			}
 			break;
@@ -198,10 +188,9 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 		case NUM_EXP_START: {
 			c = fgetc(file);
 
-			if (!isdigit(c)) {
-				FINALIZE_NUM();
+			if (!isdigit(c))
 				return 0; // error
-			}
+			
 			APPEND_TO_BUFFER();
 			state = NUM_EXP;
 			break;
@@ -215,10 +204,9 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 				APPEND_TO_BUFFER();
 			}
 			else {
-				FINALIZE_NUM();
-				if (strchr("+-.", buffer[pos-1])) {
+				if (strchr("+-.", buffer[pos-1]))
 					return 0; // error
-				}
+				FINALIZE_NUM();
 				return 1; // done
 			}
 			break;
@@ -229,34 +217,24 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 			if(isxdigit(c)) {
 				APPEND_TO_BUFFER();
 			} else {
-				FINALIZE_NUM();
 				if (pos == 2) {
 					return 0; // error -- missing hex digits
 				}
+				FINALIZE_NUM();
 				return 1;
 			}
 			break;
 		} // end NUM_HEX
 		} // switch
 	} // loop until EOF
-	ungetc(c,file);
-	save_penultimate_token(token, buffer, &pos, file);
-	return 1; // done, EOF pushed back
+	return 0; // unexpected end
 }
-
 
 /**
  * @brief Function implementing FSM to check validity of (nested) block comments
  * @note Assumes sequence of `/`, `*` has been reached, e.g. using fgetc(),  next char 
  * would be the comments body.. until final `*`,`/`
  */
-
-typedef enum {
-	NC_seek,
-	NC_star,
-	NC_slash
-} NC_state;
-
 int no_comment (FILE *file) {
 	int c = 0;
 	NC_state state = NC_seek;
@@ -295,54 +273,16 @@ int no_comment (FILE *file) {
 	return 0;
 }
 
-// helper - checks if the string corresponds to Num type regex
-// used only in save_penultimate_token -- lexer is an FSM, it doesn't need it
-int validate_num(char *NumStr) {
-	const char *num_pattern = "^(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$";
-	const char *num_hex_pattern = "^0[xX][0-9a-fA-F]+$";
-	return regex_match(NumStr, num_pattern) == 0 ||
-	       regex_match(NumStr, num_hex_pattern) == 0;
-}
-
-// Save the last token when EOF is reached
-// not needed in final implementation, helps test individual tokens
-void save_penultimate_token(TokenPtr token, char* buffer, size_t* pos, FILE* file) {
-	if (pos != 0 && token->type != FILE_END) {
-		switch (token->type) {
-		case IDENTIFIER:
-			if (*pos > 1 && buffer[0]=='_' && buffer[1]=='_') {
-				token_update(token, buffer, NULL, ID_GLOBAL_VAR);
-				return;
-			}
-			token_update(token, buffer, NULL, IDENTIFIER);
-			check_keyword(token);
-			break;
-
-		case NUMERICAL:
-			token_update(token, NULL, buffer, token->type);
-			if (validate_num(token->data) == 0) {
-				LEX_INVAL_TOK_ERR();
-			}
-			break;
-
-		default:
-			break;
-		}
-	} else {
-		token_update(token, NULL, NULL, FILE_END);
-	}
-}
-
 /**
  * @brief Scans the input file and generates tokens.
  * @param file Pointer to the file to scan.
  * @return
- * - `EOF` in token->value if the end of the file was reached.
+ * - `-1` in token->type if the end of the file was reached.
  * - `program_error` on lexical or internal errors.
  *
  * @note The caller is responsible for handling the returned tokens and managing
  *       memory associated with the token structure.
- *       Ensure that the file pointer is valid and opened in read mode.
+ *       Ensure that the file pointer is valid and opened in read mode before calling lexer()
  */
 TokenPtr lexer(FILE *file) {
 
@@ -366,7 +306,7 @@ TokenPtr lexer(FILE *file) {
 				c = fgetc(file);
 				continue;
 			}
-			else if (strchr("(){},.", c)) { // for ternary expansion, then add '?' and ':' here too
+			else if (strchr("(){},.", c)) { // for ternary operator,  add '?', ':'
 				state = SPECIAL;
 			}
 			else if (strchr("<=>", c)) {
@@ -389,9 +329,10 @@ TokenPtr lexer(FILE *file) {
 				state = NUMERICAL;
 			}
 			else {
-				program_error(file, ERR_LEX, ERR_MSG_NOT_IMPLEMENTED, NULL);
+				APPEND_TO_BUFFER();
+				token_update(token, buffer, NULL, -2);
+				program_error(file, ERR_LEX, ERR_MSG_NOT_IMPLEMENTED, token);
 			}
-
 			token->type = state;
 			break;
 		} // end START
@@ -399,8 +340,19 @@ TokenPtr lexer(FILE *file) {
 		case NEWLINE: {
 			do {
 				c = fgetc(file);
-			} while ( c == '\n');
-			ungetc(c, file); // push back the first non-newline char
+			} while ( isspace(c)); // eat all whitespaces, newlines
+			if (c == '/') {
+				c = fgetc(file);
+				if (c == '*') {
+					state = BLOCK_COMMENT;
+					break;
+				}
+				else if (c == '/') {
+					state = COMMENT;
+					break;
+				}
+			}
+			ungetc(c, file); // push back non-newline char
 			token_update(token, "\\n", NULL, NEWLINE);
 			return token;
 		} // end NEWLINE
@@ -411,8 +363,8 @@ TokenPtr lexer(FILE *file) {
 			if (isalnum(c) || c == '_') {
 				APPEND_TO_BUFFER(); // build identifier
 			} else {
-				
-				if(!isspace(c) && c != EOF) 
+				// something on the edge of the identif could be new valid tok
+				if(!isspace(c) && c != EOF &&!strchr("(){},.<=>/+-*!/", c)) 
 					LEX_INVAL_TOK_ERR();
 				ungetc(c, file);
 				// "_" invalid by itself
@@ -427,9 +379,8 @@ TokenPtr lexer(FILE *file) {
 					token_update(token, buffer, NULL, ID_GLOBAL_VAR);
 					return token;
 				}
-
 				token_update(token, buffer, NULL, IDENTIFIER);
-				check_keyword(token);
+				check_keyword(token); // may promote identif to kw
 
 				return token;
 			}
@@ -620,7 +571,5 @@ TokenPtr lexer(FILE *file) {
 		}
 	} // while(!EOF)
 
-
-	save_penultimate_token(token, buffer, &pos, file);
 	return token;
 }

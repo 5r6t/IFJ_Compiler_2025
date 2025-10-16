@@ -33,6 +33,5 @@ typedef struct {
 } LexGroup;
 
 extern LexGroup lex_groups[];
-extern const int LEX_GROUP_COUNT;
 
 #endif

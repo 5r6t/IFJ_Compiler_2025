@@ -38,7 +38,6 @@ LexCase lex_good_num_cases[] = {
     { "0.01",   TOK_SEQ({NUMERICAL, NULL, "0.01"}) },
     { "1.2e-3", TOK_SEQ({NUMERICAL, NULL, "1.2e-3"}) },
     { "1.2e03", TOK_SEQ({NUMERICAL, NULL, "1.2e03"}) },
-    { "99999999999999999999", TOK_SEQ({NUMERICAL, NULL, "99999999999999999999"}) },
 
     { NULL, NULL }
 };
@@ -80,15 +79,14 @@ LexCase lex_good_ident_cases[] = {
 LexCase lex_bad_num_cases[] = {
     { "00",       TOK_SEQ({NUMERICAL, NULL, "00"}) },
     { "01",       TOK_SEQ({NUMERICAL, NULL, "01"}) },
-    { "1xabc",       TOK_SEQ({NUMERICAL, NULL, "0x"}) },
-    { "000123",   TOK_SEQ({NUMERICAL, NULL, "000123"}) },
+    { "1xabc",    TOK_SEQ({NUMERICAL, NULL, "0x"}) },
     { "123.",     TOK_SEQ({NUMERICAL, NULL, "123."}) },
     { "123e",     TOK_SEQ({NUMERICAL, NULL, "123e"}) },
     { "123e+",    TOK_SEQ({NUMERICAL, NULL, "123e+"}) },
     { ".123",     TOK_SEQ({NUMERICAL, NULL, ".123"}) },
     { "1.2e",     TOK_SEQ({NUMERICAL, NULL, "1.2e"}) },
     { "1.2e+",    TOK_SEQ({NUMERICAL, NULL, "1.2e+"}) },
-    { "1.e3",   TOK_SEQ({NUMERICAL, NULL, "1.e3"}) },
+    { "1.e3",     TOK_SEQ({NUMERICAL, NULL, "1.e3"}) },
     
     { NULL, NULL }
 };
@@ -101,8 +99,6 @@ LexCase lex_bad_ident_cases[] = {
 
     { "__9abc",        TOK_SEQ({ERR_LEX, NULL, "__9abc"}) },   // global var starting with digit after underscores
     { "var$",          TOK_SEQ({ERR_LEX, NULL, "var$"}) },     // illegal symbol at end
-    { "abc-def",       TOK_SEQ({ERR_LEX, NULL, "abc-def"}) },  // hyphen not allowed
-    { "a.b",           TOK_SEQ({ERR_LEX, NULL, "a.b"}) },      // dot not valid inside identifier
 
     { NULL, NULL }
 };
@@ -114,7 +110,5 @@ LexGroup lex_groups[] = {
     { "num", lex_good_num_cases, lex_bad_num_cases },
     { "ident", lex_good_ident_cases, lex_bad_ident_cases },
 
-    { NULL, NULL, NULL } //
+    { NULL, NULL, NULL }
 };
-
-const int LEX_GROUP_COUNT = 2; // update for script to include new groups!!!

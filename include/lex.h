@@ -106,9 +106,12 @@ typedef enum {
     NUM_EXP,
 } NumState;
 
+typedef enum {
+	NC_seek,
+	NC_star,
+	NC_slash
+} NC_state;
+
 TokenPtr lexer(FILE *file);
-void buffer_append(char* buffer, size_t *pos, int c, FILE* file);
-int skip_whitespace(FILE *file, int c);
-void save_penultimate_token(TokenPtr token, char* buffer, size_t* pos, FILE* file);
 
 #endif // LEX_H

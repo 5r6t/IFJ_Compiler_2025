@@ -26,8 +26,13 @@
 #define EXIT_OUT_OF_RANGE  100
 
 int main(int argc, char **argv) {
+
+    int lex_group_count = 0;
+    for (; lex_groups[lex_group_count].name != NULL; lex_group_count++) {
+        lex_group_count++;    
+    }
     if (argc >= 2 && strcmp(argv[1], "GROUP_COUNT") == 0) {
-        return LEX_GROUP_COUNT;
+        return lex_group_count;
     }
 
     if (argc < 4)
@@ -39,7 +44,7 @@ int main(int argc, char **argv) {
 
     DEBUG_PRINT("Args: group=%d type=%s index=%d\n", group_index, which, case_index);
 
-    if (group_index < 0 || group_index >= LEX_GROUP_COUNT)
+    if (group_index < 0 || group_index >= lex_group_count)
         return EXIT_INVALID_GROUP;
 
     LexGroup *grp = &lex_groups[group_index];
