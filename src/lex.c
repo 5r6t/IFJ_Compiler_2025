@@ -40,6 +40,25 @@
 // calculate the number of keywords in the table
 static const size_t keyword_count = sizeof(keyword_table) / sizeof(keyword_table[0]);
 
+typedef enum {
+    NUM_START,
+	NUM_ZERO,
+    NUM_DEC,
+	NUM_HEX_START,
+    NUM_HEX,
+	NUM_FRAC_START,
+    NUM_FRAC,
+    NUM_EXP_START,
+    NUM_EXP_SIGN,
+    NUM_EXP,
+} NumState;
+
+typedef enum {
+	NC_seek,
+	NC_star,
+	NC_slash
+} NC_state;
+
 /**
  * @brief Checks if the token is a keyword and updates its type accordingly.
  * @param token Pointer to the token to check.
@@ -51,10 +70,10 @@ void check_keyword(TokenPtr token) {
 			if (token->type == KW_NULL) {
 				token_update(token, NULL, "null", KW_NULL);
 			}
-			return; // stop after first match
+			break; // stop after first match
 		}
 	}
-	return; // If not found, token->type stays IDENTIFIER
+	return;
 }
 
 /**
@@ -92,63 +111,70 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 	while (c != EOF) {
 		switch (state) {
 		case NUM_START: {
-			if (isdigit(c)) {
+			if (c == '0') {
 				APPEND_TO_BUFFER();
-				
-				c = fgetc(file);
-
-				if (buffer[0] == '0') {
-					if (tolower(c) == 'x') {
-						APPEND_TO_BUFFER();
-						state = NUM_HEX;
-						break;
-					} else if (c == '.') {
-						state = NUM_FRAC;
-						break;
-					} else if (tolower(c) == 'e') {
-						APPEND_TO_BUFFER();
-						state = NUM_EXP_SIGN;
-						break;
-					} else if (isblank(c) || c == EOF) {
-						FINALIZE_NUM();
-						return 1; // standalone '0'
-					}
-				}
-				// entry digit wasn't '0'
-				else if (c == '.') {
-					APPEND_TO_BUFFER();
-					state = NUM_FRAC;
-					break;
-				} else if (isdigit(c)) {
-					APPEND_TO_BUFFER();
-					state = NUM_DEC;
-					break;
-				}
-			}
+				state = NUM_ZERO;
+				break;
+			} else if (isdigit(c)) {
+				APPEND_TO_BUFFER();
+				state = NUM_DEC;
+				break;
+			} 
 			return 0; // error -- first input wasn't a digit
 		} // end NUM_START
+		case NUM_ZERO: {
+			c = fgetc(file);
+			if ((c = tolower(c)) == 'x') {
+				APPEND_TO_BUFFER();
+				state = NUM_HEX;
+				break;
+			} else if (c == '.') {
+				APPEND_TO_BUFFER();
+				state = NUM_FRAC_START;
+				break;
+			} else if ((c = tolower(c)) == 'e') {
+				APPEND_TO_BUFFER();
+				state = NUM_EXP_SIGN;
+				break;
+			} else if (isblank(c) || c == EOF) {
+				FINALIZE_NUM();
+				return 1; // standalone '0'
+			} 
+			return 0; // leading 0 forbidden
+		}
 		case NUM_DEC: {
 			c = fgetc(file);
 			if (isdigit(c)) {
 				// continue building
 				APPEND_TO_BUFFER();
+				break;
 			} else if (c == '.') {
 				// go to fraction
 				APPEND_TO_BUFFER();
-				state = NUM_FRAC;
-			} else if (tolower(c) == 'e') {
+				state = NUM_FRAC_START;
+				break;
+			} else if ((c = tolower(c)) == 'e') {
 				// go to exponent
 				APPEND_TO_BUFFER();
 				state = NUM_EXP_SIGN;
+				break;
 			} else if (isspace(c) || c == EOF) {
 				FINALIZE_NUM();
 				return 1; // done
 			}
-			else { 
-				return 0; // error
-			}
-			break;
+			return 0; // error
+		
 		} // end NUM_DEC
+		case NUM_FRAC_START: {
+			// ensures . is present
+			c = fgetc(file);
+			if (isdigit(c)) {
+				APPEND_TO_BUFFER();
+				state = NUM_FRAC;
+				break;
+			}
+			return 0; // error
+		} // end NUM_FRAC_START
 		case NUM_FRAC: {
 			c = fgetc(file);
 
@@ -156,34 +182,31 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 				// continue building
 				APPEND_TO_BUFFER();
 			}
-			else if (c == 'e' || c == 'E') {
+			else if ((c = tolower(c)) == 'e') {
 				// go to exponent
-				if (buffer[pos-1] == '.') {
-					return 0; // error -- ends with dot before exponent
-				}
 				APPEND_TO_BUFFER();
 				state = NUM_EXP_SIGN;
 			}
 			else {
-				if (buffer[pos-1] == '.')
-					return 0; // error
 				FINALIZE_NUM();
-				return 1;     // done
+				return 1; // done
 			}
 			break;
 		} // end NUM_FRAC
 		case NUM_EXP_SIGN: {
 			c = fgetc(file);
 
-			if (c == '-' || c == '+' || isdigit(c)) {
+			if (c == '-' || c == '+') {
 				// go to decimal part of exp
+				APPEND_TO_BUFFER();
+				state = NUM_EXP_START;
+				break;
+			} else if (isdigit(c)) {
 				APPEND_TO_BUFFER();
 				state = NUM_EXP;
 				break;
-			} else {
-				return 0; // error
 			}
-			break;
+			return 0; // error
 		} // end NUM_EXP_SIGN
 		case NUM_EXP_START: {
 			c = fgetc(file);
@@ -195,7 +218,6 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 			state = NUM_EXP;
 			break;
 		} // end NUM_EXP_START
-
 		case NUM_EXP: {
 			c = fgetc(file);
 
@@ -204,22 +226,26 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 				APPEND_TO_BUFFER();
 			}
 			else {
-				if (strchr("+-.", buffer[pos-1]))
-					return 0; // error
 				FINALIZE_NUM();
 				return 1; // done
 			}
 			break;
 		} // end NUM_EXP
-
+		case NUM_HEX_START: {
+			// ensures 0x is present
+			c = fgetc(file);
+			if (isxdigit(c)) {
+				APPEND_TO_BUFFER();
+				state = NUM_HEX;
+				break;
+			}
+			return 0; // error
+		} // end NUM_HEX_START
 		case NUM_HEX: {
 			c = fgetc(file);
 			if(isxdigit(c)) {
 				APPEND_TO_BUFFER();
 			} else {
-				if (pos == 2) {
-					return 0; // error -- missing hex digits
-				}
 				FINALIZE_NUM();
 				return 1;
 			}
@@ -232,6 +258,7 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 
 /**
  * @brief Function implementing FSM to check validity of (nested) block comments
+ * @return 0 on fail, otherwise 1
  * @note Assumes sequence of `/`, `*` has been reached, e.g. using fgetc(),  next char 
  * would be the comments body.. until final `*`,`/`
  */
@@ -253,6 +280,7 @@ int no_comment (FILE *file) {
 				c = fgetc(file);
 				if (c == '/') {
 					nest_lvl--;
+					// comment finished
 					if (nest_lvl == 0) return 1;
 				}
 				state = NC_seek;
@@ -265,10 +293,9 @@ int no_comment (FILE *file) {
 				state = NC_seek;
 				break;
 			}
-
 			default:
 				break;
-		}
+		} // end switch
 	}
 	return 0;
 }
@@ -363,7 +390,7 @@ TokenPtr lexer(FILE *file) {
 			if (isalnum(c) || c == '_') {
 				APPEND_TO_BUFFER(); // build identifier
 			} else {
-				// something on the edge of the identif could be new valid tok
+				// char on the edge of the identif could be new valid tok e.g. a+b
 				if(!isspace(c) && c != EOF &&!strchr("(){},.<=>/+-*!/", c)) 
 					LEX_INVAL_TOK_ERR();
 				ungetc(c, file);
@@ -460,7 +487,6 @@ TokenPtr lexer(FILE *file) {
 			if (temp == '/') {
 				if (c == '/') {
 					state = COMMENT;
-					ungetc(c, file); // put back the second '/'
 					break;
 				} else if (c == '*') {
 					state = BLOCK_COMMENT;
@@ -474,7 +500,7 @@ TokenPtr lexer(FILE *file) {
 			}
 
 			// For +, -, *
-			ungetc(c, file);
+			ungetc(c, file); // push back lookahead char
 			buffer_append(buffer, &pos, temp, file);
 			token_update(token, buffer, NULL, ARITHMETICAL);
 			return token;
@@ -482,14 +508,14 @@ TokenPtr lexer(FILE *file) {
 
 		case COMMENT: {
 			c = fgetc(file);
-			token_update(token, "\\n", NULL, NEWLINE); // update in advance (possible EOF)
+			token_update(token, "\\n", NULL, NEWLINE); // line comment is considered a newline
 			if (c == '\n') {
 				state = NEWLINE; // single-line comment = newline token
 			}
 			break;
 		} // end COMMENT
 
-		case BLOCK_COMMENT: { // BLOCK COMMENTS can be nested,
+		case BLOCK_COMMENT: { // BLOCK COMMENTS can be nested
 			if (!no_comment(file)) { 
 				token_update(token, NULL, NULL, BLOCK_COMMENT);
 				program_error(file, ERR_MSG_UNENCLOSED_COMM, ERR_LEX, token);
@@ -502,18 +528,15 @@ TokenPtr lexer(FILE *file) {
 		case SPECIAL: {
 			APPEND_TO_BUFFER();
 			token_update(token, buffer, NULL, SPECIAL);
-			
-			if (c == '.') { // bad float check
-				c = fgetc(file);
+			// bad float check, e.g. ".123"
+			if (c == '.') { 
+				c = fgetc(file); 
 				if (isdigit(c)) {
-					ungetc(c, file);
 					LEX_INVAL_TOK_ERR();
 				}
 				ungetc(c, file);
 			}
-
 			return token;
-			break;
 		} // end SPECIAL
 
 		case CMP_OPERATOR: {
@@ -548,11 +571,7 @@ TokenPtr lexer(FILE *file) {
 				token_update(token, "!=", NULL, NOT_EQUAL);
 				return token;
 			}
-			buffer_append(buffer, &pos, '!', file);
-			APPEND_TO_BUFFER();
-			token_update(token, buffer, NULL, NOT_EQUAL);
 			LEX_INVAL_TOK_ERR(); // invalid usage: '!' must be followed by '='
-
 			break;
 		} // end NOT_EQUAL
 
@@ -570,6 +589,5 @@ TokenPtr lexer(FILE *file) {
 			program_error(file, ERR_MSG_NOT_IMPLEMENTED, ERR_LEX, token); // unknown token
 		}
 	} // while(!EOF)
-
 	return token;
 }

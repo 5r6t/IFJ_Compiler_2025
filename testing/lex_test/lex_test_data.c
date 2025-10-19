@@ -17,91 +17,94 @@
 #include "lex_test_data.h"
 #include <stddef.h>
 
-// Small helper to inline token sequences
+// Small helper for inline token sequences
+#define TOK(t, i, d)  { .type = (t), .id = (i), .data = (d) }
 #define TOK_SEQ(...) ((struct Token[]){__VA_ARGS__, {-1, NULL, NULL}}) // token and eof
 
 /* ============================
  * GOOD cases
  * ============================ */
 LexCase lex_good_num_cases[] = {
-    { "0",      TOK_SEQ({NUMERICAL, NULL, "0"}) },
-    { "0x0",    TOK_SEQ({NUMERICAL, NULL, "0x0"}) },
-    { "0x1F",   TOK_SEQ({NUMERICAL, NULL, "0x1F"}) },
-    { "0XABC",  TOK_SEQ({NUMERICAL, NULL, "0XABC"}) },
-    { "123",    TOK_SEQ({NUMERICAL, NULL, "123"}) },
-    { "123.0",  TOK_SEQ({NUMERICAL, NULL, "123.0"}) },
-    { "123.01", TOK_SEQ({NUMERICAL, NULL, "123.01"}) },
-    { "123e-5", TOK_SEQ({NUMERICAL, NULL, "123e-5"}) },
-    { "123e05", TOK_SEQ({NUMERICAL, NULL, "123e05"}) },
-    { "0.0",    TOK_SEQ({NUMERICAL, NULL, "0.0"}) },
-    { "0e1",    TOK_SEQ({NUMERICAL, NULL, "0e1"}) },
-    { "0.01",   TOK_SEQ({NUMERICAL, NULL, "0.01"}) },
-    { "1.2e-3", TOK_SEQ({NUMERICAL, NULL, "1.2e-3"}) },
-    { "1.2e03", TOK_SEQ({NUMERICAL, NULL, "1.2e03"}) },
-
+    { "0",      TOK_SEQ( TOK(NUMERICAL, NULL, "0") ) },
+    { "0x0",    TOK_SEQ( TOK(NUMERICAL, NULL, "0x0") ) },
+    { "0.1",    TOK_SEQ( TOK(NUMERICAL, NULL, "0.1") ) },
+    { "0x1F",   TOK_SEQ( TOK(NUMERICAL, NULL, "0x1F") ) },
+    { "0XABC",  TOK_SEQ( TOK(NUMERICAL, NULL, "0xABC") ) },
+    { "123",    TOK_SEQ( TOK(NUMERICAL, NULL, "123") ) },
+    { "123.0",  TOK_SEQ( TOK(NUMERICAL, NULL, "123.0") ) },
+    { "123.01", TOK_SEQ( TOK(NUMERICAL, NULL, "123.01") ) },
+    { "123e-5", TOK_SEQ( TOK(NUMERICAL, NULL, "123e-5") ) },
+    { "123e05", TOK_SEQ( TOK(NUMERICAL, NULL, "123e05") ) },
+    { "0.0",    TOK_SEQ( TOK(NUMERICAL, NULL, "0.0") ) },
+    { "0e1",    TOK_SEQ( TOK(NUMERICAL, NULL, "0e1") ) },
+    { "0.01",   TOK_SEQ( TOK(NUMERICAL, NULL, "0.01") ) },
+    { "1.2e-3", TOK_SEQ( TOK(NUMERICAL, NULL, "1.2e-3") ) },
+    { "1.2e03", TOK_SEQ( TOK(NUMERICAL, NULL, "1.2e03") ) },
     { NULL, NULL }
 };
 
 LexCase lex_good_ident_cases[] = {
     /* identifiers */
-    { "a",             TOK_SEQ({IDENTIFIER, NULL, "a"}) },
-    { "_abc",          TOK_SEQ({IDENTIFIER, NULL, "_abc"}) },
-    { "x123",          TOK_SEQ({IDENTIFIER, NULL, "x123"}) },
+    { "a",       TOK_SEQ( TOK(IDENTIFIER, "a", NULL) ) },
+    { "_abc",    TOK_SEQ( TOK(IDENTIFIER, "_abc", NULL) ) },
+    { "x123",    TOK_SEQ( TOK(IDENTIFIER, "x123", NULL) ) },
 
     /* global variables */
-    { "__var",         TOK_SEQ({ID_GLOBAL_VAR, NULL, "__var"}) },
-    { "__A1b2",        TOK_SEQ({ID_GLOBAL_VAR, NULL, "__A1b2"}) },
-    { "__",            TOK_SEQ({ID_GLOBAL_VAR, NULL, "__"}) }, // allowed
+    { "__var",   TOK_SEQ( TOK(ID_GLOBAL_VAR, "__var", NULL) ) },
+    { "__A1b2",  TOK_SEQ( TOK(ID_GLOBAL_VAR, "__A1b2", NULL) ) },
+    { "__",      TOK_SEQ( TOK(ID_GLOBAL_VAR, "__", NULL) ) },
 
     /* keywords */
-    { "class",         TOK_SEQ({KW_CLASS, NULL, "class"}) },
-    { "else",          TOK_SEQ({KW_ELSE, NULL, "else"}) },
-    { "for",           TOK_SEQ({KW_FOR, NULL, "for"}) },
-    { "if",            TOK_SEQ({KW_IF, NULL, "if"}) },
-    { "Ifj",           TOK_SEQ({KW_IFJ, NULL, "Ifj"}) },
-    { "import",        TOK_SEQ({KW_IMPORT, NULL, "import"}) },
-    { "is",            TOK_SEQ({KW_IS, NULL, "is"}) },
-    { "null",          TOK_SEQ({KW_NULL, NULL, "null"}) },
-    { "Null",          TOK_SEQ({KW_NULL_TYPE, NULL, "Null"}) },
-    { "Num",           TOK_SEQ({KW_NUM, NULL, "Num"}) },
-    { "return",        TOK_SEQ({KW_RETURN, NULL, "return"}) },
-    { "static",        TOK_SEQ({KW_STATIC, NULL, "static"}) },
-    { "String",        TOK_SEQ({KW_STRING, NULL, "String"}) },
-    { "var",           TOK_SEQ({KW_VAR, NULL, "var"}) },
-    { "while",         TOK_SEQ({KW_WHILE, NULL, "while"}) },
+    { "class",   TOK_SEQ( TOK(KW_CLASS, "class", NULL) ) },
+    { "else",    TOK_SEQ( TOK(KW_ELSE, "else", NULL) ) },
+    { "for",     TOK_SEQ( TOK(KW_FOR, "for", NULL) ) },
+    { "if",      TOK_SEQ( TOK(KW_IF, "if", NULL) ) },
+    { "Ifj",     TOK_SEQ( TOK(KW_IFJ, "Ifj", NULL) ) },
+    { "import",  TOK_SEQ( TOK(KW_IMPORT, "import", NULL) ) },
+    { "is",      TOK_SEQ( TOK(KW_IS, "is", NULL) ) },
+    { "null",    TOK_SEQ( TOK(KW_NULL, NULL, "null") ) }, // null is value -> data
+    { "Null",    TOK_SEQ( TOK(KW_NULL_TYPE, "Null", NULL) ) },
+    { "Num",     TOK_SEQ( TOK(KW_NUM, "Num", NULL) ) },
+    { "return",  TOK_SEQ( TOK(KW_RETURN, "return", NULL) ) },
+    { "static",  TOK_SEQ( TOK(KW_STATIC, "static", NULL) ) },
+    { "String",  TOK_SEQ( TOK(KW_STRING, "String", NULL) ) },
+    { "var",     TOK_SEQ( TOK(KW_VAR, "var", NULL) ) },
+    { "while",   TOK_SEQ( TOK(KW_WHILE, "while", NULL) ) },
 
     { NULL, NULL }
 };
+
 
 /* ============================
  * BAD cases
  * ============================ */
 LexCase lex_bad_num_cases[] = {
-    { "00",       TOK_SEQ({NUMERICAL, NULL, "00"}) },
-    { "01",       TOK_SEQ({NUMERICAL, NULL, "01"}) },
-    { "1xabc",    TOK_SEQ({NUMERICAL, NULL, "0x"}) },
-    { "123.",     TOK_SEQ({NUMERICAL, NULL, "123."}) },
-    { "123e",     TOK_SEQ({NUMERICAL, NULL, "123e"}) },
-    { "123e+",    TOK_SEQ({NUMERICAL, NULL, "123e+"}) },
-    { ".123",     TOK_SEQ({NUMERICAL, NULL, ".123"}) },
-    { "1.2e",     TOK_SEQ({NUMERICAL, NULL, "1.2e"}) },
-    { "1.2e+",    TOK_SEQ({NUMERICAL, NULL, "1.2e+"}) },
-    { "1.e3",     TOK_SEQ({NUMERICAL, NULL, "1.e3"}) },
-    
+    { "00",       TOK_SEQ( TOK(NUMERICAL, NULL, "00") ) },
+    { "01",       TOK_SEQ( TOK(NUMERICAL, NULL, "01") ) },
+    { "1xabc",    TOK_SEQ( TOK(NUMERICAL, NULL, "1xabc") ) },
+    { "123.",     TOK_SEQ( TOK(NUMERICAL, NULL, "123.") ) },
+    { "123e",     TOK_SEQ( TOK(NUMERICAL, NULL, "123e") ) },
+    { "123e+",    TOK_SEQ( TOK(NUMERICAL, NULL, "123e+") ) },
+    { ".123",     TOK_SEQ( TOK(NUMERICAL, NULL, ".123") ) },
+    { "1.2e",     TOK_SEQ( TOK(NUMERICAL, NULL, "1.2e") ) },
+    { "1.2e+",    TOK_SEQ( TOK(NUMERICAL, NULL, "1.2e+") ) },
+    { "1.e3",     TOK_SEQ( TOK(NUMERICAL, NULL, "1.e3") ) },
     { NULL, NULL }
 };
+
 
 LexCase lex_bad_ident_cases[] = {
-    { "1abc",          TOK_SEQ({ERR_LEX, NULL, "1abc"}) },     // starts with digit
-    { "#name",         TOK_SEQ({ERR_LEX, NULL, "#name"}) },    // invalid char
-    { "$var",          TOK_SEQ({ERR_LEX, NULL, "$var"}) },     // illegal sigil
-    { "_",             TOK_SEQ({ERR_LEX, NULL, "_"}) },        // underscore alone
+    { "1abc",     TOK_SEQ( TOK(ERR_LEX, "1abc", NULL) ) },     // starts with digit
+    { "#name",    TOK_SEQ( TOK(ERR_LEX, "#name", NULL) ) },    // invalid char
+    { "$var",     TOK_SEQ( TOK(ERR_LEX, "$var", NULL) ) },     // illegal sigil
+    { "_",        TOK_SEQ( TOK(ERR_LEX, "_", NULL) ) },        // underscore alone
 
-    { "__9abc",        TOK_SEQ({ERR_LEX, NULL, "__9abc"}) },   // global var starting with digit after underscores
-    { "var$",          TOK_SEQ({ERR_LEX, NULL, "var$"}) },     // illegal symbol at end
+    { "__9abc",   TOK_SEQ( TOK(ERR_LEX, "__9abc", NULL) ) },   // global var starting with digit after underscores
+    { "var$",     TOK_SEQ( TOK(ERR_LEX, "var$", NULL) ) },     // illegal symbol at end
 
     { NULL, NULL }
 };
+
 
 /* ============================
  * Group registry

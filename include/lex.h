@@ -96,22 +96,6 @@ static const struct KeywordEntry keyword_table[] = {
 	{"Null", KW_NULL_TYPE}
 };
 
-typedef enum {
-    NUM_START,
-    NUM_DEC,
-    NUM_HEX,
-    NUM_FRAC,
-    NUM_EXP_START,
-    NUM_EXP_SIGN,
-    NUM_EXP,
-} NumState;
-
-typedef enum {
-	NC_seek,
-	NC_star,
-	NC_slash
-} NC_state;
-
 TokenPtr lexer(FILE *file);
 
 #endif // LEX_H

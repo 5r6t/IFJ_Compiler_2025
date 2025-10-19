@@ -25,12 +25,32 @@
 #define EXIT_USAGE_ERROR   99
 #define EXIT_OUT_OF_RANGE  100
 
+/**
+ * @return 1 on success, 0 on mismatch
+ */  
+int token_equal(TokenPtr exp, TokenPtr cur) {
+    DEBUG_PRINT("> Expected\t"); token_print(exp);
+    DEBUG_PRINT("> Current\t"); token_print(cur);
+    if (!exp || !cur) return 0;
+    if (exp->type != cur->type) return 0;
+
+    if ((exp->data && !cur->data) || (!exp->data && cur->data) ||
+        (exp->data && cur->data && strcmp(exp->data, cur->data) != 0))
+        return 0;
+
+    if ((exp->id && !cur->id) || (!exp->id && cur->id) ||
+        (exp->id && cur->id && strcmp(exp->id, cur->id) != 0))
+        return 0;
+    
+    return 1;
+}
+
 int main(int argc, char **argv) {
 
     int lex_group_count = 0;
-    for (; lex_groups[lex_group_count].name != NULL; lex_group_count++) {
-        lex_group_count++;    
-    }
+    while (lex_groups[lex_group_count].name != NULL)
+        lex_group_count++;
+    
     if (argc >= 2 && strcmp(argv[1], "GROUP_COUNT") == 0) {
         return lex_group_count;
     }
@@ -69,26 +89,28 @@ int main(int argc, char **argv) {
     FILE *f = fmemopen((void *)src, strlen(src), "r");
     if (!f) { perror("fmemopen"); return ERR_INTERNAL; }
 
-
-    DEBUG_PRINT("Running against");
-    token_print(ptr->expected);
+    DEBUG_PRINT("Expecting\t"); token_print(ptr->expected);
     TokenPtr tok = lexer(f); // call lexer on stream
     fclose(f);
-    token_print(tok);
 
     if (strcmp(which, "good") == 0) {
-        if (ptr->expected && tok && tok->type == ptr->expected->type) {
+        if (token_equal(ptr->expected, tok) == 0) {
+            token_free(tok); // token_free handles NULL safely
+            return EXIT_MISMATCH;
+        } else {
             token_free(tok);
-            return 0; // token created as expected
+            return 0;
         }
     } else {
-        /* bad case */
+        /* bad case -- lexer should have exit already */
         if (tok) {
+            token_print(ptr->expected);
+            token_print(tok);
             DEBUG_PRINT("Lex didn't exit on bad token -> type=%d\n", tok->type);
             token_free(tok);
-            return EXIT_BAD_NOEXIT; // bad case must result in exit -> FAIL
+            return EXIT_BAD_NOEXIT;
         }
     }
     token_free(tok); // token_free handles NULL safely
-    return EXIT_MISMATCH;
+    return EXIT_MISMATCH; // fallback
 }
