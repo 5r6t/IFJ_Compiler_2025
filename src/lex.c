@@ -270,6 +270,9 @@ int no_comment (FILE *file) {
 	while (c != EOF) {
 		switch(state) {
 			case NC_seek: {
+				// comment finished
+				if (nest_lvl == 0) return 1;
+
 				c = fgetc(file);
 				if (c == '*') state = NC_star;
 				else if (c == '/') state = NC_slash;
@@ -280,8 +283,6 @@ int no_comment (FILE *file) {
 				c = fgetc(file);
 				if (c == '/') {
 					nest_lvl--;
-					// comment finished
-					if (nest_lvl == 0) return 1;
 				}
 				state = NC_seek;
 				break;
@@ -521,7 +522,7 @@ TokenPtr lexer(FILE *file) {
 				program_error(file, ERR_MSG_UNENCLOSED_COMM, ERR_LEX, token);
 			}
 			c = fgetc(file);
-			state = START;
+			state = START; // continue reading
 			break;
 		}
 
