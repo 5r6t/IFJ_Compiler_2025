@@ -194,3 +194,69 @@ SymTableNode *bst_insert(SymTableNode *tree, char id[]){
 
     return tree;
 }
+
+
+// ------------------------------------------ //
+// -------- Scope stack functions ----------- //
+// ------------------------------------------ //
+
+/**
+ * @brief initializes the scope stack
+ * 
+ * @param stack pointer to the scope stack
+ */
+void scopeStack_init(Scopes *stack){
+    stack->topIndex = -1; // initializing topIndex to -1 indicating empty stack
+    stack->array = (SymTableNode **) malloc(MAX_SCOPES * sizeof(SymTableNode *)); // allocating memory for stack array
+}
+
+/**
+ * @brief checking if the scope stack is empty
+ * 
+ * @param stack pointer to the scope stack
+ * @return true if empty
+ * @return false if not empty
+ */
+bool scopeStack_isEmpty(const Scopes *stack){
+    return (stack->topIndex == -1); // checking if topIndex is -1 indicating empty stack
+}
+
+/**
+ * @brief checking if the scope stack is full
+ * 
+ * @param stack pointer to the scope stack
+ * @return true if full
+ * @return false if not full
+ */
+bool scopeStack_isFull(const Scopes *stack){
+    return (stack->topIndex == MAX_SCOPES - 1); // checking if topIndex is at maximum capacity
+}
+
+/**
+ * @brief pushes a new scope onto the scope stack
+ * 
+ * @param stack pointer to the scope stack
+ * @param scope pointer to the scope to be pushed
+ */
+void scopeStack_push(Scopes *stack, SymTableNode *scope){
+	if(scopeStack_isFull(stack)){ // checking if stack is full
+		return;
+	}
+	stack->topIndex++; // incrementing topIndex to point to the new top element
+	stack->array[stack->topIndex] = scope; // inserting scope on top of the stack
+}
+
+/**
+ * @brief pops the top scope from the scope stack
+ * 
+ * @param stack pointer to the scope stack
+ * @return pointer to the popped scope
+ */
+SymTableNode *scopeStack_pop(Scopes *stack){
+    if(scopeStack_isEmpty(stack)){ // checking if stack is empty
+        return NULL;		
+    }
+    SymTableNode *poppedScope = stack->array[stack->topIndex]; // retrieving the top element
+    stack->topIndex--; // decrementing topIndex to remove the top element
+    return poppedScope; // returning the popped scope
+}

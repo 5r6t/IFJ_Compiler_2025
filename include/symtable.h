@@ -13,7 +13,9 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define MAX_ID_LENGTH 100
+// TODO unite with lexer's MAX_ID_LENGTH
+#define MAX_ID_LENGTH 100 // maximum length of an identifier
+#define MAX_SCOPES 100 // maximum number of scopes in the stack
 
 typedef struct STN {
     int type;
@@ -23,8 +25,15 @@ typedef struct STN {
     struct STN *right;
 } SymTableNode;
 
+typedef struct {
+	SymTableNode **array;
+	int topIndex;
+} Scopes;
+
+
+// ---- BST functions ----
 void bst_init(SymTableNode *tree);
-void bstDelete(SymTableNode *tree);
+void bst_delete(SymTableNode *tree);
 
 bool bst_search(SymTableNode *tree, char id[]);
 
@@ -35,3 +44,11 @@ SymTableNode *bst_createNode(char id[]);
 SymTableNode *bst_rightRotate(SymTableNode *tree);
 SymTableNode *bst_leftRotate(SymTableNode *tree);
 SymTableNode *bst_insert(SymTableNode *tree, char id[]);
+
+
+// -------- Scope stack functions ----
+void scopeStack_init(Scopes *stack);
+bool scopeStack_isEmpty(const Scopes *stack);
+bool scopeStack_isFull(const Scopes *stack);
+void scopeStack_push(Scopes *stack, SymTableNode *scope);
+SymTableNode *scopeStack_pop(Scopes *stack);
