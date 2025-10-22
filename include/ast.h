@@ -8,6 +8,12 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
+/**
+ * @file ast.h
+ * @brief Header file for the syntactic analyzer.
+ *
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -17,6 +23,7 @@ typedef struct ASTnode {
     union {
         struct { // Program (root)
             struct ASTnode **child;
+            int childCount;
         } program;
 
         struct {
