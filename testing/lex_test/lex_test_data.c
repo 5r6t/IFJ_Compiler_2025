@@ -21,6 +21,8 @@
 #define TOK(t, i, d)  { .type = (t), .id = (i), .data = (d) }
 #define TOK_SEQ(...) ((struct Token[]){__VA_ARGS__, {-1, NULL, NULL}}) // token and eof
 
+/// @note data format { NULL,      TOK_SEQ( TOK("type", "id", "data") ) },  
+
 /* ============================
  * GOOD cases
  * ============================ */
@@ -74,44 +76,64 @@ LexCase lex_good_ident_cases[] = {
     { NULL, NULL }
 };
 
+LexCase lex_good_cmp_cases[] = {
+    { ">",       TOK_SEQ( TOK(CMP_OPERATOR, ">", NULL) ) },
+    { "<",       TOK_SEQ( TOK(CMP_OPERATOR, "<", NULL) ) },
+    { ">=",      TOK_SEQ( TOK(CMP_OPERATOR, ">=", NULL ) ) },
+    { "<=",      TOK_SEQ( TOK(CMP_OPERATOR, "<=", NULL) ) },
+    { "==",      TOK_SEQ( TOK(CMP_OPERATOR, "==", NULL) ) },
+    { "!=",      TOK_SEQ( TOK(CMP_OPERATOR, "!=", NULL) ) },
+
+    { NULL, NULL }
+};
+
 
 /* ============================
  * BAD cases
  * ============================ */
 LexCase lex_bad_num_cases[] = {
-    { "00",       TOK_SEQ( TOK(NUMERICAL, NULL, "00") ) },
-    { "01",       TOK_SEQ( TOK(NUMERICAL, NULL, "01") ) },
-    { "1xabc",    TOK_SEQ( TOK(NUMERICAL, NULL, "1xabc") ) },
-    { "123.",     TOK_SEQ( TOK(NUMERICAL, NULL, "123.") ) },
-    { "123e",     TOK_SEQ( TOK(NUMERICAL, NULL, "123e") ) },
-    { "123e+",    TOK_SEQ( TOK(NUMERICAL, NULL, "123e+") ) },
-    { ".123",     TOK_SEQ( TOK(NUMERICAL, NULL, ".123") ) },
-    { "1.2e",     TOK_SEQ( TOK(NUMERICAL, NULL, "1.2e") ) },
-    { "1.2e+",    TOK_SEQ( TOK(NUMERICAL, NULL, "1.2e+") ) },
-    { "1.e3",     TOK_SEQ( TOK(NUMERICAL, NULL, "1.e3") ) },
+    { "00",       TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
+    { "01",       TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
+    { "1xabc",    TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
+    { "123.",     TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
+    { "123e",     TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
+    { "123e+",    TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
+    { ".123",     TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
+    { "1.2e",     TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
+    { "1.2e+",    TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
+    { "1.e3",     TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
     { NULL, NULL }
 };
 
 
 LexCase lex_bad_ident_cases[] = {
-    { "1abc",     TOK_SEQ( TOK(ERR_LEX, "1abc", NULL) ) },     // starts with digit
-    { "#name",    TOK_SEQ( TOK(ERR_LEX, "#name", NULL) ) },    // invalid char
-    { "$var",     TOK_SEQ( TOK(ERR_LEX, "$var", NULL) ) },     // illegal sigil
-    { "_",        TOK_SEQ( TOK(ERR_LEX, "_", NULL) ) },        // underscore alone
+    { "1abc",     NULL },     // starts with digit
+    { "#name",    NULL },    // invalid char
+    { "$var",     NULL },     // illegal sigil
+    { "_",        NULL },        // underscore alone
 
-    { "__9abc",   TOK_SEQ( TOK(ERR_LEX, "__9abc", NULL) ) },   // global var starting with digit after underscores
-    { "var$",     TOK_SEQ( TOK(ERR_LEX, "var$", NULL) ) },     // illegal symbol at end
+    { "__9abc",   NULL },   // global var starting with digit after underscores
+    { "var$",     NULL },     // illegal symbol at end
 
     { NULL, NULL }
 };
 
+LexCase lex_bad_cmp_cases[] = {
+    { ">>",      NULL },
+    { "<<",      NULL },
+    { "=>",      NULL},
+    { "=<",      NULL },
+    { "=!",      NULL },
 
+    { NULL, NULL }
+};
 /* ============================
  * Group registry
  * ============================ */
 LexGroup lex_groups[] = {
     { "num", lex_good_num_cases, lex_bad_num_cases },
     { "ident", lex_good_ident_cases, lex_bad_ident_cases },
+    { "cmp", lex_good_cmp_cases, lex_bad_cmp_cases},
 
     { NULL, NULL, NULL }
 };

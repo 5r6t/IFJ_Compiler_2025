@@ -134,11 +134,8 @@ static const char *names[] = {
     [NUMERICAL]        = "NUMERICAL",
     [STRING]           = "STRING",
     [STRING_SPECIAL]   = "STRING_SPECIAL",
-    [MULTILINE_STRING_1] = "MULTILINE_STRING_1",
-    [MULTILINE_STRING_2] = "MULTILINE_STRING_2",
 
     [CMP_OPERATOR]     = "CMP_OPERATOR",
-    [NOT_EQUAL]        = "NOT_EQUAL",
     [ARITHMETICAL]     = "ARITHMETICAL",
 
     [SPECIAL]          = "SPECIAL",

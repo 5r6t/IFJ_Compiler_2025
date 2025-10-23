@@ -29,6 +29,11 @@
     token_update(token, NULL, buffer, NUMERICAL); \
 } while (0)
 
+#define FINALIZE_CMP() do { \
+    ungetc(c, file); \
+    token_update(token, buffer, NULL, CMP_OPERATOR); \
+} while (0)
+
 #define APPEND_TO_BUFFER() do { \
 	buffer_append(buffer, &pos, c, file); \
 } while (0)
@@ -58,6 +63,14 @@ typedef enum {
 	NC_star,
 	NC_slash
 } NC_state;
+
+typedef enum {
+	CMP_start,
+	CMP_assign,
+	CMP_gl,
+	CMP_neq,
+	CMP_end_w_eq
+} CMP_state;
 
 /**
  * @brief Checks if the token is a keyword and updates its type accordingly.
@@ -89,7 +102,7 @@ int skip_whitespace(FILE *file, int c) {
 	return c; // return the non-whitespace (or EOF)
 }
 
-// Helper function to safely append a character to the buffer and increment the position
+/// @brief Helper function to safely append a character to the buffer and increment the position
 void buffer_append(char *buffer, size_t *pos, int c, FILE *file) {
 	if (*pos >= MAX_BUFFER_LENGTH - 1) {
 		program_error(file, ERR_INTERNAL, ERR_MSG_BUFF_OVERFLOW, NULL);
@@ -100,7 +113,7 @@ void buffer_append(char *buffer, size_t *pos, int c, FILE *file) {
 }
 
 /**
- * @brief Function implementing FSM for creating Num type
+ * @brief Function implementing FSM, creates Num type
  * @return TokenPtr num_token
  */
 int numerizer (TokenPtr token, int c, FILE* file) {
@@ -177,7 +190,6 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 		} // end NUM_FRAC_START
 		case NUM_FRAC: {
 			c = fgetc(file);
-
 			if (isdigit(c)) {
 				// continue building
 				APPEND_TO_BUFFER();
@@ -195,7 +207,6 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 		} // end NUM_FRAC
 		case NUM_EXP_SIGN: {
 			c = fgetc(file);
-
 			if (c == '-' || c == '+') {
 				// go to decimal part of exp
 				APPEND_TO_BUFFER();
@@ -210,9 +221,7 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 		} // end NUM_EXP_SIGN
 		case NUM_EXP_START: {
 			c = fgetc(file);
-
-			if (!isdigit(c))
-				return 0; // error
+			if (!isdigit(c)) return 0; // error
 			
 			APPEND_TO_BUFFER();
 			state = NUM_EXP;
@@ -220,10 +229,8 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 		} // end NUM_EXP_START
 		case NUM_EXP: {
 			c = fgetc(file);
-
 			if (isdigit(c)) {
-				// comtinue building
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(); // continue building
 			}
 			else {
 				FINALIZE_NUM();
@@ -302,6 +309,67 @@ int no_comment (FILE *file) {
 }
 
 /**
+ * @brief Function implementing FSM, creates cmp operators and assign tokens
+ * @return TokenPtr num_token
+ */
+int get_cmp_op (TokenPtr token, int c, FILE* file) {
+	CMP_state state = CMP_start;
+	char buffer[MAX_BUFFER_LENGTH] = {0};
+	size_t pos = 0;
+
+	while (c != EOF) {
+		switch (state)
+		{
+		case CMP_start: {
+			if (c == '=') state = CMP_assign;
+			else if (c == '!') state = CMP_neq;
+			else if (strchr("<>", c)) state = CMP_gl;
+			else LEX_INVAL_TOK_ERR();
+			APPEND_TO_BUFFER(); // append <>!=
+			break;
+		} // end CMP_start
+		case CMP_assign: {
+			c = fgetc(file);
+			if (c == '=') { // ==
+				state = CMP_end_w_eq;
+			} else if ( !strchr("<>!", c)) { // single equals
+				ungetc(c, file);
+				token_update(token, buffer, NULL, SPECIAL);
+				return 1;
+			}
+			else LEX_INVAL_TOK_ERR();
+			break;
+		} // end CMP_equal_s
+		case CMP_gl: {
+			c = fgetc(file);
+			// <= or >=
+			if (c == '=') state = CMP_end_w_eq;
+			else if (strchr("<>", c)) LEX_INVAL_TOK_ERR();
+			else { // single < or >
+				FINALIZE_CMP();
+				return 1;
+			}
+			break;
+		} // end CMP_gl
+		case CMP_neq: {
+			c = fgetc(file);
+			if (c != '=') LEX_INVAL_TOK_ERR();
+			state = CMP_end_w_eq;
+			break;
+		} // end CMP_neq
+		case CMP_end_w_eq: {
+			APPEND_TO_BUFFER(); // append '='
+			FINALIZE_CMP();
+			return 1;
+		}
+		default:
+			break;
+		} // end switch
+	} // end while
+	return 0; // fallback
+}
+
+/**
  * @brief Scans the input file and generates tokens.
  * @param file Pointer to the file to scan.
  * @return
@@ -337,11 +405,8 @@ TokenPtr lexer(FILE *file) {
 			else if (strchr("(){},.", c)) { // for ternary operator,  add '?', ':'
 				state = SPECIAL;
 			}
-			else if (strchr("<=>", c)) {
+			else if (strchr("!<=>", c)) { // lower,greater, (not) equals, leq, geq, assign
 				state = CMP_OPERATOR;
-			}
-			else if (c == '!') {
-				state = NOT_EQUAL;
 			}
 			else if (strchr("/+-*", c)) {
 				state = ARITHMETICAL;
@@ -541,40 +606,14 @@ TokenPtr lexer(FILE *file) {
 		} // end SPECIAL
 
 		case CMP_OPERATOR: {
-			APPEND_TO_BUFFER(); // first char (<, >, =, or !)
-			c = fgetc(file);
-
-			if (buffer[0] == '=') {
-				if (c == '=') { // only "=="
-					APPEND_TO_BUFFER();
-				} else {
-					ungetc(c, file); // single "=" is assignment
-					token_update(token, buffer, NULL, SPECIAL);
-					return token;
-				}
-			}
-			else if (buffer[0] == '<' || buffer[0] == '>') {
-				if (c == '=') { // <= or >=
-					APPEND_TO_BUFFER();
-				} else {
-					ungetc(c, file); // just < or >
-				}
-			}
-
-			token_update(token, buffer, NULL, CMP_OPERATOR);
-			return token;
-		} // end CMP_OPERATOR
-
-		case NOT_EQUAL: {
-			c = fgetc(file);
-
-			if (c == '=') {
-				token_update(token, "!=", NULL, NOT_EQUAL);
+			token_update(token, NULL, NULL, CMP_OPERATOR);
+			if (get_cmp_op(token, c, file)) {
 				return token;
+			} else {
+				LEX_INVAL_TOK_ERR();
 			}
-			LEX_INVAL_TOK_ERR(); // invalid usage: '!' must be followed by '='
 			break;
-		} // end NOT_EQUAL
+		} // end CMP_OPERATOR
 
 		case NUMERICAL: {
 			token_update(token, NULL, NULL, NUMERICAL);
