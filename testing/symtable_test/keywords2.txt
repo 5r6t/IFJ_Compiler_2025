@@ -1,0 +1,7 @@
+int
+void
+char
+float
+string
+class
+is
