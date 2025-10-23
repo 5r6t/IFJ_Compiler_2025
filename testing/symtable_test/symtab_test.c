@@ -1,3 +1,13 @@
+//////////////////////////////////////////////
+// filename: symtab_test.c             	    //
+// IFJ_prekladac	varianta - vv-BVS   	//
+// Authors:						  			//
+//  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
+//  * Veronika Kubová (xkubovv00) / Veradko //
+//  * Jozef Matus (xmatusj00) / karfisk 	//
+//  * Jan Hájek (xhajekj00) / Wekk 			//
+//////////////////////////////////////////////
+
 #include <stdio.h>
 #include <string.h>
 #include "../../include/symtable.h"
@@ -13,13 +23,21 @@ char *make_prefix(char *prefix, const char *suffix);
 int main(int argc, char *argv[]){
     (void)argc;
 	
+    // test for bst insert and print
     FILE *keywords = fopen(argv[1], "r");
     SymTableNode *tree = NULL;
     bst_init(tree);
-
-    fillBst(&tree, keywords); // fill the tree with keywords
+    fillBst(&tree, keywords);
     bst_print_tree(tree);
     fclose(keywords);
+
+    // test for second bst
+    FILE *keywords2 = fopen(argv[2], "r");
+    SymTableNode *tree2 = NULL;
+    bst_init(tree2);
+    fillBst(&tree2, keywords2);
+    bst_print_tree(tree2);
+    fclose(keywords2);
 
     // test for search
     if(bst_search(tree, "while")){
@@ -27,6 +45,15 @@ int main(int argc, char *argv[]){
     }else{
         printf("\nNOT found\n");
     }
+
+    //test for scope stack
+    Scopes *stack = malloc(sizeof(Scopes));
+    scopeStack_init(stack);
+    scopeStack_push(stack, tree);
+    scopeStack_push(stack, tree2);
+
+    printf("Found in scope index: %d\n", symTable_searchInScopes(stack, "class"));
+
     return 0;
 }
 

@@ -11,8 +11,8 @@
 #include "../include/symtable.h"
 
 /*NOTES:
-  - need to add stack for scopes
-  - need to add types for variables
+  [x] need to add stack for scopes
+  [ ] need to add types for variables
 */
 
 /**
@@ -259,4 +259,21 @@ SymTableNode *scopeStack_pop(Scopes *stack){
     SymTableNode *poppedScope = stack->array[stack->topIndex]; // retrieving the top element
     stack->topIndex--; // decrementing topIndex to remove the top element
     return poppedScope; // returning the popped scope
+}
+
+/**
+ * @brief finds an identifier in all scopes in the stack
+ * 
+ * @param stack pointer to the scope stack
+ * @param id identifier to be searched
+ * @return true if found
+ * @return false if not found
+ */
+int symTable_searchInScopes(Scopes *stack, char id[]){
+    for(int i = stack->topIndex; i >= 0; i--){ // iterating through scopes from top to bottom
+        if(bst_search(stack->array[i], id)){ // searching in the current scope
+            return i;
+        }
+    }
+    return -1;
 }

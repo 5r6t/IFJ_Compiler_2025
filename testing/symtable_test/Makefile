@@ -13,7 +13,7 @@ test.o: symtab_test.c ../../include/symtable.h
 	$(CC) $(CFLAGS) -c symtab_test.c -o test.o
 
 run:
-	make && ./$(TARGET) keywords.txt
+	make && ./$(TARGET) keywords.txt keywords2.txt
 
 clean:
 	-rm -f *.o $(TARGET) out.txt

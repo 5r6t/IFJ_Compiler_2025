@@ -14,11 +14,12 @@
 #include <stdbool.h>
 
 // TODO unite with lexer's MAX_ID_LENGTH
+// #NEXT_MEETING
 #define MAX_ID_LENGTH 100 // maximum length of an identifier
 #define MAX_SCOPES 100 // maximum number of scopes in the stack
 
 typedef struct STN {
-    int type;
+    int type; // unite with lexer's token types #NEXT_MEETING
     int height;
     char id[MAX_ID_LENGTH];
     struct STN *left;
@@ -52,3 +53,5 @@ bool scopeStack_isEmpty(const Scopes *stack);
 bool scopeStack_isFull(const Scopes *stack);
 void scopeStack_push(Scopes *stack, SymTableNode *scope);
 SymTableNode *scopeStack_pop(Scopes *stack);
+
+int symTable_searchInScopes(Scopes *stack, char id[]);
