@@ -8,6 +8,12 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
+/**
+ * @file symtable.h
+ * @brief functions and structures for symbol table implementation
+ *  
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
