@@ -19,7 +19,29 @@ GREEN="\033[32m"; RED="\033[31m"; YELLOW="\033[33m"; RESET="\033[0m"
 $TEST_BIN "GROUP_COUNT" >/dev/null 2>&1
 GROUP_LIMIT=$?  # See LEX_GROUP_COUNT in lex_test_single.h
 
-# Variables for first failed case
+ENV_LOC="../../.vscode/.env" # directory specific
+
+# J.M's dedbug config // script updates the args
+# {
+#   "version": "0.2.0",
+#   "configurations": [
+#     {
+#       "name": "Debug test",
+#       "type": "cppdbg",
+#       "request": "launch",
+#       "program": "${workspaceFolder}/build/test_lex_single",
+#       "args": [
+#         "5",
+#         "good",
+#         "2"
+#       ],
+#       "cwd": "${workspaceFolder}",
+#       "MIMode": "gdb",
+#       "stopAtEntry": false
+#     }
+#   ]
+# }
+
 FAIL=false
 fail_group=""
 fail_type=""
@@ -86,26 +108,44 @@ if [ "$FAIL" = false ]; then
     echo -e "${GREEN}>>> All test cases passed! ^w^${RESET}"
     exit 0
 else
-    echo "Do you want to run the first failed case individually? (select a number)"
-    select yn in "Yes" "No" "Custom"; do
-        case $yn in
-            "Yes" ) 
-                echo "========================================================"
-                echo "Re-running test case..."
-                echo "========================================================"
-                $TEST_BIN "$fail_group" "$fail_type" "$fail_case"
-                break;;
-            "No" ) exit;;
-            "Custom" ) 
-                echo "========================================================"
-                echo " Re-running test case..."
-                echo "========================================================"
-                read -p "> Enter group index: " cg
-                read -p "> Enter type (good/bad): " ct
-                read -p "> Enter case index: " ci
-                echo "Running test case..."
-                $TEST_BIN "$cg" "$ct" "$ci"
-                break;;
-        esac
+    while true; do
+        echo
+        echo "Do you want to run the first failed case individually? (select a number)"
+        echo "Please use UpdateDBG only if you understand what it does"
+        select yn in "Yes" "No" "Custom" "UpdateDBG"; do
+            case $yn in
+                "Yes")
+                    echo "========================================================"
+                    echo "Re-running test case..."
+                    echo "========================================================"
+                    $TEST_BIN "$fail_group" "$fail_type" "$fail_case"
+                    break ;;
+
+                "No")
+                    break 2;;
+
+                "Custom")
+                    echo "========================================================"
+                    echo " Re-running custom test case..."
+                    echo "========================================================"
+                    sleep 0.01
+                    read -p "> Enter group index: " cg
+                    read -p "> Enter type (good/bad): " ct
+                    read -p "> Enter case index: " ci
+                    echo "Running test case..."
+                    $TEST_BIN "$cg" "$ct" "$ci"
+                    break ;; 
+
+                "UpdateDBG")
+                    echo "Updating launch.json with failed case..."
+                    LAUNCH_FILE="../../.vscode/launch.json"
+                    tmpfile=$(mktemp)
+                    sed -E 's,/\*.*\*/,,; s,//.*$,,' "$LAUNCH_FILE" | \
+                        jq '.configurations[0].args = ["'"$fail_group"'", "'"$fail_type"'", "'"$fail_case"'"]' \
+                        > "$tmpfile" && mv "$tmpfile" "$LAUNCH_FILE"
+                    echo -e "${YELLOW}> launch.json updated — you can now F5 to debug${RESET}"
+                    break 2;;
+            esac
+        done
     done
 fi

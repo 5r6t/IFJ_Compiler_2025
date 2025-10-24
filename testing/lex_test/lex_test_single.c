@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
     FILE *f = fmemopen((void *)src, strlen(src), "r");
     if (!f) { perror("fmemopen"); return ERR_INTERNAL; }
 
-    DEBUG_PRINT("Expecting\t"); token_print(ptr->expected);
+
     TokenPtr tok = lexer(f); // call lexer on stream
     fclose(f);
 
@@ -102,7 +102,8 @@ int main(int argc, char **argv) {
             return 0;
         }
     } else {
-        /* bad case -- lexer should have exit already */
+        DEBUG_PRINT("Expecting\t"); token_print(ptr->expected);
+        /* bad case -- lexer should have exited already */
         if (tok) {
             token_print(ptr->expected);
             token_print(tok);

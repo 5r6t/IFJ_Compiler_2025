@@ -87,21 +87,52 @@ LexCase lex_good_cmp_cases[] = {
     { NULL, NULL }
 };
 
+LexCase lex_good_arith_cases[] = {
+    { "+",       TOK_SEQ( TOK(ARITHMETICAL, "+", NULL) ) },
+    { "-",       TOK_SEQ( TOK(ARITHMETICAL, "-", NULL) ) },
+    { "*",      TOK_SEQ( TOK(ARITHMETICAL, "*", NULL ) ) },
+    { "/",      TOK_SEQ( TOK(ARITHMETICAL, "/", NULL) ) },
+    
+    { NULL, NULL }
+};
+
+LexCase lex_good_special_cases[] = {
+    { "=",      TOK_SEQ( TOK(SPECIAL, "=", NULL) ) },
+    { "(",      TOK_SEQ( TOK(SPECIAL, "(", NULL) ) },
+    { ")",      TOK_SEQ( TOK(SPECIAL, ")", NULL) ) },
+    { "{",      TOK_SEQ( TOK(SPECIAL, "{", NULL) ) },
+    { "}",      TOK_SEQ( TOK(SPECIAL, "}", NULL) ) },
+    { ",",      TOK_SEQ( TOK(SPECIAL, ",", NULL) ) },
+    { ".",      TOK_SEQ( TOK(SPECIAL, ".", NULL) ) },
+    
+    { NULL, NULL }
+};
+
+LexCase lex_good_string_cases[] = {
+    { "\"\"",           TOK_SEQ( TOK(STRING, NULL, "") ) },
+    { "\"Howdy ^w^\"",  TOK_SEQ( TOK(STRING, NULL, "Howdy ^w^") ) },
+    // escape characters
+    { "\"Ahoj\\n\\\"Sve'te \\\\\\x22\"", TOK_SEQ( TOK(STRING, NULL, "Ahoj\n\"Sve'te \\\x22") ) },
+    // multiline // "A\n  hoj s\\x22\"vete"
+    { "\"\"\"A\n  hoj s\\x22\"vete        \"\"\"", TOK_SEQ( TOK(STRING, NULL, "A\n  hoj s\\x22\"vete") ) }, 
+    { NULL, NULL }
+};
 
 /* ============================
  * BAD cases
  * ============================ */
 LexCase lex_bad_num_cases[] = {
-    { "00",       TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
-    { "01",       TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
-    { "1xabc",    TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
-    { "123.",     TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
-    { "123e",     TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
-    { "123e+",    TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
-    { ".123",     TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
-    { "1.2e",     TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
-    { "1.2e+",    TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
-    { "1.e3",     TOK_SEQ( TOK(NUMERICAL, NULL, NULL) ) },
+    { "00",       NULL },
+    { "01",       NULL },
+    { "1xabc",    NULL },
+    { "123.",     NULL },
+    { "123e",     NULL },
+    { "123e+",    NULL },
+    { ".123",     NULL },
+    { "1.2e",     NULL },
+    { "1.2e+",    NULL },
+    { "1.e3",     NULL },
+
     { NULL, NULL }
 };
 
@@ -127,6 +158,18 @@ LexCase lex_bad_cmp_cases[] = {
 
     { NULL, NULL }
 };
+
+LexCase lex_bad_string_cases[] = {
+    // unenclosed single line
+    { "\"",        NULL },
+    // invalid escape characters
+    { "\"\\x2x\"", NULL },
+    { "\"\\g\"",   NULL },
+    // multiline not enclosed
+    { "\"\"\"\"\"", NULL }, 
+
+    { NULL, NULL }
+};
 /* ============================
  * Group registry
  * ============================ */
@@ -134,6 +177,9 @@ LexGroup lex_groups[] = {
     { "num", lex_good_num_cases, lex_bad_num_cases },
     { "ident", lex_good_ident_cases, lex_bad_ident_cases },
     { "cmp", lex_good_cmp_cases, lex_bad_cmp_cases},
-
+    { "arith", lex_good_arith_cases, NULL},
+    { "special", lex_good_special_cases, NULL},
+    { "string", lex_good_string_cases, lex_bad_string_cases},
+    
     { NULL, NULL, NULL }
 };

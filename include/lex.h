@@ -37,36 +37,37 @@
 #define ID_GLOBAL_VAR     2
 #define NUMERICAL         3
 #define STRING            4
-#define STRING_SPECIAL    5 // Lex States Only
+#define MULTILINE_STRING  5
+#define STRING_SPECIAL    6 // Lex States Only
 
 // Operators
-#define CMP_OPERATOR      6
-#define ARITHMETICAL      7
+#define CMP_OPERATOR      7
+#define ARITHMETICAL      8
 
 // Specials & punctuation
-#define SPECIAL           8
-#define NEWLINE           9
+#define SPECIAL           9
+#define NEWLINE          10
 
 // Comments
-#define COMMENT          10 // Lex States Only
-#define BLOCK_COMMENT    11 // Lex States Only
+#define COMMENT          11 // Lex States Only
+#define BLOCK_COMMENT    12 // Lex States Only
 
 // Keywords
-#define KW_CLASS         12
-#define KW_ELSE          13
-#define KW_FOR           14
-#define KW_IF            15
-#define KW_IFJ           16
-#define KW_IMPORT        17
-#define KW_IS            18
-#define KW_NULL          19   // "null" literal
-#define KW_NULL_TYPE     20   // "Null" type
-#define KW_NUM           21
-#define KW_RETURN        22
-#define KW_STATIC        23
-#define KW_STRING        24
-#define KW_VAR           25
-#define KW_WHILE         26
+#define KW_CLASS         13
+#define KW_ELSE          14
+#define KW_FOR           15
+#define KW_IF            16
+#define KW_IFJ           17
+#define KW_IMPORT        18
+#define KW_IS            19
+#define KW_NULL          20   // "null" literal
+#define KW_NULL_TYPE     21   // "Null" type
+#define KW_NUM           22
+#define KW_RETURN        23
+#define KW_STATIC        24
+#define KW_STRING        25
+#define KW_VAR           26
+#define KW_WHILE         27
 
 struct KeywordEntry
 {

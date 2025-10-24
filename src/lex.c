@@ -24,18 +24,26 @@
  * @note Implements a finite state machine (FSM) to tokenize the input
  */
 
-#define FINALIZE_NUM() do { \
+/// @brief abstracts from returning and updating token
+#define FINALIZE_TOK_ID(type) do { \
     ungetc(c, file); \
-    token_update(token, NULL, buffer, NUMERICAL); \
+    token_update(token, buffer, NULL, (type)); \
 } while (0)
 
-#define FINALIZE_CMP() do { \
+#define FINALIZE_TOK_DATA(type) do { \
     ungetc(c, file); \
-    token_update(token, buffer, NULL, CMP_OPERATOR); \
+    token_update(token, NULL, buffer, (type)); \
 } while (0)
 
-#define APPEND_TO_BUFFER() do { \
-	buffer_append(buffer, &pos, c, file); \
+/// @brief abstracts from typing parameters except input
+#define APPEND_TO_BUFFER(c) do { \
+	buffer_append(buffer, &pos, (c), file); \
+} while (0)
+
+/// @brief strongly dependent on names, avoid changing
+#define FLUSH_APPEND_TO_BUFF(c) do { \
+	buffer_flush_to(buffer, &pos, tmp_buff, &tpos, file); \
+	buffer_append(buffer, &pos, (c), file); \
 } while (0)
 
 #define LEX_INVAL_TOK_ERR() do { \
@@ -72,6 +80,8 @@ typedef enum {
 	CMP_end_w_eq
 } CMP_state;
 
+
+
 /**
  * @brief Checks if the token is a keyword and updates its type accordingly.
  * @param token Pointer to the token to check.
@@ -82,7 +92,7 @@ void check_keyword(TokenPtr token) {
 			token->type = keyword_table[i].type;
 			if (token->type == KW_NULL) {
 				token_update(token, NULL, "null", KW_NULL);
-			}
+			} // null is value
 			break; // stop after first match
 		}
 	}
@@ -102,19 +112,43 @@ int skip_whitespace(FILE *file, int c) {
 	return c; // return the non-whitespace (or EOF)
 }
 
-/// @brief Helper function to safely append a character to the buffer and increment the position
+/// @brief Helper to safely append a character to the buffer and increment the position
 void buffer_append(char *buffer, size_t *pos, int c, FILE *file) {
-	if (*pos >= MAX_BUFFER_LENGTH - 1) {
+	if (*pos >= MAX_BUFFER_LENGTH - 1)
 		program_error(file, ERR_INTERNAL, ERR_MSG_BUFF_OVERFLOW, NULL);
-	}
+	
 	buffer[*pos] = c;
 	(*pos)++;
 	buffer[*pos] = '\0'; // Null-terminate the buffer
 }
 
+/// @brief Helper to safely append a string to the buffer and increment the position
+/// @note flushing src to dest, can handle s_pos being NULL, resets source!
+void buffer_flush_to(char *dest, size_t *d_pos, char *src, size_t *s_pos, FILE *file) {
+	for(size_t i = 0; src[i] != '\0'; i++) {
+        if (*d_pos >= MAX_BUFFER_LENGTH - 1)
+            program_error(file, ERR_INTERNAL, ERR_MSG_BUFF_OVERFLOW, NULL);
+		// pseudo dest[pos] = src[i]; pos++
+        dest[(*d_pos)++] = src[i];
+    }
+	dest[*d_pos] = '\0';
+
+	// reset source
+    if (s_pos) *s_pos = 0;
+    src[0] = '\0'; // assuming only buffer_append will be used to fill the buffer next time
+}
+
+/// @brief Helper to convert char into escape char
+int decode_esc(int c) {
+    const char *from = "ntr\"\\";
+    const char *to   = "\n\t\r\"\\";
+    const char *p = strchr(from, c);
+    return p ? to[p - from] : c;
+}
+
 /**
  * @brief Function implementing FSM, creates Num type
- * @return TokenPtr num_token
+ * @return 0 on fail, otherwise 1
  */
 int numerizer (TokenPtr token, int c, FILE* file) {
 	NumState state = NUM_START;
@@ -124,33 +158,32 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 	while (c != EOF) {
 		switch (state) {
 		case NUM_START: {
+			APPEND_TO_BUFFER(c);
 			if (c == '0') {
-				APPEND_TO_BUFFER();
 				state = NUM_ZERO;
 				break;
 			} else if (isdigit(c)) {
-				APPEND_TO_BUFFER();
 				state = NUM_DEC;
 				break;
-			} 
+			}
 			return 0; // error -- first input wasn't a digit
 		} // end NUM_START
 		case NUM_ZERO: {
 			c = fgetc(file);
 			if ((c = tolower(c)) == 'x') {
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				state = NUM_HEX;
 				break;
 			} else if (c == '.') {
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				state = NUM_FRAC_START;
 				break;
 			} else if ((c = tolower(c)) == 'e') {
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				state = NUM_EXP_SIGN;
 				break;
 			} else if (isblank(c) || c == EOF) {
-				FINALIZE_NUM();
+				FINALIZE_TOK_DATA(NUMERICAL);
 				return 1; // standalone '0'
 			} 
 			return 0; // leading 0 forbidden
@@ -159,20 +192,20 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 			c = fgetc(file);
 			if (isdigit(c)) {
 				// continue building
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				break;
 			} else if (c == '.') {
 				// go to fraction
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				state = NUM_FRAC_START;
 				break;
 			} else if ((c = tolower(c)) == 'e') {
 				// go to exponent
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				state = NUM_EXP_SIGN;
 				break;
 			} else if (isspace(c) || c == EOF) {
-				FINALIZE_NUM();
+				FINALIZE_TOK_DATA(NUMERICAL);
 				return 1; // done
 			}
 			return 0; // error
@@ -182,7 +215,7 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 			// ensures . is present
 			c = fgetc(file);
 			if (isdigit(c)) {
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				state = NUM_FRAC;
 				break;
 			}
@@ -192,15 +225,15 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 			c = fgetc(file);
 			if (isdigit(c)) {
 				// continue building
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 			}
 			else if ((c = tolower(c)) == 'e') {
 				// go to exponent
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				state = NUM_EXP_SIGN;
 			}
 			else {
-				FINALIZE_NUM();
+				FINALIZE_TOK_DATA(NUMERICAL);
 				return 1; // done
 			}
 			break;
@@ -209,11 +242,11 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 			c = fgetc(file);
 			if (c == '-' || c == '+') {
 				// go to decimal part of exp
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				state = NUM_EXP_START;
 				break;
 			} else if (isdigit(c)) {
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				state = NUM_EXP;
 				break;
 			}
@@ -223,17 +256,17 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 			c = fgetc(file);
 			if (!isdigit(c)) return 0; // error
 			
-			APPEND_TO_BUFFER();
+			APPEND_TO_BUFFER(c);
 			state = NUM_EXP;
 			break;
 		} // end NUM_EXP_START
 		case NUM_EXP: {
 			c = fgetc(file);
 			if (isdigit(c)) {
-				APPEND_TO_BUFFER(); // continue building
+				APPEND_TO_BUFFER(c); // continue building
 			}
 			else {
-				FINALIZE_NUM();
+				FINALIZE_TOK_DATA(NUMERICAL);
 				return 1; // done
 			}
 			break;
@@ -242,7 +275,7 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 			// ensures 0x is present
 			c = fgetc(file);
 			if (isxdigit(c)) {
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				state = NUM_HEX;
 				break;
 			}
@@ -251,9 +284,9 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 		case NUM_HEX: {
 			c = fgetc(file);
 			if(isxdigit(c)) {
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 			} else {
-				FINALIZE_NUM();
+				FINALIZE_TOK_DATA(NUMERICAL);
 				return 1;
 			}
 			break;
@@ -266,8 +299,8 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 /**
  * @brief Function implementing FSM to check validity of (nested) block comments
  * @return 0 on fail, otherwise 1
- * @note Assumes sequence of `/`, `*` has been reached, e.g. using fgetc(),  next char 
- * would be the comments body.. until final `*`,`/`
+ * @note Assumes sequence of `/`,`*` has been reached, next char 
+ * being the comments body.. until final `*`,`/`
  */
 int no_comment (FILE *file) {
 	int c = 0;
@@ -304,13 +337,13 @@ int no_comment (FILE *file) {
 			default:
 				break;
 		} // end switch
-	}
-	return 0;
+	} // end while
+	return 0; // fallback
 }
 
 /**
- * @brief Function implementing FSM, creates cmp operators and assign tokens
- * @return TokenPtr num_token
+ * @brief FSM to create cmp operators and assign tokens
+ * @return 0 on fail, otherwise 1
  */
 int get_cmp_op (TokenPtr token, int c, FILE* file) {
 	CMP_state state = CMP_start;
@@ -325,7 +358,7 @@ int get_cmp_op (TokenPtr token, int c, FILE* file) {
 			else if (c == '!') state = CMP_neq;
 			else if (strchr("<>", c)) state = CMP_gl;
 			else LEX_INVAL_TOK_ERR();
-			APPEND_TO_BUFFER(); // append <>!=
+			APPEND_TO_BUFFER(c); // append <>!=
 			break;
 		} // end CMP_start
 		case CMP_assign: {
@@ -346,7 +379,7 @@ int get_cmp_op (TokenPtr token, int c, FILE* file) {
 			if (c == '=') state = CMP_end_w_eq;
 			else if (strchr("<>", c)) LEX_INVAL_TOK_ERR();
 			else { // single < or >
-				FINALIZE_CMP();
+				FINALIZE_TOK_ID(CMP_OPERATOR);
 				return 1;
 			}
 			break;
@@ -358,12 +391,135 @@ int get_cmp_op (TokenPtr token, int c, FILE* file) {
 			break;
 		} // end CMP_neq
 		case CMP_end_w_eq: {
-			APPEND_TO_BUFFER(); // append '='
-			FINALIZE_CMP();
+			APPEND_TO_BUFFER(c); // append '='
+			FINALIZE_TOK_ID(CMP_OPERATOR);
 			return 1;
 		}
 		default:
 			break;
+		} // end switch
+	} // end while
+	return 0; // fallback
+}
+
+/**
+ * @brief FSM to create strings from strings/multiline strings
+ * @return 0 on fail, otherwise 1
+ */
+
+typedef enum {
+	STR_start,
+	STR_em_mt,  // empty or multiline
+	STR_single, // like me
+	STR_special,
+	STR_multi,
+	STR_multi_q,
+	STR_multi_end,
+	STR_count,
+	STR_special_l, // letter
+	STR_special_hex_s,
+	STR_special_hex,
+	STR_finish
+} STR_state;
+
+int get_string (TokenPtr token, int c, FILE* file) {
+	STR_state state = STR_start;
+	char buffer[MAX_BUFFER_LENGTH] = {0};
+	char tmp_buff[MAX_BUFFER_LENGTH] = {0};
+	size_t pos = 0;
+	size_t tpos = 0;
+
+	if (c != '\"') LEX_INVAL_TOK_ERR(); // have to enter with quote
+	c = fgetc(file);
+	while (c != EOF) {
+		switch(state) {
+		case STR_start: {
+			if (c == '\"') state = STR_em_mt; // second quote
+			else if (c == '\\') state = STR_special;
+			else {
+				state = STR_single;
+				APPEND_TO_BUFFER(c);
+			}
+			
+			break;			
+		} // end STR_start
+		case STR_em_mt: {
+			c = fgetc(file);
+			if (c == '\"') state = STR_multi; // third quote
+			else { //empty string
+				FINALIZE_TOK_DATA(STRING);
+				return 1;
+			}
+			break;
+		} // end STR_em_mt
+		case STR_multi: {
+			c = fgetc(file);
+			if (isspace(c)) // store whitespaces 
+				buffer_append(tmp_buff, &tpos, c, file);
+			else if (c == '\"') {
+				state = STR_multi_q; // first quote
+				buffer_append(tmp_buff, &tpos, c, file); 
+			} else {// another character
+				FLUSH_APPEND_TO_BUFF(c); 
+			}
+			break;
+		} // STR_multi
+		case STR_multi_q: {
+			c = fgetc(file);
+			if (c == '\"') { // end is near >w<
+				state = STR_multi_end;
+				buffer_append(tmp_buff, &tpos, c, file); 
+			} else {
+				FLUSH_APPEND_TO_BUFF(c);
+				state = STR_multi;
+			}
+			break;
+		} // end STR_multi_q
+		case STR_multi_end: {
+			c = fgetc(file);
+			if (c == '\"') { // third quote
+				FINALIZE_TOK_DATA(STRING);
+				return 1; // not flushing tmp_buffer
+			} else {
+				FLUSH_APPEND_TO_BUFF(c);
+				state = STR_multi;
+			}
+			break;
+		} // end STR_multi_end
+		case STR_single: {
+			c = fgetc(file);
+			if (c == '\\') state = STR_special;
+			else if (c == '\"') { // string end
+				token_update(token, NULL, buffer, STRING);
+				return 1;
+			}
+			else if (c == '\n') LEX_INVAL_TOK_ERR();
+			else APPEND_TO_BUFFER(c); // continue building
+			break;
+		} // end STR_SINGLE
+		case STR_special: {
+			c = fgetc(file);
+			if (c == 'x') 
+				state = STR_special_hex_s;
+			else if (strchr("ntr\"\\", c)) {
+				APPEND_TO_BUFFER(decode_esc(c));
+				state = STR_single;
+			}
+			else LEX_INVAL_TOK_ERR();
+			break;
+		} // end STR_special
+		case STR_special_hex_s: {
+			char hex[3] = {'\0'}; 
+			hex[0] = fgetc(file);
+			hex[1] = fgetc(file);
+			if ( !isxdigit(hex[0]) || !isxdigit(hex[1])) 
+				LEX_INVAL_TOK_ERR();
+			unsigned char val = (unsigned char) strtol(hex, NULL, 16);
+			APPEND_TO_BUFFER(val);
+			state = STR_single;
+			break;
+		} // end STR_special_hex_s
+		default: return 0;
 		} // end switch
 	} // end while
 	return 0; // fallback
@@ -386,9 +542,9 @@ TokenPtr lexer(FILE *file) {
 
 	int state = START;
 	int c;
-	char buffer[MAX_BUFFER_LENGTH] = {0};
+    char buffer[MAX_BUFFER_LENGTH] = {0};
 	size_t pos = 0; // buffer index
-
+	// read first char
 	c = fgetc(file);
 
 	while(c != EOF) {
@@ -412,17 +568,17 @@ TokenPtr lexer(FILE *file) {
 				state = ARITHMETICAL;
 			}
 			else if (c == '\"') {
-				state = STRING; // STRING or MULTI_LINE_STRING
+				state = STRING; // STRING/MULTILINE STRING
 			}
 			else if (isalpha(c) || c == '_') {
 				state = IDENTIFIER;
-				APPEND_TO_BUFFER(); // start building identifier
+				APPEND_TO_BUFFER(c); // start building identifier
 			}
 			else if (isdigit(c)) {
 				state = NUMERICAL;
 			}
 			else {
-				APPEND_TO_BUFFER();
+				APPEND_TO_BUFFER(c);
 				token_update(token, buffer, NULL, -2);
 				program_error(file, ERR_LEX, ERR_MSG_NOT_IMPLEMENTED, token);
 			}
@@ -454,7 +610,7 @@ TokenPtr lexer(FILE *file) {
 			c = fgetc(file);
 
 			if (isalnum(c) || c == '_') {
-				APPEND_TO_BUFFER(); // build identifier
+				APPEND_TO_BUFFER(c); // build identifier
 			} else {
 				// char on the edge of the identif could be new valid tok e.g. a+b
 				if(!isspace(c) && c != EOF &&!strchr("(){},.<=>/+-*!/", c)) 
@@ -480,7 +636,11 @@ TokenPtr lexer(FILE *file) {
 			break;
 		} // end IDENTIFIER
 
-		case STRING: {
+		case STRING: { // one " read
+			if ( !get_string(token, c, file))
+				LEX_INVAL_TOK_ERR();
+			return token;
+/////////// @note end weeeeeeeeeeeeeeeeeeeeeeeeee
 			c = fgetc(file);
 			if (c == '\\') { // special char
 				state = STRING_SPECIAL;
@@ -494,12 +654,15 @@ TokenPtr lexer(FILE *file) {
 				LEX_INVAL_TOK_ERR(); // unterminated string
 			}
 			else
-				APPEND_TO_BUFFER(); // build string
+				APPEND_TO_BUFFER(c); // build string
 
 			break;
 		} // end STRING
+		case MULTILINE_STRING: {
 
-		case STRING_SPECIAL: {
+			break;
+		} // end MULTILINE_STRING 
+		case STRING_SPECIAL: { // only for NORMAL STRING
 			c = fgetc(file);
 
 			if (c == EOF || c == '\n') {
@@ -557,18 +720,12 @@ TokenPtr lexer(FILE *file) {
 				} else if (c == '*') {
 					state = BLOCK_COMMENT;
 					break;
-				} else {
-					ungetc(c, file);
-					buffer_append(buffer, &pos, temp, file);
-					token_update(token, buffer, NULL, ARITHMETICAL);
-					return token;
 				}
 			}
 
-			// For +, -, *
-			ungetc(c, file); // push back lookahead char
-			buffer_append(buffer, &pos, temp, file);
-			token_update(token, buffer, NULL, ARITHMETICAL);
+			// For +, -, *, / 
+			APPEND_TO_BUFFER(temp);
+			FINALIZE_TOK_ID(ARITHMETICAL); // push back lookahead + update
 			return token;
 		} // end ARITHMETICAL
 
@@ -582,8 +739,7 @@ TokenPtr lexer(FILE *file) {
 		} // end COMMENT
 
 		case BLOCK_COMMENT: { // BLOCK COMMENTS can be nested
-			if (!no_comment(file)) { 
-				token_update(token, NULL, NULL, BLOCK_COMMENT);
+			if ( !no_comment(file)) { 
 				program_error(file, ERR_MSG_UNENCLOSED_COMM, ERR_LEX, token);
 			}
 			c = fgetc(file);
@@ -592,7 +748,7 @@ TokenPtr lexer(FILE *file) {
 		}
 
 		case SPECIAL: {
-			APPEND_TO_BUFFER();
+			APPEND_TO_BUFFER(c);
 			token_update(token, buffer, NULL, SPECIAL);
 			// bad float check, e.g. ".123"
 			if (c == '.') { 
@@ -606,23 +762,15 @@ TokenPtr lexer(FILE *file) {
 		} // end SPECIAL
 
 		case CMP_OPERATOR: {
-			token_update(token, NULL, NULL, CMP_OPERATOR);
-			if (get_cmp_op(token, c, file)) {
-				return token;
-			} else {
+			if ( !get_cmp_op(token, c, file))
 				LEX_INVAL_TOK_ERR();
-			}
-			break;
+			return token;
 		} // end CMP_OPERATOR
 
 		case NUMERICAL: {
-			token_update(token, NULL, NULL, NUMERICAL);
-			if (numerizer(token, c, file)) {
-				return token;
-			} else {
+			if ( !numerizer(token, c, file))
 				LEX_INVAL_TOK_ERR();
-			}
-			break;
+			return token;
 		}
 
 		default:

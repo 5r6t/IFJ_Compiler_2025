@@ -133,6 +133,7 @@ static const char *names[] = {
     [ID_GLOBAL_VAR]    = "ID_GLOBAL_VAR",
     [NUMERICAL]        = "NUMERICAL",
     [STRING]           = "STRING",
+    [MULTILINE_STRING] = "MULTILINE_STRING",
     [STRING_SPECIAL]   = "STRING_SPECIAL",
 
     [CMP_OPERATOR]     = "CMP_OPERATOR",
