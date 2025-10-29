@@ -7,45 +7,40 @@
 #//  * Jozef Matus (xmatusj00) / karfisk 	 //
 #//  * Jan Hájek (xhajekj00) / Wekk 		 //
 #//////////////////////////////////////////////
+# ---- settings ----
+CC       := gcc
+CFLAGS   := -g -std=c11 -pedantic -Wall -Wextra -Werror -Iinclude -DDEBUG
+OBJDIR   := build
+SRCDIR   := src
+INCDIR   := include
+TESTDIR  := testing
+TARGET   := $(OBJDIR)/test
 
-OBJDIR = build
-CC = gcc
-CFLAGS = -g -std=c11 -pedantic -Wall -Wextra -Werror -Iinclude -DDEBUG
+# ---- sources ----
+SRC      := $(wildcard $(SRCDIR)/*.c)
+OBJ      := $(SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
+TEST_SRC := $(wildcard $(TESTDIR)/*.c)
+TEST_OBJ := $(TEST_SRC:$(TESTDIR)/%.c=$(OBJDIR)/%.o)
 
-TEST_TARGET = test 
-TEST_SRC = testing/test.c
-TEST_OBJ = $(OBJDIR)/test.o
-LEX_OBJ = $(OBJDIR)/lex.o
-COMMON_OBJ = $(OBJDIR)/common.o
-PARS_OBJ = $(OBJDIR)/parser.o
+# ---- rules ----
+.PHONY: all clean test
 
-.PHONY: all clean
-
-$(OBJDIR)/$(TEST_TARGET): $(TEST_OBJ) $(LEX_OBJ) $(COMMON_OBJ) $(PARS_OBJ)
-	$(CC) $(CFLAGS) $(TEST_OBJ) $(LEX_OBJ) $(COMMON_OBJ) -o $(OBJDIR)/$(TEST_TARGET)
-
-all: $(OBJDIR)/$(TEST_TARGET)
+all: $(TARGET)
 
 $(OBJDIR):
-	mkdir -p $(OBJDIR)
+	mkdir -p $@
 
-$(OBJDIR)/common.o: src/common.c include/common.h | $(OBJDIR)
-	$(CC) $(CFLAGS) -c src/common.c -o $(OBJDIR)/common.o
+$(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/lex.o: src/lex.c src/common.c include/lex.h include/common.h | $(OBJDIR)
-	$(CC) $(CFLAGS) -c src/lex.c -o $(OBJDIR)/lex.o
+$(OBJDIR)/%.o: $(TESTDIR)/%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/test.o: testing/test.c include/lex.h include/common.h | $(OBJDIR)
-	$(CC) $(CFLAGS) -c testing/test.c -o $(OBJDIR)/test.o
+$(TARGET): $(OBJ) $(TEST_OBJ)
+	$(CC) $(CFLAGS) $^ -o $@
 
-$(OBJDIR)/parser.o: src/parser.c include/lex.h include/common.h include/parser.h | $(OBJDIR)
-	$(CC) $(CFLAGS) -c src/parser.c -o $(OBJDIR)/parser.o
+test: $(TARGET)
+	./$(TARGET) 0 $(OBJDIR)/test.txt
 
 clean:
-	-rm -f $(OBJDIR)/*.o $(TEST_TARGET)
-
-simple_test: 
-	echo "\"Ahoj\n\"Sve'te \\\x22\"" | ./build/test 0 /dev/stdin
-
-test:
-	./build/test 0 build/test.txt 
+	$(RM) -r $(OBJDIR)/*.o 

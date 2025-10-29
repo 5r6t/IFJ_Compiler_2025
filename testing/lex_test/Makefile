@@ -1,5 +1,5 @@
 #//////////////////////////////////////////////
-#// filename: Makefile (pre lex_test)        
+#// filename: Makefile (pre lex_test)        //
 #// IFJ_prekladac	varianta - vv-BVS   	 //
 #// Authors:						  		 //
 #//  * Jaroslav Mervart (xmervaj00) / 5r6t 	 //
@@ -39,7 +39,7 @@ $(TARGET): $(SRC)
 	@echo "Build complete -> $(TARGET)"
 
 # ---- run target ----
-run: $(TARGET)
+run: $(TARGET'
 	@bash $(TEST_SRC_DIR)/lex_test.sh | tee $(OUT_DIR)/lex_summary.txt
 
 # ---- cleanup ----

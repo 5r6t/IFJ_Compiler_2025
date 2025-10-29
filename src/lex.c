@@ -128,7 +128,6 @@ void buffer_flush_to(char *dest, size_t *d_pos, char *src, size_t *s_pos, FILE *
 	for(size_t i = 0; src[i] != '\0'; i++) {
         if (*d_pos >= MAX_BUFFER_LENGTH - 1)
             program_error(file, ERR_INTERNAL, ERR_MSG_BUFF_OVERFLOW, NULL);
-		// pseudo dest[pos] = src[i]; pos++
         dest[(*d_pos)++] = src[i];
     }
 	dest[*d_pos] = '\0';
@@ -550,7 +549,7 @@ TokenPtr lexer(FILE *file) {
 	while(c != EOF) {
 		switch (state)
 		{
-		case (START): {
+		case START: {
 			if (c == '\n') {
 				state = NEWLINE;
 			}
@@ -640,73 +639,6 @@ TokenPtr lexer(FILE *file) {
 			if ( !get_string(token, c, file))
 				LEX_INVAL_TOK_ERR();
 			return token;
-/////////// @note end weeeeeeeeeeeeeeeeeeeeeeeeee
-			c = fgetc(file);
-			if (c == '\\') { // special char
-				state = STRING_SPECIAL;
-			}
-			else if (c == '\"') { // end of string
-				token_update(token, NULL, buffer, STRING);
-				return token;
-			}
-			else if (c == '\n') {
-				token_update(token, NULL, buffer, STRING);
-				LEX_INVAL_TOK_ERR(); // unterminated string
-			}
-			else
-				APPEND_TO_BUFFER(c); // build string
-
-			break;
-		} // end STRING
-		case MULTILINE_STRING: {
-
-			break;
-		} // end MULTILINE_STRING 
-		case STRING_SPECIAL: { // only for NORMAL STRING
-			c = fgetc(file);
-
-			if (c == EOF || c == '\n') {
-				token_update(token, NULL, buffer, STRING);
-				LEX_INVAL_TOK_ERR();
-			}
-
-			switch (c) {
-			case 'n':
-				buffer_append(buffer, &pos, '\n', file);
-				break;
-			case 't':
-				buffer_append(buffer, &pos, '\t', file);
-				break;
-			case 'r':
-				buffer_append(buffer, &pos, '\r', file);
-				break;
-			case '"':
-				buffer_append(buffer, &pos, '\"', file);
-				break;
-			case '\\':
-				buffer_append(buffer, &pos, '\\', file);
-				break;
-			case 'x': {
-				char hex[3];
-				hex[0] = fgetc(file);
-				hex[1] = fgetc(file);
-				hex[2] = '\0';
-
-				if (!isxdigit(hex[0]) || !isxdigit(hex[1])) {
-					token_update(token, NULL, buffer, STRING);
-					LEX_INVAL_TOK_ERR(); // invalid hex escape
-				}
-				unsigned char val = (unsigned char) strtol(hex, NULL, 16); // convert hex to char
-				buffer_append(buffer, &pos, val, file);
-				break;
-			}
-			default:
-				token_update(token, NULL, buffer, STRING);
-				LEX_INVAL_TOK_ERR(); // invalid escape
-			}
-
-			state = STRING;
-			break;
 		} // end STRING_SPECIAL
 
 		case ARITHMETICAL: {
