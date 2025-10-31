@@ -24,6 +24,65 @@
    - problem with arg_name using peek function check if there is valid token type if yes token will be processed (token will be used to created AST node ), must thing of way how to processed all arg at once or not
 */
 
+/* LL1:
+
+PROGRAM ::= PROLOG CLASS
+PROLOG ::= import "ifj25" for Ifj /
+CLASS ::= class Program { / FUNCTIONS }
+FUNCTIONS ::= static FUNC_GET_SET_DEF FUNCTIONS
+FUNCTIONS ::= ''
+FUNC_GET_SET_DEF ::= ( PAR ) { / FUNC_BODY } /
+FUNC_GET_SET_DEF ::= { / FUNC_BODY } /
+FUNC_GET_SET_DEF ::= = ( id ) { / FUNC_BODY } /
+
+PAR ::= ''
+PAR ::= id NEXT_PAR
+NEXT_PAR ::= , id NEXT_PAR
+NEXT_PAR ::= ''
+
+ARG ::= ''
+ARG ::= ARG_NAME NEXT_ARG
+NEXT_ARG ::= ''
+NEXT_ARG ::= , ARG_NAME NEXT_ARG
+
+ARG_NAME ::= int
+ARG_NAME ::= string
+ARG_NAME ::= float
+ARG_NAME ::= id
+ARG_NAME ::= global_id
+
+EXPRESSION ::= int
+EXPRESSION ::= string
+EXPRESSION ::= float
+
+
+FUNC_NAME ::= id
+FUNC_NAME ::= Ifj . id
+
+VAR_NAME ::= id
+VAR_NAME ::= global_id
+
+FUNC_BODY ::= ''
+FUNC_BODY ::= VAR_DECL FUNC_BODY
+FUNC_BODY ::= VAR_ASS_CALL_GET FUNC_BODY
+FUNC_BODY ::= IF_STAT FUNC_BODY
+FUNC_BODY ::= WHILE FUNC_BODY
+FUNC_BODY ::= RETURN FUNC_BODY
+FUNC_BODY ::= { / FUNC_BODY } / FUNC_BODY
+
+VAR_DECL ::= var VAR_NAME /
+VAR_ASS_CALL_GET ::= VAR_NAME = RSA
+RSA ::= EXPRESSION /
+RSA ::= id FUNC_TYPE /
+RSA ::= Ifj . id ( ARG ) /
+FUNC_TYPE ::= ''
+FUNC_TYPE ::= ( ARG )
+IF_STAT ::= if ( EXPRESSION ) { / FUNC_BODY } else { / FUNC_BODY } /
+WHILE ::= while ( EXPRESSION ) { / FUNC_BODY } /
+RETURN ::= return EXPRESSION /
+
+ */
+
 void parser(FILE *file) // change return type to ASTnode
 {
     TokenPtr nextToken = lexer(file); // lookahead -> maybe i shouldn`t declare nextToken here, something to think about
@@ -43,9 +102,9 @@ int PROLOG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     // TODO change this to be more effective using function while_function
     static const target PROLOG_TARGET[] = {
-        {IDENTIFIER, "import", NULL}, // data are used for expression not identificator
+        {KW_IMPORT, "import", NULL}, // data are used for expression not identificator
         {STRING, "ifj25", NULL},
-        {IDENTIFIER, "for", NULL},
+        {KW_FOR, "for", NULL},
         {KW_IFJ, "Ifj", NULL},
         {NEWLINE, NULL, NULL}};
 
