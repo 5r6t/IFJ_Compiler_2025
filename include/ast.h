@@ -17,13 +17,56 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 typedef enum {
     AST_PROGRAM,
     AST_FUNC_DEF,
+    AST_FUNC_CALL,
     AST_BLOCK,
-    AST_IF_STMT
+    AST_IF_STMT,
+    AST_RETURN_STMT,
+    AST_VAR_DECL,
+    AST_ASSIGN_STMT,
+    AST_WHILE_STMT,
+    AST_IDENTIFIER,
+    AST_LITERAL,
+    AST_BINOP
 } ASTnodeType;
+
+typedef enum {
+    LOCAL,
+    GLOBAL,
+    SETTER
+} AssignTargetType;
+
+typedef enum {
+    LOCAL,
+    GLOBAL,
+    GETTER
+} IdType;
+
+typedef enum {
+    LIT_NULL,
+    LIT_NUMBER,
+    LIT_STRING
+} LiteralType;
+
+typedef enum {
+    BINOP_ADD, // + -- for strings too (concatenation)
+    BINOP_SUB, // -
+    BINOP_MUL, // * -- for strings too (repetition)
+    BINOP_DIV, // /
+    BINOP_LT, // <
+    BINOP_GT, // >
+    BINOP_EQ, // ==
+    BINOP_NEQ, // !=
+    BINOP_LTE, // <=
+    BINOP_GTE, // >=
+    BINOP_AND, // && -- not used (extension)
+    BINOP_OR, // || -- not used (extension)
+    BINOP_IS // is
+} BinOpType;
 
 /**
  * @brief Abstract Syntax Tree Node
@@ -33,27 +76,76 @@ typedef struct ASTnode {
     ASTnodeType type;
     union {
         struct { // Program (root)
-            struct ASTnode **child;
-            int childCount;
+            struct ASTnode **funcs;
+            int funcsCount;
+            int funcsCap;
         } program;
 
         struct {
             char *name; // function name
             char **paramNames; // parameter array
             int paramCount; // number of parameters, 0 - getter, 1 - setter, n - function
-            struct ASTnode *params;
+            bool isSetter; // true if setter function
+            bool isGetter; // true if getter function
             struct ASTnode *body;
         } func;
 
         struct {
-            struct ASTnode **child; // array of statements
+            char *funcName;
+            struct ASTnode **args; // array of argument expressions
+            int argCount;
+            int argCap;
+        } call;
+
+        struct {
+            struct ASTnode **stmt; // array of statements
+            int stmtCount;
+            int stmtCap;
         } block;
 
-        struct { // If statement
+        struct { // if statement
             struct ASTnode *cond;
             struct ASTnode *then;
-            struct ASTnode *els;
+            struct ASTnode *elsestmt;
         } ifstmt;
+
+        struct { // return statement
+            struct ASTnode *expr;
+        } return_stmt;
+
+        struct { // variable declaration
+            char *varName;
+        } var_decl;
+
+        struct { // assignment statement
+            char *targetName;
+            AssignTargetType asType;
+            struct ASTnode *expr;
+        } assign_stmt;
+
+        struct { // while statement
+            struct ASTnode *cond;
+            struct ASTnode *body;
+        } while_stmt;
+
+        struct { // identifier
+            char *name;
+            IdType idType;
+        } identifier;
+
+        struct { // literal
+            LiteralType liType;
+            union {
+                double num;
+                char *str;
+            };
+        } literal;
+
+        struct { // binary operation
+            BinOpType opType;
+            struct ASTnode *left;
+            struct ASTnode *right;
+        } binop;
     };
 } ASTnode;
 
@@ -68,8 +160,8 @@ ASTptr ast_function(char *name, char **paramNames);
 ASTptr ast_program(){
     ASTptr program_node = (ASTptr)malloc(sizeof(struct ASTnode));
     program_node->type = AST_PROGRAM;
-    program_node->program.child = NULL;
-    program_node->program.childCount = 0;
+    program_node->program.stmt = NULL;
+    program_node->program.stmtCount = 0;
     return program_node;
 }
 
