@@ -12,6 +12,7 @@
 #include "../include/lex.h"
 #include "../include/parser.h"
 #include "../include/ast.h"
+#include "../include/psaParser.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -262,7 +263,7 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file) // change return type to A
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
         return 0;
     }
-    else // should call program error
+    else
     {
         program_error(file, 2, 4, *nextToken);
     }
@@ -315,6 +316,7 @@ int NEXT_PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 int FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target DUMMY_EXPRESSION = {IDENTIFIER, NULL, NULL};
+    static const target END_IF_EXP = {SPECIAL, ")", NULL};
     static const target RETURN_FIRST = {KW_RETURN, NULL, NULL};
     static const target FUNC_BODY_END = {NEWLINE, NULL, NULL};
     static const target FUNC_BODY_FOLLOW = {SPECIAL, "}", NULL};
@@ -373,7 +375,7 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     size_t FUNC_INTRO_SEQ_LEN = sizeof(FUNC_INTRO_SEQ) / sizeof(FUNC_INTRO_SEQ[0]);
     size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
 
-    if ((*nextToken)->type == KW_VAR) // rework -> Add var name as function
+    if ((*nextToken)->type == KW_VAR) // rework -> Add var name as function -> did i already done that?
     {
         // for_function(FUNC_BODY_DECL_SEQ, file, nextToken, FUNC_BODY_DECL_SEQ_LEN);
         *nextToken = lexer(file);
@@ -394,7 +396,8 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     {
         for_function(IF_STATMENT_START_SEQ, file, nextToken, IF_STATMENT_START_SEQ_LEN);
         // Here I will give control to PSA, for now I will use dummy expresion
-        advance(&DUMMY_EXPRESSION, nextToken, file);
+        // advance(&DUMMY_EXPRESSION, nextToken, file);
+        parse_expression(nextToken, file, &END_IF_EXP);
         for_function(IF_STATMENT_MIDDLE_SEQ, file, nextToken, IF_STATMENT_MIDDLE_SEQ_LEN);
         FUNC_BODY(nextToken, file);
         for_function(IF_STATMENT_ELSE_BRANCH_SEQ, file, nextToken, IF_STATMENT_ELSE_BRANCH_SEQ_LEN);
@@ -485,13 +488,13 @@ int RSA(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 
 int FUNC_TYPE(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
-    target FUNC_TYPE_FIRST = {SPECIAL, "(", NULL}; // this struct is modifable because i didn`t want to create another struct
+    static const target FUNC_TYPE_FIRST = {SPECIAL, "(", NULL};
+    static const target FUNC_TYPE_NEXT = {SPECIAL, ")", NULL};
     if ((*nextToken)->type == SPECIAL)
     {
         advance(&FUNC_TYPE_FIRST, nextToken, file);
         ARG(nextToken, file);
-        FUNC_TYPE_FIRST.data = ")";
-        advance(&FUNC_TYPE_FIRST, nextToken, file);
+        advance(&FUNC_TYPE_NEXT, nextToken, file);
         return 0;
     }
     else if ((*nextToken)->type == NEWLINE)
