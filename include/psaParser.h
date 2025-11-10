@@ -29,6 +29,7 @@ typedef enum
 #define IS 13
 #define END 14
 
-int parse_expression(TokenPtr *nextToken, FILE *file, target *endIfExp);
+ASTptr parse_expression(TokenPtr *nextToken, FILE *file, target *endIfExp);
+int converter(TokenPtr *tokenToConvert, FILE *file);
 
 #endif

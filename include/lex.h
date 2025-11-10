@@ -70,7 +70,9 @@
 #define KW_WHILE 27
 
 // PSA
+#define SHIFT 98
 #define DOLLAR 99
+#define E 100
 
 struct KeywordEntry
 {
