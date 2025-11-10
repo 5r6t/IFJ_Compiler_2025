@@ -37,6 +37,9 @@ typedef struct {
 	int topIndex;
 } Scopes;
 
+typedef struct {
+    Scopes *scopeStack;
+} SemanticAnalyzer;
 
 // ---- BST functions ----
 void bst_init(SymTableNode *tree);

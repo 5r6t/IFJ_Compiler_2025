@@ -35,15 +35,15 @@ typedef enum {
 } ASTnodeType;
 
 typedef enum {
-    LOCAL,
-    GLOBAL,
-    SETTER
+    TARGET_LOCAL,
+    TARGET_GLOBAL,
+    TARGET_SETTER
 } AssignTargetType;
 
 typedef enum {
-    LOCAL,
-    GLOBAL,
-    GETTER
+    ID_LOCAL,
+    ID_GLOBAL,
+    ID_GETTER
 } IdType;
 
 typedef enum {
@@ -51,6 +51,12 @@ typedef enum {
     LIT_NUMBER,
     LIT_STRING
 } LiteralType;
+
+typedef enum {
+    TYPE_STRING,
+    TYPE_NUMBER,
+    TYPE_NULL,
+} TypeName;
 
 typedef enum {
     BINOP_ADD, // + -- for strings too (concatenation)
@@ -65,7 +71,7 @@ typedef enum {
     BINOP_GTE, // >=
     BINOP_AND, // && -- not used (extension)
     BINOP_OR, // || -- not used (extension)
-    BINOP_IS // is
+    BINOP_IS // is 
 } BinOpType;
 
 /**
@@ -143,6 +149,7 @@ typedef struct ASTnode {
 
         struct { // binary operation
             BinOpType opType;
+            TypeName resultType; // using only when opType is BINOP_IS
             struct ASTnode *left;
             struct ASTnode *right;
         } binop;
@@ -160,7 +167,7 @@ ASTptr ast_function(char *name, char **paramNames);
 ASTptr ast_program(){
     ASTptr program_node = (ASTptr)malloc(sizeof(struct ASTnode));
     program_node->type = AST_PROGRAM;
-    program_node->program.stmt = NULL;
+    program_node->program.stms = NULL;
     program_node->program.stmtCount = 0;
     return program_node;
 }
