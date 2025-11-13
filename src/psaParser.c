@@ -237,7 +237,7 @@ ASTptr reduce(FILE *file, stack_token *stack)
     if (reduce_len == 1)
         checkForI(index_shift, &stack, file);
     else if (reduce_len == 3)
-        checkForOtherRules(index_shift, &stack);
+        checkForOtherRules(index_shift, &stack, file);
     else
     {
         program_error(file, 2, 4, token);
@@ -250,16 +250,191 @@ ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
     static const TokenPtr TOKEN_E = {E, "E", NULL};
     TokenPtr token = stack->items[index_shift + 1];
     ASTptr node = NULL;
-    if (token->type == ("NUMERICAL" || "STRING"))
+    if (token->type == "NUMERICAL")
     {
         node = malloc(sizeof(ASTnode));
         node->type = AST_LITERAL;
         node->literal.liType = LIT_NUMBER;
         // node->literal.num = token->data; -> musim zmenit na double;
 
-        popRuleFromStack(index_shift);
+        popRuleFromStack(index_shift, &stack);
+        stack_token_push(&stack, TOKEN_E);
+        return;
+    }
+    else if (token->type == "STRING")
+    {
+        node = malloc(sizeof(ASTnode));
+        node->type = AST_LITERAL;
+        node->literal.liType = LIT_STRING;
+        node->literal.str = token->data;
+
+        popRuleFromStack(index_shift, &stack);
         stack_token_push(&stack, TOKEN_E);
         return;
     }
     program_error(file, 2, 4, token);
+}
+
+ASTptr checkForOtherRules(int index, stack_token *stack, FILE *file)
+{
+    static const TokenPtr TOKEN_E = {E, "E", NULL};
+    TokenPtr token = stack->items[index + 1];
+    if (token->type == "SPECIAL" && token->id == "(")
+    {
+        ruleParenthesis(index, &stack, file);
+        popRuleFromStack(index, &stack);
+        stack_token_push(&stack, TOKEN_E);
+        return;
+    }
+    else if (token->type != "E")
+    {
+        program_error(file, 2, 4, token);
+    }
+
+    token = stack->items[index + 2];
+    if (token->type == "CMP_OPERATOR")
+    {
+        ruleComper(index, &stack, file);
+        popRuleFromStack(index, &stack);
+        stack_token_push(&stack, TOKEN_E);
+        return;
+    }
+    else if (token->type == "ARITHMETICAL")
+    {
+        ruleArithmetics(index, &stack, file);
+        popRuleFromStack(index, &stack);
+        stack_token_push(&stack, TOKEN_E);
+        return;
+    }
+    else if (token->type == "KW_IS")
+    {
+        ruleIS(index, &stack, file);
+        popRuleFromStack(index, &stack);
+        stack_token_push(&stack, TOKEN_E);
+        return;
+    }
+    program_error(file, 2, 4, token);
+}
+
+void popRuleFromStack(int index_shift, stack_token *stack)
+{
+    TokenPtr token;
+    for (int i = index_shift; i < stack_token_top; i++)
+    {
+        token = stack->items[i];
+        stack_token_pop(&stack);
+    }
+    return;
+}
+
+ASTptr ruleParenthesis(int index, stack_token *stack, FILE *file)
+{
+    index += 2;
+    TokenPtr token = stack->items[index];
+    if (token->type == "E")
+    {
+        token = stack->items[index + 1];
+        if (token->type == "SPECIAL" && token->id == ")")
+        {
+            // todo pridaj AST
+            return;
+        }
+        program_error(file, 2, 4, token);
+    }
+    program_error(file, 2, 4, token);
+}
+
+ASTptr ruleComper(int index, stack_token *stack, FILE *file)
+{
+    index += index + 2;
+    int end = index + 1;
+    TokenPtr token = stack->items[index];
+    if (token->id == "==")
+    {
+        checkEnd(end, stack, file);
+        return;
+    }
+    else if (token->id == "!=")
+    {
+        checkEnd(end, stack, file);
+        return;
+    }
+    else if (token->id == ">=")
+    {
+        checkEnd(end, stack, file);
+        return;
+    }
+    else if (token->id == "<=")
+    {
+        checkEnd(end, stack, file);
+        return;
+    }
+    else if (token->id == ">")
+    {
+        checkEnd(end, stack, file);
+        return;
+    }
+    else if (token->id == "<")
+    {
+        checkEnd(end, stack, file);
+        return;
+    }
+    program_error(file, 2, 4, token);
+}
+
+ASTptr ruleArithmetics(int index, stack_token *stack, FILE *file)
+{
+    index += index + 2;
+    int end = index + 1;
+    TokenPtr token = stack->items[index];
+    if (token->id == "*")
+    {
+        checkEnd(end, stack, file);
+        return;
+    }
+    else if (token->id == "-")
+    {
+        checkEnd(end, stack, file);
+        return;
+    }
+    else if (token->id == "+")
+    {
+        checkEnd(end, stack, file);
+        return;
+    }
+    else if (token->id == "/")
+    {
+        checkEnd(end, stack, file);
+        return;
+    }
+    program_error(file, 2, 4, token);
+}
+
+ASTptr ruleIS(int index, stack_token *stack, FILE *file)
+{
+    int end = index + 2;
+    TokenPtr token = stack->items[end];
+    if (token->type == "KW_NULL_TYPE")
+    {
+        return;
+    }
+    if (token->type == "KW_NUM")
+    {
+        return;
+    }
+    if (token->type == "KW_STRING")
+    {
+        return;
+    }
+    program_error(file, 2, 4, token);
+}
+
+ASTptr checkEnd(int end, stack_token *stack, FILE *file)
+{
+    TokenPtr token = stack->items[end];
+    if (token->type != "E")
+    {
+        program_error(file, 2, 4, token);
+    }
+    return;
 }
