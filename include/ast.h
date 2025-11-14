@@ -14,6 +14,9 @@
  *
  */
 
+#ifndef AST_H
+#define AST_H
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -180,3 +183,5 @@ ASTptr ast_function(char *name, char **paramNames){
     return func_node;
 }
 */
+
+#endif // AST_H
