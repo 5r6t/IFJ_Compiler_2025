@@ -1,4 +1,5 @@
 #include "stack.h"
+#include "lex.h"
 
 #include "stdlib.h"
 
@@ -7,7 +8,8 @@
  *
  * @param stack Pointer to the stack structure to initialize.
  */
-void stack_token_init(stack_token *stack) {
+void stack_token_init(stack_token *stack)
+{
     stack->top = -1; // Stack is empty when top is -1
 }
 
@@ -18,12 +20,20 @@ void stack_token_init(stack_token *stack) {
  *
  * @param stack Pointer to the stack structure.
  * @param item Pointer to the token to push.
+ * @param ptr Pointer to the AST to push.
  */
-void stack_token_push(stack_token *stack, TokenPtr item) {
-    if (stack->top == MAXSTACK - 1) {
+void stack_token_push(stack_token *stack, TokenPtr item, ASTptr ptr)
+{
+    if (stack->top == MAXSTACK - 1)
+    {
         DEBUG_PRINT("[W] Stack overflow\n");
-    } else {
-        stack->items[++stack->top] = item;
+        return;
+    }
+    else
+    {
+        stack->top++;
+        stack->items[stack->top].token = item;
+        stack->items[stack->top].ast = ptr;
     }
 }
 
@@ -35,9 +45,11 @@ void stack_token_push(stack_token *stack, TokenPtr item) {
  * @param stack Pointer to the stack structure.
  * @return Pointer to the token at the top, or NULL if the stack is empty.
  */
-TokenPtr stack_token_top(stack_token *stack) {
-    if (stack->top == -1) { // Stack is empty
-        return NULL;
+stack_item stack_token_top(stack_token *stack)
+{
+    if (stack->top == -1)
+    { // Stack is empty
+        return (stack_item){.token = NULL, .ast = NULL};
     }
     return stack->items[stack->top];
 }
@@ -50,13 +62,19 @@ TokenPtr stack_token_top(stack_token *stack) {
  * @param stack Pointer to the stack structure.
  * @return Pointer to the removed token, or NULL if the stack is empty.
  */
-TokenPtr stack_token_pop(stack_token *stack) {
-    if (stack->top == -1) { // Stack is empty
+stack_item stack_token_pop(stack_token *stack)
+{
+    if (stack->top == -1)
+    { // Stack is empty
         DEBUG_PRINT("[W] Stack underflow\n");
-        return NULL;
+        return (stack_item){.token = NULL, .ast = NULL};
     }
-    TokenPtr top_item = stack->items[stack->top];
-    stack->items[stack->top--] = NULL; // Clear the pointer and decrement top
+    stack_item top_item = stack->items[stack->top];
+    stack->items[stack->top].token = NULL; // Clear the pointer
+    stack->items[stack->top].ast = NULL;
+
+    stack->top--; // Decrement top
+
     return top_item;
 }
 
@@ -66,7 +84,8 @@ TokenPtr stack_token_pop(stack_token *stack) {
  * @param stack Pointer to the stack structure.
  * @return true if the stack is empty, false otherwise.
  */
-bool stack_token_empty(stack_token *stack) {
+bool stack_token_empty(stack_token *stack)
+{
     return stack->top == -1;
 }
 
@@ -77,13 +96,30 @@ bool stack_token_empty(stack_token *stack) {
  *
  * @param stack Pointer to the stack structure.
  */
-void stack_token_clear(stack_token *stack) {
-    while (!stack_token_empty(stack)) {
-        TokenPtr top_token = stack_token_pop(stack);
-        if (top_token != NULL) {
-            free(top_token->id);
-            free(top_token->data);
-            free(top_token);
+void stack_token_clear(stack_token *stack)
+{
+    while (!stack_token_empty(stack))
+    {
+        stack_item item = stack_token_pop(stack);
+
+        TokenPtr tok = item.token;
+
+        if (tok != NULL)
+        {
+            if (tok->id && ((strcmp(tok->id, "E") == 0) || (strcmp(tok->id, "$") == 0) || (strcmp(tok->id, "<") == 0)))
+            {
+                continue;
+            }
+            if (tok->type == E || tok->type == DOLLAR || tok->type == SHIFT)
+                if (tok->id)
+                {
+                    free(tok->id);
+                }
+            if (tok->data)
+            {
+                free(tok->data);
+            }
+            free(tok);
         }
     }
     stack->top = -1; // Reset the stack

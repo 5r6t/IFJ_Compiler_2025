@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "lex.h"
+#include "stack.h"
 
 typedef enum
 {
@@ -31,5 +32,14 @@ typedef enum
 
 ASTptr parse_expression(TokenPtr *nextToken, FILE *file, target *endIfExp);
 int converter(TokenPtr *tokenToConvert, FILE *file);
+void checkEnd(int end, stack_token *stack, FILE *file);
+ASTptr ruleIS(int index, stack_token *stack, FILE *file);
+ASTptr ruleArithmetics(int index, stack_token *stack, FILE *file);
+ASTptr ruleComper(int index, stack_token *stack, FILE *file);
+ASTptr ruleParenthesis(int index, stack_token *stack, FILE *file);
+void popRuleFromStack(int index_shift, stack_token *stack);
+ASTptr checkForOtherRules(int index, stack_token *stack, FILE *file);
+ASTptr checkForI(int index_shift, stack_token *stack, FILE *file);
+ASTptr reduce(FILE *file, stack_token *stack);
 
 #endif
