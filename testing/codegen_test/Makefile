@@ -1,5 +1,5 @@
 #//////////////////////////////////////////////
-#// filename: Makefile (for lex_test)        //
+#// filename: Makefile (for codegen_test)    //
 #// IFJ_prekladac	varianta - vv-BVS   	 //
 #// Authors:						  		 //
 #//  * Jaroslav Mervart (xmervaj00) / 5r6t 	 //
@@ -21,11 +21,10 @@ CFLAGS         := -std=c11 -Wall -Wextra -D_GNU_SOURCE -g -DDEBUG
 INCLUDES       := -I$(INCLUDE_DIR) -I$(TEST_SRC_DIR)
 
 # ---- files ----
-TARGET         := $(BUILD_DIR)/test_lex_single
-SRC            := $(TEST_SRC_DIR)/lex_test_single.c \
-                   $(TEST_SRC_DIR)/lex_test_data.c \
-                   $(SRC_DIR)/lex.c \
-                   $(SRC_DIR)/common.c
+TARGET         := $(BUILD_DIR)/test_codegen
+SRC            := $(TEST_SRC_DIR)/codegen_test.c \
+                   $(SRC_DIR)/codegen.c \
+                   $(SRC_DIR)/common.c \
 
 # ---- default ----
 all: run
@@ -34,12 +33,12 @@ all: run
 $(TARGET): $(SRC)
 	@mkdir -p $(BUILD_DIR)
 	@mkdir -p $(OUT_DIR)
-	@echo "Building lexer test binary..."
+	@echo "Building codegen test binary..."
 	$(CC) $(CFLAGS) $(INCLUDES) $(SRC) -o $(TARGET)
 	@echo "Build complete -> $(TARGET)"
 
 # ---- run target ----
-run: $(TARGET'
+run: $(TARGET)
 	@bash $(TEST_SRC_DIR)/lex_test.sh | tee $(OUT_DIR)/lex_summary.txt
 
 # ---- cleanup ----

@@ -12,7 +12,6 @@
 #define CODEGEN_H
 
 #include <stdio.h>
-
 #include "ast.h"
 
 typedef enum {
@@ -162,8 +161,8 @@ typedef struct ThreeAddressCode {
 }TACnode;
 
 typedef struct {
-    TACnode head;
-    TACnode tail;
+    TACnode *head;
+    TACnode *tail;
 }TAClist;
 
 void generate(ASTptr tree);

@@ -23,4 +23,3 @@ RETURN
 
 LABEL konec
 WRITE string@d
- 
