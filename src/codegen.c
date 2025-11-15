@@ -34,15 +34,92 @@ char* var_lf(const char *name) {
 
 /// @param name 
 /// @return 
-char* var_gf(const char *name);
-char* var_tf(const char *name);
+char* var_gf(const char *name) {
+    char buf[NAME_BUF];
+    snprintf(buf, sizeof(buf), "GF@%s", name);
+    return my_strdup(buf);
+}
+char* var_tf(const char *name) {
+    char buf[NAME_BUF];
+    snprintf(buf, sizeof(buf), "TF@%s", name);
+    return my_strdup(buf);
+}
 
 
+// ---- Data types conversions ----
+char* lit_int(long long x) {
+    char buf[NAME_BUF * 2];
+    snprintf(buf, sizeof(buf), "int@%lld", x);
+    return my_strdup(buf);
+}
+char* lit_bool(bool x) {
+    char buf[NAME_BUF];
+    snprintf(buf, sizeof(buf), "bool@%s", x ? "true" : "false");
+    return my_strdup(buf);
+}
+char* lit_lit_float(double x) {
+    char buf[NAME_BUF * 2];
+    snprintf(buf, sizeof(buf), "float@%a", x);
+    return my_strdup(buf);
+}
+char* lit_string(const char *x) {
+    char buf[4096];
+    char *out = buf;
 
-char* lit_int(int x);
-char* lit_lit_float(double x);
-char* lit_string(const char *x);
-char* lit_nil();
+    while (*x) {
+        unsigned char c = (unsigned char)*x++;
+
+        // catch escape characters 0-32, 35 (#) and 92 (\)
+        if (c <= 32 || c == '#' || c == '\\') {
+            out += sprintf(out, "\\%03u", c);
+        }
+        else {
+            *out++ = c;
+        }
+    }
+    *out = '\0';
+
+    char final[4200];
+    snprintf(final, sizeof(final), "string2%s", buf);
+    return my_strdup(final);
+}
+char* lit_nil() {
+    return my_strdup("nil@nil");
+}
+
+/**
+* @brief int scopeDepth - indicating depth level for differentiating
+    between global, local and temporary variables
+*/
+ void gen_program(ASTptr node, int scopeDepth);
+void gen_func_def(ASTptr node);
+void gen_func_call(ASTptr node);
+void gen_block(ASTptr node);
+void gen_if_stmt(ASTptr node, int scopeDepth);
+void gen_return_stmt(ASTptr node, int scopeDepth);
+void gen_var_decl(ASTptr node);
+void gen_assign_stmt(ASTptr node);
+void gen_while_stmt(ASTptr node, int scopeDepth);
+void gen_identifier(ASTptr node);
+void gen_literal(ASTptr node);
+void gen_binop(ASTptr node) {
+    switch(node->binop.opType) {
+        case BINOP_ADD:     break;
+        case BINOP_SUB:     break;
+        case BINOP_MUL:     break;
+        case BINOP_DIV:     break;
+        case BINOP_LT:      break;
+        case BINOP_GT:      break;
+        case BINOP_EQ:      break;
+        case BINOP_NEQ:     break;
+        case BINOP_LTE:     break;
+        case BINOP_GTE:     break;
+        case BINOP_AND:     break;
+        case BINOP_OR:      break;
+        case BINOP_IS:      break;
+        default:            break;
+    }
+}
 
 
 TACnode* get_tac_head ();
