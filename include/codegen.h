@@ -150,7 +150,7 @@ typedef enum {
     DPRINT,     // DPRINT <symb> prints value <symb> to STDERR. 
 }OpCode;
 
-typedef struct ThreeAddressCode {
+typedef struct TACnode {
     OpCode instr;
     char *a1;
     char *a2;

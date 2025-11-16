@@ -16,6 +16,32 @@ int func_name(ASTptr_node) {
 */
 
 /**
+ * @brief function that appends the next TAC intruction to double-linked list
+ */
+TACnode* tac_append(OpCode instr, char *a1, char *a2, char *a3) {
+    TACnode *n = malloc(sizeof(TACnode));
+    if (n == NULL) {
+        DEBUG_PRINT("Memory allocation error\n");
+        return NULL;
+    }
+    n->instr = instr;
+    n->a1 = a1 ? my_strdup(a1) : NULL;
+    n->a2 = a2 ? my_strdup(a2) : NULL;
+    n->a3 = a3 ? my_strdup(a3) : NULL;
+    n->next = NULL;
+    n->prev = tac.tail;
+
+    if (tac.tail) {
+        tac.tail->next = n;
+    }
+    else {
+        tac.head = n;
+    }
+    tac.tail = n;
+    return n;
+}
+
+/**
  * @brief Creates string in "LABEL $c" format, c is a number
  */
 char *new_label() {
@@ -86,18 +112,36 @@ char* lit_string(const char *x) {
 char* lit_nil() {
     return my_strdup("nil@nil");
 }
+/**
+ * @brief function that determines if a variable is global or local
+ */
+char* var_gf_or_lf(char *name, int scope_depth) {
+    char buf[64];
+
+    if (scope_depth == 0) {
+        snprintf(buf, sizeof(buf), "GF@%s", name);
+    }
+    else {
+        snprintf(buf, sizeof(buf), "LF@%s", name);
+    }
+    return my_strdup(buf);
+}
 
 /**
 * @brief int scopeDepth - indicating depth level for differentiating
     between global, local and temporary variables
 */
- void gen_program(ASTptr node, int scopeDepth);
+void gen_program(ASTptr node, int scopeDepth);
 void gen_func_def(ASTptr node);
 void gen_func_call(ASTptr node);
 void gen_block(ASTptr node);
 void gen_if_stmt(ASTptr node, int scopeDepth);
 void gen_return_stmt(ASTptr node, int scopeDepth);
-void gen_var_decl(ASTptr node);
+// declaration of a variable
+void gen_var_decl(ASTptr node, int scope_depth) {
+    char *var = var_gf_or_lf(node->var_decl.varName, scope_depth);
+    tac_append(DEFVAR, var, NULL, NULL);
+}
 void gen_assign_stmt(ASTptr node);
 void gen_while_stmt(ASTptr node, int scopeDepth);
 void gen_identifier(ASTptr node);
