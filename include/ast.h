@@ -22,6 +22,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+struct FuncInfo;
+typedef struct FuncInfo FuncInfo;
+
 typedef enum {
     AST_PROGRAM,
     AST_FUNC_DEF,
@@ -104,6 +107,7 @@ typedef struct ASTnode {
             struct ASTnode **args; // array of argument expressions
             int argCount;
             int argCap;
+            FuncInfo *callInfo; // pointer to function info in function table
         } call;
 
         struct {

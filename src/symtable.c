@@ -262,6 +262,19 @@ SymTableNode *scopeStack_pop(Scopes *stack){
 }
 
 /**
+ * @brief gets the top scope from the scope stack without removing it
+ * 
+ * @param stack pointer to the scope stack
+ * @return pointer to the top scope
+ */
+SymTableNode *scopeStack_top(Scopes *stack){
+    if (stack->topIndex < 0){
+        return NULL;
+    }
+    return stack->array[stack->topIndex];
+}
+
+/**
  * @brief finds an identifier in all scopes in the stack
  * 
  * @param stack pointer to the scope stack

@@ -39,11 +39,17 @@ void semanticNode(ASTptr root){
         case AST_FUNC_DEF:
             checkFunctionDefinition(root);
             break;
-        case AST_FUNC_CALL:
-            // TODO
-            break;
         case AST_BLOCK:
-            // TODO
+            sem_block(root);
+            break;
+        case AST_VAR_DECL:
+            sem_varDecl(root);
+            break;
+        case AST_ASSIGN_STMT:
+            sem_assignStmt(root);
+            break;
+        case AST_FUNC_CALL:
+            sem_funcCall(root);
             break;
         case AST_IF_STMT:
             // TODO
@@ -102,14 +108,121 @@ void checkFunctionDefinition(ASTptr programNode){
 
     for(int i = 0; i < programNode->func.paramCount; i++){
         char *paramName = programNode->func.paramNames[i];
-        if(bst_search(scope, paramName)){
+
+        if(paramName[0] == '_' && paramName[1] == '_'){ // parameter can't be global
+            // ERROR - invalid parameter name - TODO error handling
+            exit(4);
+        }
+
+        SymTableNode *currentScope = scopeStack_top(&scopeStack);
+        if(bst_search(currentScope, paramName)){
             // ERROR - parameter redefinition - TODO error handling
             exit(4);
         }
-        scope = bst_insert(scope, paramName);
-        scopeStack.array[scopeStack.topIndex] = scope;
+
+        currentScope = bst_insert(currentScope, paramName);
+        scopeStack_pop(&scopeStack);
+        scopeStack_push(&scopeStack, currentScope);
     }
 
     semanticNode(programNode->func.body);
     scopeStack_pop(&scopeStack);
+}
+
+/**
+ * @brief semantic analysis for block node
+ * 
+ * @param block pointer to the block AST node
+ */
+void sem_block(ASTptr block){
+    SymTableNode *scope = NULL;
+    scopeStack_push(&scopeStack, scope);
+
+    for(int i = 0; i < block->block.stmtCount; i++){
+        semanticNode(block->block.stmt[i]);
+    }
+
+    scopeStack_pop(&scopeStack);
+}
+
+/**
+ * @brief semantic analysis for variable declaration node
+ * 
+ * @param varDecl pointer to the variable declaration AST node
+ */
+void sem_varDecl(ASTptr varDecl){
+    char *varName = varDecl->var_decl.varName;
+
+    if(varName[0] == '_' && varName[1] == '_'){ // variable can't be global
+        // ERROR - invalid variable name - TODO error handling
+        exit(4);
+    }
+
+    SymTableNode *currentScope = scopeStack_top(&scopeStack);
+    if(bst_search(currentScope, varName)){
+        // ERROR - variable redefinition - TODO error handling
+        exit(4);
+    }
+
+    currentScope = bst_insert(currentScope, varName);
+    scopeStack_pop(&scopeStack);
+    scopeStack_push(&scopeStack, currentScope);
+}
+
+/**
+ * @brief semantic analysis for assignment statement node
+ * 
+ * @param assignStmt pointer to the assignment statement AST node
+ */
+void sem_assignStmt(ASTptr assignStmt){
+    char *name = assignStmt->assign_stmt.targetName;
+
+    semanticNode(assignStmt->assign_stmt.expr);
+
+    if(name[0] == '_' && name[1] == '_'){ // if the left side is global variable
+        return;
+    }
+
+    int scopeIdx = symTable_searchInScopes(&scopeStack, name); // if the left side is local variable
+    if(scopeIdx != -1){ // found local
+        return;
+    }
+
+    FuncInfo *func = funcTableGet(&globalFunc, name, 1); // if the left side is setter
+    if(func != NULL && func->kind == FUNC_SETTER){ // found setter
+        return;
+    }
+
+    exit(3); // unknown left side
+}
+
+/**
+ * @brief semantic analysis for function call node
+ * 
+ * @param funcCall pointer to the function call AST node
+ */
+void sem_funcCall(ASTptr funcCall){
+    char *funcName = funcCall->call.funcName;
+    int argc = funcCall->call.argCount;
+
+    FuncInfo *func = funcTableGet(&globalFunc, funcName, argc);
+
+    if(func == NULL){
+        // ERROR - function not found - TODO error handling
+        exit(3);
+    }
+
+    if(func->kind == FUNC_GETTER && argc != 0){
+        exit(5);
+    }
+
+    if(func->kind == FUNC_SETTER){
+        exit(3);
+    }
+
+    funcCall->call.callInfo = func; // linking function info to the call node
+
+    for(int i = 0; i < argc; i++){
+        semanticNode(funcCall->call.args[i]);
+    }
 }

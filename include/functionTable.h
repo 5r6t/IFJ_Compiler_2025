@@ -15,7 +15,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "./ast.h"
 
 typedef enum {
     FUNC_NORMAL,
@@ -23,7 +22,7 @@ typedef enum {
     FUNC_SETTER
 } FuncKind;
 
-typedef struct {
+typedef struct FuncInfo {
     char *name;
     int paramCount;
     FuncKind kind;
