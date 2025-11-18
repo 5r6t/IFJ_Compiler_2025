@@ -1,75 +1,21 @@
+//////////////////////////////////////////////
+// filename: codegen.c                      //
+// IFJ_prekladac	varianta - vv-BVS   	//
+// Authors:						  			//
+//  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
+//  * Veronika Kubová (xkubovv00) / Veradko //
+//  * Jozef Matus (xmatusj00) / karfisk 	//
+//  * Jan Hájek (xhajekj00) / Wekk 			//
+//////////////////////////////////////////////
+
 #include "codegen.h"
 #include "common.h"
 #include "ast.h"
 
-#define NAME_BUF 32
+#define NAME_BUF 256
 TAClist tac = { NULL, NULL };
 
-#define TAC_OPCODE_LIST(OP) \
-    OP(MOVE) \
-    OP(CREATEFRAME) \
-    OP(PUSHFRAME) \
-    OP(POPFRAME) \
-    OP(DEFVAR) \
-    OP(CALL) \
-    OP(RETURN) \
-    OP(PUSHS) \
-    OP(POPS) \
-    OP(CLEAR) \
-    OP(ADD) \
-    OP(SUB) \
-    OP(MUL) \
-    OP(DIV) \
-    OP(IDIV) \
-    OP(ADDS) \
-    OP(SUBS) \
-    OP(MULS) \
-    OP(DIVS) \
-    OP(IDIVS) \
-    OP(LT) \
-    OP(GT) \
-    OP(EQ) \
-    OP(LTS) \
-    OP(GTS) \
-    OP(EQS) \
-    OP(AND) \
-    OP(OR) \
-    OP(NOT) \
-    OP(ANDS) \
-    OP(ORS) \
-    OP(NOTS) \
-    OP(INT2FLOAT) \
-    OP(FLOAT2INT) \
-    OP(INT2CHAR) \
-    OP(STRI2INT) \
-    OP(FLOAT2STR) \
-    OP(INT2STR) \
-    OP(INT2FLOATS) \
-    OP(FLOAT2INTS) \
-    OP(INT2CHARS) \
-    OP(STRI2INTS) \
-    OP(FLOAT2STRS) \
-    OP(INT2STRS) \
-    OP(READ) \
-    OP(WRITE) \
-    OP(CONCAT) \
-    OP(STRLEN) \
-    OP(GETCHAR) \
-    OP(SETCHAR) \
-    OP(TYPE) \
-    OP(ISINT) \
-    OP(TYPES) \
-    OP(ISINTS) \
-    OP(LABEL) \
-    OP(JUMP) \
-    OP(JUMPIFEQ) \
-    OP(JUMPIFNEQ) \
-    OP(JUMPIFEQS) \
-    OP(JUMPIFNEQS) \
-    OP(EXIT) \
-    OP(BREAK) \
-    OP(DPRINT)
-
+// used for printing NAMES of operands, see codegen.h
 static const char *tac_opcode_name(OpCode op) {
     switch (op) {
 #define OPCODE_CASE(name) case name: return #name;
@@ -84,24 +30,19 @@ void tac_print_list_state(const char *label, const TAClist *list) {
     const char *tag = label ? label : "TAC list";
     size_t count = 0;
     const TACnode *curr = (list ? list->head : NULL);
+    // count number of nodes
     while (curr) {
         ++count;
         curr = curr->next;
     }
 
     printf("\n== TAC LIST :: %s ==\n", tag);
-    printf("  size  : %zu\n", count);
-    printf("  empty : %s\n", tac_list_is_empty(list) ? "yes" : "no");
-    printf("  head  : %p", list ? (void *)list->head : NULL);
-    if (list && list->head) {
-        printf(" (%s)", tac_opcode_name(list->head->instr));
-    }
-    printf("\n");
-    printf("  tail  : %p", list ? (void *)list->tail : NULL);
-    if (list && list->tail) {
-        printf(" (%s)", tac_opcode_name(list->tail->instr));
-    }
-    printf("\n");
+    printf("\tsize  : %zu\n", count);
+    printf("\tempty : %s\n", tac_list_is_empty(list) ? "yes" : "no");
+    printf("\thead  : %s\n",
+            (list && list->head) ? tac_opcode_name(list->head->instr) : "NULL");
+    printf("\ttail  : %s\n",
+            (list && list->tail) ? tac_opcode_name(list->tail->instr) : "NULL");
 }
 
 void tac_print_node(const char *label, const TACnode *node) {
@@ -112,15 +53,13 @@ void tac_print_node(const char *label, const TACnode *node) {
         return;
     }
 
-    printf("  addr  : %p\n", (void *)node);
-    printf("  instr : %s (%d)\n", tac_opcode_name(node->instr), node->instr);
-    printf("  args  : %s | %s | %s\n",
-           node->a1 ? node->a1 : "NULL",
-           node->a2 ? node->a2 : "NULL",
-           node->a3 ? node->a3 : "NULL");
+    // printf("  addr  : %p\n", (void *)node);
+    printf("\tinstr : %s (%d)\n", tac_opcode_name(node->instr), node->instr);
+    printf("\targs  : %s | %s | %s\n",
+            node->a1 ? node->a1 : "NULL",
+            node->a2 ? node->a2 : "NULL",
+            node->a3 ? node->a3 : "NULL");
 }
-
-#undef TAC_OPCODE_LIST
 
 void tac_list_init(TAClist *list) {
     if (list == NULL) {
@@ -180,6 +119,27 @@ TACnode *tac_list_pop_front(TAClist *list) {
     return node;
 }
 
+void tac_list_remove(TAClist *list, TACnode *node) {
+    if (list == NULL || node == NULL) {
+        return;
+    }
+
+    if (node->prev) {
+        node->prev->next = node->next;
+    } else {
+        list->head = node->next;
+    }
+
+    if (node->next) {
+        node->next->prev = node->prev;
+    } else {
+        list->tail = node->prev;
+    }
+
+    node->next = NULL;
+    node->prev = NULL;
+}
+
 void tac_node_free(TACnode *node) {
     if (node == NULL) {
         return;
@@ -217,7 +177,8 @@ int func_name(ASTptr_node) {
 */
 
 /**
- * @brief function that appends the next TAC intruction to double-linked list
+ * @brief function that appends the next TAC intruction to double-linked list,
+ * abstracting from using global TAClist structure
  */
 TACnode* tac_append(OpCode instr, char *a1, char *a2, char *a3) {
     return tac_list_append(&tac, instr, a1, a2, a3);
@@ -311,7 +272,7 @@ char* var_gf_or_lf(char *name, int scope_depth) {
 * @brief int scopeDepth - indicating depth level for differentiating
     between global, local and temporary variables
 */
-void gen_program(ASTptr node, int scopeDepth);
+
 void gen_func_def(ASTptr node);
 void gen_func_call(ASTptr node);
 void gen_block(ASTptr node);
@@ -350,7 +311,9 @@ TACnode* get_tac_head ();
 
 /// @brief prints the entire list to standard output 
 void print_tac() {
-    printf(".IFJcode25");
+    // create header .IFJcode25
+    printf(".IFJcode25\n");
+    // print the list -- starting from the front
 }
 
 
@@ -370,17 +333,29 @@ void handle_node (ASTptr node) {
     case AST_BINOP :        break;
     default:
         /* invalid node? */
+        DEBUG_PRINT("Invalid node encountered");
         break;
     }
 }
 
-void header() {
-    
+
+void gen_program(ASTptr node, int scopeDepth)
+{
+    DEBUG_PRINT("Entered function gen_program");
+
+    DEBUG_PRINT("Left function gen_program");
 }
 
-void generate(ASTptr tree) {
-    // create header .IFJcode25
-    (void) tree;
+
+
+
+// Entry point
+void generate(ASTptr tree) 
+{
+    if (!tree) exit(ERR_INTERNAL);
+    
+    handle_node(tree);
+    
     /* OUTPUT -- no optimalizations */
     print_tac();
 }

@@ -1,5 +1,5 @@
 //////////////////////////////////////////////
-// filename: codegen.h                      //
+// filename: codegen.c                      //
 // IFJ_prekladac	varianta - vv-BVS   	//
 // Authors:						  			//
 //  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
@@ -150,6 +150,72 @@ typedef enum {
     DPRINT,     // DPRINT <symb> prints value <symb> to STDERR. 
 }OpCode;
 
+// for debug prints
+#define TAC_OPCODE_LIST(OP) \
+    OP(MOVE) \
+    OP(CREATEFRAME) \
+    OP(PUSHFRAME) \
+    OP(POPFRAME) \
+    OP(DEFVAR) \
+    OP(CALL) \
+    OP(RETURN) \
+    OP(PUSHS) \
+    OP(POPS) \
+    OP(CLEAR) \
+    OP(ADD) \
+    OP(SUB) \
+    OP(MUL) \
+    OP(DIV) \
+    OP(IDIV) \
+    OP(ADDS) \
+    OP(SUBS) \
+    OP(MULS) \
+    OP(DIVS) \
+    OP(IDIVS) \
+    OP(LT) \
+    OP(GT) \
+    OP(EQ) \
+    OP(LTS) \
+    OP(GTS) \
+    OP(EQS) \
+    OP(AND) \
+    OP(OR) \
+    OP(NOT) \
+    OP(ANDS) \
+    OP(ORS) \
+    OP(NOTS) \
+    OP(INT2FLOAT) \
+    OP(FLOAT2INT) \
+    OP(INT2CHAR) \
+    OP(STRI2INT) \
+    OP(FLOAT2STR) \
+    OP(INT2STR) \
+    OP(INT2FLOATS) \
+    OP(FLOAT2INTS) \
+    OP(INT2CHARS) \
+    OP(STRI2INTS) \
+    OP(FLOAT2STRS) \
+    OP(INT2STRS) \
+    OP(READ) \
+    OP(WRITE) \
+    OP(CONCAT) \
+    OP(STRLEN) \
+    OP(GETCHAR) \
+    OP(SETCHAR) \
+    OP(TYPE) \
+    OP(ISINT) \
+    OP(TYPES) \
+    OP(ISINTS) \
+    OP(LABEL) \
+    OP(JUMP) \
+    OP(JUMPIFEQ) \
+    OP(JUMPIFNEQ) \
+    OP(JUMPIFEQS) \
+    OP(JUMPIFNEQS) \
+    OP(EXIT) \
+    OP(BREAK) \
+    OP(DPRINT)
+
 typedef struct TACnode {
     OpCode instr;
     char *a1;
@@ -169,10 +235,14 @@ void tac_list_init(TAClist *list);
 bool tac_list_is_empty(const TAClist *list);
 TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char *a2, const char *a3);
 TACnode *tac_list_pop_front(TAClist *list);
+void tac_list_remove(TAClist *list, TACnode *node);
 void tac_node_free(TACnode *node);
 void tac_list_clear(TAClist *list);
 void tac_print_list_state(const char *label, const TAClist *list);
 void tac_print_node(const char *label, const TACnode *node);
 
 void generate(ASTptr tree);
+void gen_program(ASTptr node, int scopeDepth);
+
+
 #endif // CODEGEN_H
