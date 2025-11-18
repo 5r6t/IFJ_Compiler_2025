@@ -13,8 +13,8 @@
 #include "../include/symtable.h"
 #include "../include/functionTable.h"
 
-extern FuncTable globalFunc;
-extern Scopes *scopeStack;
+FuncTable globalFunc;
+Scopes scopeStack;
 
 /**
  * @brief Perform semantic analysis on the AST.
@@ -23,7 +23,7 @@ extern Scopes *scopeStack;
  */
 void semantic(ASTptr root) {
     funcTableInit(&globalFunc); // initialize function table
-    scopeStack_init(scopeStack); // initialize scope stack
+    scopeStack_init(&scopeStack); // initialize scope stack
     registerFunctions(root); // register functions
 
     semanticNode(root); // start semantic analysis from root
@@ -98,7 +98,7 @@ void registerFunctions(ASTptr programNode){
  */
 void checkFunctionDefinition(ASTptr programNode){
     SymTableNode *scope = NULL;
-    scopeStack_push(scopeStack, scope);
+    scopeStack_push(&scopeStack, scope);
 
     for(int i = 0; i < programNode->func.paramCount; i++){
         char *paramName = programNode->func.paramNames[i];
@@ -107,9 +107,9 @@ void checkFunctionDefinition(ASTptr programNode){
             exit(4);
         }
         scope = bst_insert(scope, paramName);
-        scopeStack->array[scopeStack->topIndex] = scope;
+        scopeStack.array[scopeStack.topIndex] = scope;
     }
 
     semanticNode(programNode->func.body);
-    scopeStack_pop(scopeStack);
+    scopeStack_pop(&scopeStack);
 }
