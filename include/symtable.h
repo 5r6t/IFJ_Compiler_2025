@@ -14,6 +14,9 @@
  *  
  */
 
+#ifndef SYMTABLE
+#define SYMTABLE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,3 +67,5 @@ void scopeStack_push(Scopes *stack, SymTableNode *scope);
 SymTableNode *scopeStack_pop(Scopes *stack);
 
 int symTable_searchInScopes(Scopes *stack, char id[]);
+
+#endif // SYMTABLE

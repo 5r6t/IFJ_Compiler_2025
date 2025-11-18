@@ -343,6 +343,8 @@ bool handle_node (ASTptr node) {
 
 void gen_program(ASTptr node, int scopeDepth)
 {
+    (void)node;
+    (void)scopeDepth; // to avoid unused parameter warning
     DEBUG_PRINT("Entered function gen_program");
 
     DEBUG_PRINT("Left function gen_program");

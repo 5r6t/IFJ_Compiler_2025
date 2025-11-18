@@ -16,7 +16,7 @@
 */
 
 /**
- * @brief Initializes the binary search tree.
+ * @brief initializes the binary search tree.
  * 
  * @param tree pointer to the root of the binary search tree
  */
@@ -26,7 +26,7 @@ void bst_init(SymTableNode *tree){
 }
 
 /**
- * @brief Searches for an identifier in the binary search tree
+ * @brief searches for an identifier in the binary search tree
  * 
  * @param tree pointer to the root of the binary search tree
  * @param id searched identifier
