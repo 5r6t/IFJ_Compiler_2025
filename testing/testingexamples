@@ -1,0 +1,44 @@
+// var definition and return
+import "ifj25" for Ifj  
+class Program { 
+    static main ( ) {  
+        var a  
+        return a  
+    } 
+} 
+
+// if statment test
+import "ifj25" for Ifj  
+class Program { 
+    static main ( ) { 
+        var a 
+        a = 1 
+        if ( 1 ) { 
+            return 1 } else { 
+            return 1 } 
+        } 
+    }
+
+// while test
+import "ifj25" for Ifj 
+class Program { 
+    static main ( ) { 
+        var id 
+        while ( int ) { 
+            return int 
+        }  
+    } 
+}
+
+import "ifj25" for Ifj 
+class Program { 
+    static id { 
+        var id 
+        while ( int ) { 
+            return string 
+        } 
+    } 
+    static id ( id , id ) { 
+        id = id ( int , string ) 
+    } 
+}

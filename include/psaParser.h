@@ -30,7 +30,7 @@ typedef enum
 #define IS 13
 #define END 14
 
-ASTptr parse_expression(TokenPtr *nextToken, FILE *file, target *endIfExp);
+ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp);
 int converter(TokenPtr *tokenToConvert, FILE *file);
 void checkEnd(int end, stack_token *stack, FILE *file);
 ASTptr ruleIS(int index, stack_token *stack, FILE *file);

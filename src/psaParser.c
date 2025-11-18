@@ -80,14 +80,15 @@ PrecedentTableRel precedence_table[15][15] = {
     {PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_NULL, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_NULL}                                         // $
 };
 
-ASTptr parse_expression(TokenPtr *nextToken, FILE *file, target *endIfExp)
+static struct Token endOfStackSymbol = {DOLLAR, "$", NULL};
+static struct Token shift = {SHIFT, "<", NULL};
+static struct Token TOKEN_E = {E, "E", NULL};
+
+ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
 {
     stack_token stack;
     stack_token_init(&stack);
 
-    static const TokenPtr TOKEN_E = {E, "E", NULL};
-    static const TokenPtr endOfStackSymbol = {DOLLAR, "$", NULL};
-    static const TokenPtr shift = {SHIFT, "<", NULL};
     stack_token_push(&stack, &endOfStackSymbol, NULL);
 
     TokenPtr b = *nextToken;
@@ -95,14 +96,14 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, target *endIfExp)
     while (1)
     {
         TokenPtr a = stack_token_top(&stack).token;
-        switch (precedence_table[converter(a, file)][converter(b, file)])
+        switch (precedence_table[converter(&a, file)][converter(&b, file)])
         {
         case PRE_TAB_EQUAL:
             stack_token_push(&stack, b, NULL);
             b = lexer(file);
             break;
         case PRE_TAB_LESS:
-            stack_token_push(&stack, shift, NULL);
+            stack_token_push(&stack, &shift, NULL);
             stack_token_push(&stack, b, NULL);
             b = lexer(file);
             break;
@@ -115,13 +116,14 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, target *endIfExp)
         default:
             break;
         }
-        if (stack_token_top(&stack).token->type == "E" && stack.items[stack.top - 1].token)
+        if (stack_token_top(&stack).token->type == E && stack.items[stack.top - 1].token)
         {
-            if (b == endIfExp)
+            if ((b->type == endIfExp->type) && ((strcmp(b->id, endIfExp->id) == 0) || (strcmp(b->data, endIfExp->data) == 0)))
             {
-                return;
+                return NULL;
             }
             program_error(file, 2, 4, b);
+            return NULL;
         }
     }
 }
@@ -129,7 +131,7 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, target *endIfExp)
 int converter(TokenPtr *tokenToConvert, FILE *file)
 {
     TokenPtr token = (*tokenToConvert);
-    if (token->type == "SPECIAL")
+    if (token->type == SPECIAL)
     {
         if (strcmp(token->id, "(") == 0)
         {
@@ -139,7 +141,8 @@ int converter(TokenPtr *tokenToConvert, FILE *file)
         {
             return RPAR;
         }
-        program_error(file, 2, 4, tokenToConvert);
+        program_error(file, 2, 4, *tokenToConvert);
+        return -1;
     }
     else if (token->type == NUMERICAL)
     {
@@ -212,6 +215,7 @@ int converter(TokenPtr *tokenToConvert, FILE *file)
         return IS;
     }
     program_error(file, 2, 4, token);
+    return -1;
 }
 
 ASTptr reduce(FILE *file, stack_token *stack)
@@ -241,13 +245,13 @@ ASTptr reduce(FILE *file, stack_token *stack)
     else
     {
         program_error(file, 2, 4, token);
+        return NULL;
     }
-    return;
+    return NULL;
 }
 
 ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
 {
-    static const TokenPtr TOKEN_E = {E, "E", NULL};
     TokenPtr token = stack->items[index_shift + 1].token;
     ASTptr node = NULL;
     if (token->type == NUMERICAL)
@@ -267,29 +271,29 @@ ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
     else
     {
         program_error(file, 2, 4, token);
+        return NULL;
     }
     // uprav tak aby si ukladal node do dat v tokene
     popRuleFromStack(index_shift, stack);
-    static const TokenPtr TOKEN_E = {E, "E", NULL};
-    stack_token_push(stack, TOKEN_E, node);
+    stack_token_push(stack, &TOKEN_E, node);
     return node;
 }
 
 ASTptr checkForOtherRules(int index, stack_token *stack, FILE *file)
 {
-    static const TokenPtr TOKEN_E = {E, "E", NULL};
     TokenPtr token = stack->items[index + 1].token;
     ASTptr node = NULL;
     if (token->type == SPECIAL && (strcmp(token->id, "(") == 0))
     {
         node = ruleParenthesis(index, stack, file);
         popRuleFromStack(index, stack);
-        stack_token_push(stack, TOKEN_E, node);
+        stack_token_push(stack, &TOKEN_E, node);
         return node;
     }
     else if (token->type != E)
     {
         program_error(file, 2, 4, token);
+        return NULL;
     }
 
     // left = (ASTptr)stack->items[index + 1]->data;
@@ -297,34 +301,30 @@ ASTptr checkForOtherRules(int index, stack_token *stack, FILE *file)
     if (token->type == CMP_OPERATOR)
     {
         node = ruleComper(index, stack, file);
-        return;
     }
     else if (token->type == ARITHMETICAL)
     {
         node = ruleArithmetics(index, stack, file);
-        return;
     }
     else if (token->type == KW_IS)
     {
         node = ruleIS(index, stack, file);
-        return;
     }
     else
     {
         program_error(file, 2, 4, token);
+        return NULL;
     }
 
     popRuleFromStack(index, stack);
-    stack_token_push(&stack, TOKEN_E, node);
+    stack_token_push(stack, &TOKEN_E, node);
     return node;
 }
 
 void popRuleFromStack(int index_shift, stack_token *stack)
 {
-    TokenPtr token;
-    for (int i = index_shift; i < stack_token_top; i++)
+    for (int i = stack->top; i >= index_shift; i--)
     {
-        token = stack->items[i].token;
         stack_token_pop(stack);
     }
     return;
@@ -344,8 +344,10 @@ ASTptr ruleParenthesis(int index, stack_token *stack, FILE *file)
             return node;
         }
         program_error(file, 2, 4, token);
+        return NULL;
     }
     program_error(file, 2, 4, token);
+    return NULL;
 }
 
 ASTptr ruleComper(int index, stack_token *stack, FILE *file)
@@ -354,7 +356,7 @@ ASTptr ruleComper(int index, stack_token *stack, FILE *file)
     int middle = index + 2;
     int end = index + 3;
     TokenPtr token = stack->items[middle].token;
-    ASTptr op = NULL;
+    BinOpType op;
     ASTptr node = NULL;
     ASTptr right = NULL;
     if (strcmp(token->id, "==") == 0)
@@ -390,6 +392,7 @@ ASTptr ruleComper(int index, stack_token *stack, FILE *file)
     else
     {
         program_error(file, 2, 4, token);
+        return NULL;
     }
 
     right = stack->items[end].ast;
@@ -410,7 +413,7 @@ ASTptr ruleArithmetics(int index, stack_token *stack, FILE *file)
     int middle = index + 2;
     int end = index + 3;
     TokenPtr token = stack->items[middle].token;
-    TokenPtr op;
+    BinOpType op;
     ASTptr right;
 
     if (strcmp("*", token->id) == 0)
@@ -443,7 +446,8 @@ ASTptr ruleArithmetics(int index, stack_token *stack, FILE *file)
     ASTptr node = malloc(sizeof(ASTnode));
     if (!node)
     {
-        program_error(file, 2, 4, token); // should make different error
+        program_error(file, 1, 0, token); // should make different error
+        return NULL;
     }
     node->type = AST_BINOP;
     node->binop.opType = op;
@@ -460,9 +464,9 @@ ASTptr ruleIS(int index, stack_token *stack, FILE *file)
     TokenPtr token = stack->items[end].token;
 
     ASTptr node = NULL;
-    ASTptr resType = NULL;
+    TypeName resType;
     ASTptr right = NULL;
-    ASTptr op = BINOP_IS;
+    BinOpType op = BINOP_IS;
 
     if (token->type == KW_NULL_TYPE)
     {
@@ -479,13 +483,22 @@ ASTptr ruleIS(int index, stack_token *stack, FILE *file)
     else
     {
         program_error(file, 2, 4, token);
+        return NULL;
     }
 
     node = malloc(sizeof(ASTnode));
+    if (!node)
+    {
+        program_error(file, 1, 0, token);
+        return NULL;
+    }
     node->type = AST_BINOP;
+    node->binop.opType = op;
     node->binop.resultType = resType;
     node->binop.left = left;
     node->binop.right = right;
+
+    return node;
 }
 
 void checkEnd(int end, stack_token *stack, FILE *file)
@@ -494,6 +507,7 @@ void checkEnd(int end, stack_token *stack, FILE *file)
     if (token->type != E)
     {
         program_error(file, 2, 4, token);
+        return;
     }
 
     return;
