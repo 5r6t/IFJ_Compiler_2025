@@ -16,6 +16,11 @@
 #define NAME_BUF 256
 TAClist tac = { NULL, NULL };
 
+/** TO-DO
+ * scopedepth ~~ we'll see
+ * 
+ */
+
 // used for printing NAMES of operands, see codegen.h
 static const char *tac_opcode_name(OpCode op) {
     switch (op) {
@@ -61,6 +66,8 @@ void tac_print_node(const char *label, const TACnode *node) {
             node->a2 ? node->a2 : "NULL",
             node->a3 ? node->a3 : "NULL");
 }
+
+
 
 void tac_list_init(TAClist *list) {
     if (list == NULL) {
@@ -186,12 +193,11 @@ TACnode* tac_append(OpCode instr, char *a1, char *a2, char *a3) {
 }
 
 /**
- * @brief Creates string in "LABEL $c" format, c is a number
+ * @brief Creates string in "LABEL $x" format, x is a string
  */
-char *new_label() {
-    static int cnt = 0; // ensure new label number
+char *new_label(char* name) {
     char buf[NAME_BUF];
-    snprintf(buf, sizeof(buf), "LABEL $%d", cnt++);
+    snprintf(buf, sizeof(buf), "LABEL $%s", name);
     return my_strdup(buf);
 }
 
@@ -274,8 +280,47 @@ char* var_gf_or_lf(char *name, int scope_depth) {
     between global, local and temporary variables
 */
 
-void gen_func_def(ASTptr node);
-void gen_func_call(ASTptr node);
+void gen_program(ASTptr node)
+{
+    printf(".IFJcode25\n");
+    tac_append(JUMP, "$$main", NULL, NULL);
+}
+
+void gen_func_def(ASTptr node) 
+{
+    bool is_main = false;
+    char *label;
+    if (strcmp(node->func.name, "main") == 0) {
+        label = "LABEL $$main";
+        is_main = true;
+    } else {
+        label = new_label(node->func.name);
+    }
+    tac_append(LABEL, label, NULL, NULL);
+    if (is_main == true) {
+        tac_append(CREATEFRAME, NULL, NULL, NULL);
+    }
+    tac_append(PUSHFRAME, NULL, NULL, NULL);
+    
+    // handle parameters
+    for (int i = 0; i < node->func.paramCount; i++) {
+        char* local_param = var_lf(node->func.paramNames[i]);
+        tac_append(DEFVAR, local_param, NULL, NULL);
+        char* local_var = var_lf(node->call.args[i]);
+        tac_append(MOVE, local_param, local_var, NULL);
+    }
+
+    // handle body - TODOOOO
+
+
+    if (is_main == false) {
+        tac_append(POPFRAME, NULL, NULL, NULL);
+        tac_append(RETURN, NULL, NULL, NULL);
+    }  
+}
+void gen_func_call(ASTptr node) {
+
+}
 void gen_block(ASTptr node);
 void gen_if_stmt(ASTptr node, int scopeDepth);
 void gen_return_stmt(ASTptr node, int scopeDepth);
@@ -308,25 +353,29 @@ void gen_binop(ASTptr node) {
 }
 
 
-TACnode* get_tac_head ();
-
 /// @brief prints the entire list to standard output 
-void print_tac() {
-    // create header .IFJcode25
-    printf(".IFJcode25\n");
-    // print the list -- starting from the front
+void print_tac(void) {
+    for (const TACnode *curr = tac.head; curr; curr = curr->next) {
+        printf("%s", tac_opcode_name(curr->instr));
+        if (curr->a1) printf(" %s", curr->a1);
+        if (curr->a2) printf(" %s", curr->a2);
+        if (curr->a3) printf(" %s", curr->a3);
+        putchar('\n');
+    }
 }
+
 
 
 bool handle_node (ASTptr node) {
     switch(node->type) {
-    case AST_PROGRAM:       break; // return int function(); // int being fail/success
-    case AST_FUNC_DEF:      break;
+    case AST_PROGRAM:       gen_program(node);  break; // return int function(); // int being fail/success
+    case AST_FUNC_DEF:      gen_func_def(node); break;
     case AST_FUNC_CALL:     break;
     case AST_BLOCK:         break;
     case AST_IF_STMT:       break;
     case AST_RETURN_STMT:   break;
-    case AST_VAR_DECL:      break;
+    // assumes global for now
+    case AST_VAR_DECL:      gen_var_decl(node, 0); break;
     case AST_ASSIGN_STMT:   break;
     case AST_WHILE_STMT:    break;
     case AST_IDENTIFIER:    break;
@@ -340,28 +389,12 @@ bool handle_node (ASTptr node) {
     return true;
 }
 
-
-void gen_program(ASTptr node, int scopeDepth)
-{
-    (void)node;
-    (void)scopeDepth; // to avoid unused parameter warning
-    DEBUG_PRINT("Entered function gen_program");
-
-    DEBUG_PRINT("Left function gen_program");
-}
-
-
-
-
 // Entry point
 void generate(ASTptr tree) 
 {
-    if (!tree) exit(ERR_INTERNAL);
+    //if (!tree) exit(ERR_INTERNAL);
+    gen_program(tree);
 
-    while (handle_node(tree));
-
-    handle_node(tree);
-    
     /* OUTPUT -- no optimalizations */
     print_tac();
 }

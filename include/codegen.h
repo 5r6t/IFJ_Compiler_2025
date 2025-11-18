@@ -242,7 +242,7 @@ void tac_print_list_state(const char *label, const TAClist *list);
 void tac_print_node(const char *label, const TACnode *node);
 
 void generate(ASTptr tree);
-void gen_program(ASTptr node, int scopeDepth);
+void gen_program(ASTptr node);
 
 
 #endif // CODEGEN_H

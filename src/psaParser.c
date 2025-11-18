@@ -103,7 +103,7 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
             b = lexer(file);
             break;
         case PRE_TAB_LESS:
-            stack_token_push(&stack, &shift, NULL);
+            stack_token_push(&stack, &shift, NULL); // check this
             stack_token_push(&stack, b, NULL);
             b = lexer(file);
             break;

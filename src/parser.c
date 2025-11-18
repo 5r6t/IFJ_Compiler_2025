@@ -30,7 +30,7 @@
 PROGRAM ::= PROLOG CLASS
 PROLOG ::= import "ifj25" for Ifj /
 CLASS ::= class Program { / FUNCTIONS }
-FUNCTIONS ::= static FUNC_GET_SET_DEF FUNCTIONS
+FUNCTIONS ::= static FUNC_NAME FUNC_GET_SET_DEF FUNCTIONS
 FUNCTIONS ::= ''
 FUNC_GET_SET_DEF ::= ( PAR ) { / FUNC_BODY } /
 FUNC_GET_SET_DEF ::= { / FUNC_BODY } /
@@ -84,29 +84,36 @@ RETURN ::= return EXPRESSION /
 
  */
 
-void parser(FILE *file) // change return type to ASTnode
+ASTptr parser(FILE *file) // change return type to ASTnode
 {
-    TokenPtr nextToken = lexer(file); // lookahead -> maybe i shouldn`t declare nextToken here, something to think about
-    PROGRAM(&nextToken, file);
+    TokenPtr token = lexer(file); // lookahead -> maybe i shouldn`t declare nextToken here, something to think about
+    ASTptr root = (ASTptr)malloc(sizeof(ASTnode));
+    root = PROGRAM(&token, file);
+    return root;
 }
 
-int PROGRAM(TokenPtr *nextToken, FILE *file) // maybe I should return ast nodes (required to have tree -> define in semantic analyze)
+ASTptr PROGRAM(TokenPtr *nextToken, FILE *file) 
 {
-    PROLOG(nextToken, file);
+    if(!PROLOG(nextToken, file))
+    {
+        program_error(file, 2, 4, nextToken);
+        return 1;
+    }
 
-    CLASS(nextToken, file);
+    ASTptr program = (ASTptr)malloc(sizeof(ASTnode));
 
-    return 0;
+    program = CLASS(nextToken, file);
+
+    return program;
 }
 
-int PROLOG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+int PROLOG(TokenPtr *nextToken, FILE *file) 
 {
-    // TODO change this to be more effective using function while_function
     static const target PROLOG_TARGET[] = {
-        {KW_IMPORT, "import", NULL}, // data are used for expression not identificator
-        {STRING, "ifj25", NULL},
-        {KW_FOR, "for", NULL},
-        {KW_IFJ, "Ifj", NULL},
+        {KW_IMPORT, NULL, "import"}, 
+        {STRING, NULL, "ifj25"},
+        {KW_FOR, NULL, "for"},
+        {KW_IFJ, NULL, "Ifj"},
         {NEWLINE, NULL, NULL}};
 
     static const size_t PROLOG_TARGET_LEN = sizeof(PROLOG_TARGET) / sizeof(PROLOG_TARGET[0]);
@@ -116,7 +123,7 @@ int PROLOG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 0;
 }
 
-int CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     // TODO make while and array filled with "class Program { EOL". While would iterated until array is passted then function FUNCTIONS is called and after that check for }
 
@@ -131,13 +138,17 @@ int CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     for_function(CLASS_TARGET, file, nextToken, PROLOG_TARGET_LEN);
 
     // create ASTnode for class Program - TODO
-    /*
-    ASTptr class_node = (ASTptr)malloc(sizeof(struct ASTnode));
-    ASTptr->type = CLASS_NODE;
-    ASTptr->program.child = FUNCTIONS(nextToken, file);
-    */
+    ASTptr class = (ASTptr)malloc(sizeof(struct ASTnode));
+    if(!class)
+    {
+        program_error(file, 0, 0, nextToken);
+    }
+    class->type = AST_PROGRAM;
+    class->program.funcs = NULL;
+    class->program.funcsCount = 0;
+    class->program.funcsCap = 0;
 
-    FUNCTIONS(nextToken, file);
+    FUNCTIONS(nextToken, file, class);
     // nextToken = lexer(file);
 
     static const target CLASS_TARGET_END = {SPECIAL, "}", NULL};
@@ -146,7 +157,7 @@ int CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 0;
 }
 
-int FUNCTIONS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr FUNCTIONS(TokenPtr *nextToken, FILE *file, ASTptr programNode) // change return type to ASTnode
 {
     static const target FUNCTIONS_FOLLOW = {SPECIAL, "}", NULL};
 
@@ -161,11 +172,55 @@ int FUNCTIONS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
         */
         static const target FUNCTIONS_FIRST = {KW_STATIC, "static", NULL};
         advance(&FUNCTIONS_FIRST, nextToken, file);
-        FUNC_NAME(nextToken, file);        // dont forget to iterate nextToken inside this function!!!
-        FUNC_GET_SET_DEF(nextToken, file); // dont forget to iterate nextToken inside this function!!!
-        FUNCTIONS(nextToken, file);
-        return 0;
-        // return func_node;
+
+        TokenPtr funcName = *nextToken;
+
+        if(FUNC_NAME(nextToken, file))        // dont forget to iterate nextToken inside this function!!!
+        {
+            program_error(file, 2, 4, nextToken);
+        }
+
+        ASTptr function = (ASTptr)malloc(sizeof(ASTnode));
+        function->type = AST_FUNC_DEF;
+        function->func.name = strdup(funcName->id);
+        function->func.paramNames = NULL;
+        function->func.paramCount = 0;
+        function->func.body = NULL;
+        function->func.isGetter = false;
+        function->func.isSetter = false;
+
+        FUNC_GET_SET_DEF(nextToken, file, function); // dont forget to iterate nextToken inside this function!!!
+
+        // check if realloc is needed
+        if(programNode->program.funcsCount == programNode->program.funcsCap)
+        {
+            int newCap;
+            if(programNode->program.funcsCap == 0)
+            {
+               newCap = 4; 
+            }
+            else
+            {
+                newCap = programNode->program.funcsCap * 2;
+            }
+
+            // realloc programNode
+            ASTptr *newProgramNode = realloc(programNode, newCap*sizeof(ASTptr));
+            if(!newProgramNode)
+            {
+                program_error(file,0,0,nextToken);
+            }
+
+            programNode->program.funcsCap = newCap;
+            programNode->program.funcs = newProgramNode;
+
+            // add to function to dynamic array
+            programNode->program.funcs[programNode->program.funcsCount] = function;
+            programNode->program.funcsCount++;
+        }
+
+        FUNCTIONS(nextToken, file, programNode);
+        return programNode;
     }
     else if (peek(&FUNCTIONS_FOLLOW, *nextToken)) // epsilon
     {
@@ -207,7 +262,7 @@ int FUNC_NAME(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 1;
 }
 
-int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file, ASTptr functionNode) // change return type to ASTnode
 {
     target FUNC_DEF = {SPECIAL, "(", NULL};
 
@@ -270,7 +325,7 @@ int FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file) // change return type to A
     return 1;
 }
 
-int PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target PAR_FIRST = {IDENTIFIER, NULL, NULL};
     static const target PAR_FOLLOW = {SPECIAL, ")", NULL};
@@ -292,7 +347,7 @@ int PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 1;
 }
 
-int NEXT_PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr NEXT_PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target NEXT_PAR_FIRST = {SPECIAL, ",", NULL};
     static const target NEXT_PAR_FOLLOW = {SPECIAL, ")", NULL};
@@ -313,7 +368,7 @@ int NEXT_PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 1;
 }
 
-int FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target DUMMY_EXPRESSION = {IDENTIFIER, NULL, NULL};
     static const target END_IF_EXP = {SPECIAL, ")", NULL};
@@ -445,7 +500,7 @@ int FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 1;
 }
 
-int RSA(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr RSA(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target IN_BUILT_FUNC_SEQ[] =
         {
@@ -486,7 +541,7 @@ int RSA(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 1;
 }
 
-int FUNC_TYPE(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr FUNC_TYPE(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target FUNC_TYPE_FIRST = {SPECIAL, "(", NULL};
     static const target FUNC_TYPE_NEXT = {SPECIAL, ")", NULL};
@@ -508,7 +563,7 @@ int FUNC_TYPE(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 1;
 }
 
-int ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target ARG_FOLLOW = {SPECIAL, ")", NULL};
 
@@ -530,7 +585,7 @@ int ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 1;
 }
 
-int NEXT_ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr NEXT_ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 {
     static const target NEXT_ARG_FIRST = {SPECIAL, ",", NULL}; // look at it again please
     static const target NEXT_ARG_FOLLOW = {SPECIAL, ")", NULL};
@@ -552,7 +607,7 @@ int NEXT_ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 1; // unnecessary return -> gcc will cry if omitted
 }
 
-int ARG_NAME(TokenPtr *nextToken, FILE *file) // THIS NEEDS TO BE INT -> NODE WILL BE CREATE IN FUNCTION ARG AND NEXT_ARG
+ASTptr ARG_NAME(TokenPtr *nextToken, FILE *file) // THIS NEEDS TO BE INT -> NODE WILL BE CREATE IN FUNCTION ARG AND NEXT_ARG
 {
     static const target ARG_NAME_FIRST[] = {
         {NUMERICAL, NULL, NULL},
@@ -586,7 +641,7 @@ int ARG_NAME(TokenPtr *nextToken, FILE *file) // THIS NEEDS TO BE INT -> NODE WI
     return 0;
 }
 
-int VAR_NAME(TokenPtr *nextToken, FILE *file)
+ASTptr VAR_NAME(TokenPtr *nextToken, FILE *file)
 {
     static const target VAR_NAME_SEQ[] = {
         {IDENTIFIER, NULL, NULL},

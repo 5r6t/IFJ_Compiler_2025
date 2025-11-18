@@ -21,15 +21,19 @@ POPFRAME
 RETURN 
 
 LABEL $$main # main body
+
 CREATEFRAME  # no main-body vars
 PUSHFRAME
+
 DEFVAR LF@y
 CREATEFRAME
 DEFVAR TF@%1
 MOVE TF@%1 int@10
 DEFVAR TF@%2
 MOVE TF@%2 string@Hi\032X!
-CALL $1
+
+CALL $1 
+
 MOVE LF@y TF@%retval1
 WRITE string@\010  # newline
 WRITE string@retcode:
