@@ -11,6 +11,7 @@
 #include "codegen.h"
 #include "common.h"
 #include "ast.h"
+#include <stdbool.h>
 
 #define NAME_BUF 256
 TAClist tac = { NULL, NULL };
@@ -317,9 +318,9 @@ void print_tac() {
 }
 
 
-void handle_node (ASTptr node) {
+bool handle_node (ASTptr node) {
     switch(node->type) {
-    case AST_PROGRAM:       break;
+    case AST_PROGRAM:       break; // return int function(); // int being fail/success
     case AST_FUNC_DEF:      break;
     case AST_FUNC_CALL:     break;
     case AST_BLOCK:         break;
@@ -336,6 +337,7 @@ void handle_node (ASTptr node) {
         DEBUG_PRINT("Invalid node encountered");
         break;
     }
+    return true;
 }
 
 
@@ -353,7 +355,9 @@ void gen_program(ASTptr node, int scopeDepth)
 void generate(ASTptr tree) 
 {
     if (!tree) exit(ERR_INTERNAL);
-    
+
+    while (handle_node(tree));
+
     handle_node(tree);
     
     /* OUTPUT -- no optimalizations */
