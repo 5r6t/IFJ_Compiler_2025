@@ -23,8 +23,8 @@ INCLUDES       := -I$(INCLUDE_DIR) -I$(TEST_SRC_DIR)
 # ---- files ----
 TARGET         := $(BUILD_DIR)/test_codegen
 SRC            := $(TEST_SRC_DIR)/codegen_test.c \
-                   $(SRC_DIR)/codegen.c \
-                   $(SRC_DIR)/common.c \
+					$(SRC_DIR)/codegen.c \
+					$(SRC_DIR)/common.c \
 
 # ---- default ----
 all: run
@@ -39,7 +39,7 @@ $(TARGET): $(SRC)
 
 # ---- run target ----
 run: $(TARGET)
-	@bash $(TEST_SRC_DIR)/lex_test.sh | tee $(OUT_DIR)/lex_summary.txt
+	./$(OUT_DIR)/../test_codegen
 
 # ---- cleanup ----
 clean:

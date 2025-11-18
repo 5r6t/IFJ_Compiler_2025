@@ -9,10 +9,31 @@
 //////////////////////////////////////////////
 
 #include <stdio.h>
+#include <codegen.h>
+#include <ast.h>
 
-int main (int argc, char* argv) {
+int main (int argc, char** argv) {
+    (void) argc;
+    (void) argv;
+    ASTptr test = NULL;
 
-    // test ast part
+    TAClist local_list;
+    tac_list_init(&local_list);
+    tac_print_list_state("after init", &local_list);
 
-    return 1;
+    tac_list_append(&local_list, DEFVAR, "GF@test", NULL, NULL);
+    tac_list_append(&local_list, MOVE, "GF@test", "int@42", NULL);
+    tac_print_list_state("after append", &local_list);
+
+    TACnode *popped = tac_list_pop_front(&local_list);
+    tac_print_node("popped", popped);
+    tac_node_free(popped);
+    tac_print_list_state("after pop", &local_list);
+
+    tac_list_clear(&local_list);
+    tac_print_list_state("after clear", &local_list);
+
+    generate(test);
+    
+    return 0;
 }

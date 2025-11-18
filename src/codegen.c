@@ -5,6 +5,207 @@
 #define NAME_BUF 32
 TAClist tac = { NULL, NULL };
 
+#define TAC_OPCODE_LIST(OP) \
+    OP(MOVE) \
+    OP(CREATEFRAME) \
+    OP(PUSHFRAME) \
+    OP(POPFRAME) \
+    OP(DEFVAR) \
+    OP(CALL) \
+    OP(RETURN) \
+    OP(PUSHS) \
+    OP(POPS) \
+    OP(CLEAR) \
+    OP(ADD) \
+    OP(SUB) \
+    OP(MUL) \
+    OP(DIV) \
+    OP(IDIV) \
+    OP(ADDS) \
+    OP(SUBS) \
+    OP(MULS) \
+    OP(DIVS) \
+    OP(IDIVS) \
+    OP(LT) \
+    OP(GT) \
+    OP(EQ) \
+    OP(LTS) \
+    OP(GTS) \
+    OP(EQS) \
+    OP(AND) \
+    OP(OR) \
+    OP(NOT) \
+    OP(ANDS) \
+    OP(ORS) \
+    OP(NOTS) \
+    OP(INT2FLOAT) \
+    OP(FLOAT2INT) \
+    OP(INT2CHAR) \
+    OP(STRI2INT) \
+    OP(FLOAT2STR) \
+    OP(INT2STR) \
+    OP(INT2FLOATS) \
+    OP(FLOAT2INTS) \
+    OP(INT2CHARS) \
+    OP(STRI2INTS) \
+    OP(FLOAT2STRS) \
+    OP(INT2STRS) \
+    OP(READ) \
+    OP(WRITE) \
+    OP(CONCAT) \
+    OP(STRLEN) \
+    OP(GETCHAR) \
+    OP(SETCHAR) \
+    OP(TYPE) \
+    OP(ISINT) \
+    OP(TYPES) \
+    OP(ISINTS) \
+    OP(LABEL) \
+    OP(JUMP) \
+    OP(JUMPIFEQ) \
+    OP(JUMPIFNEQ) \
+    OP(JUMPIFEQS) \
+    OP(JUMPIFNEQS) \
+    OP(EXIT) \
+    OP(BREAK) \
+    OP(DPRINT)
+
+static const char *tac_opcode_name(OpCode op) {
+    switch (op) {
+#define OPCODE_CASE(name) case name: return #name;
+        TAC_OPCODE_LIST(OPCODE_CASE)
+#undef OPCODE_CASE
+        default:
+            return "UNKNOWN";
+    }
+}
+
+void tac_print_list_state(const char *label, const TAClist *list) {
+    const char *tag = label ? label : "TAC list";
+    size_t count = 0;
+    const TACnode *curr = (list ? list->head : NULL);
+    while (curr) {
+        ++count;
+        curr = curr->next;
+    }
+
+    printf("\n== TAC LIST :: %s ==\n", tag);
+    printf("  size  : %zu\n", count);
+    printf("  empty : %s\n", tac_list_is_empty(list) ? "yes" : "no");
+    printf("  head  : %p", list ? (void *)list->head : NULL);
+    if (list && list->head) {
+        printf(" (%s)", tac_opcode_name(list->head->instr));
+    }
+    printf("\n");
+    printf("  tail  : %p", list ? (void *)list->tail : NULL);
+    if (list && list->tail) {
+        printf(" (%s)", tac_opcode_name(list->tail->instr));
+    }
+    printf("\n");
+}
+
+void tac_print_node(const char *label, const TACnode *node) {
+    const char *tag = label ? label : "TAC node";
+    printf("\n-- TAC NODE :: %s --\n", tag);
+    if (node == NULL) {
+        printf("  (null)\n");
+        return;
+    }
+
+    printf("  addr  : %p\n", (void *)node);
+    printf("  instr : %s (%d)\n", tac_opcode_name(node->instr), node->instr);
+    printf("  args  : %s | %s | %s\n",
+           node->a1 ? node->a1 : "NULL",
+           node->a2 ? node->a2 : "NULL",
+           node->a3 ? node->a3 : "NULL");
+}
+
+#undef TAC_OPCODE_LIST
+
+void tac_list_init(TAClist *list) {
+    if (list == NULL) {
+        return;
+    }
+    list->head = NULL;
+    list->tail = NULL;
+}
+
+bool tac_list_is_empty(const TAClist *list) {
+    return (list == NULL) || (list->head == NULL);
+}
+
+TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char *a2, const char *a3) {
+    if (list == NULL) {
+        return NULL;
+    }
+
+    TACnode *n = malloc(sizeof(TACnode));
+    if (n == NULL) {
+        fprintf(stderr, "Memory allocation error\n");
+        return NULL;
+    }
+
+    n->instr = instr;
+    n->a1 = a1 ? my_strdup(a1) : NULL;
+    n->a2 = a2 ? my_strdup(a2) : NULL;
+    n->a3 = a3 ? my_strdup(a3) : NULL;
+    n->next = NULL;
+    n->prev = list->tail;
+
+    if (list->tail) {
+        list->tail->next = n;
+    } else {
+        list->head = n;
+    }
+    list->tail = n;
+
+    return n;
+}
+
+TACnode *tac_list_pop_front(TAClist *list) {
+    if (list == NULL || list->head == NULL) {
+        return NULL;
+    }
+
+    TACnode *node = list->head;
+    list->head = node->next;
+    if (list->head) {
+        list->head->prev = NULL;
+    } else {
+        list->tail = NULL;
+    }
+    node->next = NULL;
+    node->prev = NULL;
+
+    return node;
+}
+
+void tac_node_free(TACnode *node) {
+    if (node == NULL) {
+        return;
+    }
+
+    free(node->a1);
+    free(node->a2);
+    free(node->a3);
+    free(node);
+}
+
+void tac_list_clear(TAClist *list) {
+    if (list == NULL) {
+        return;
+    }
+
+    TACnode *curr = list->head;
+    while (curr) {
+        TACnode *next = curr->next;
+        tac_node_free(curr);
+        curr = next;
+    }
+    list->head = NULL;
+    list->tail = NULL;
+}
+
 /**
  * @brief GEN_FUNC_TEMPLATE 
 int func_name(ASTptr_node) {
@@ -19,26 +220,7 @@ int func_name(ASTptr_node) {
  * @brief function that appends the next TAC intruction to double-linked list
  */
 TACnode* tac_append(OpCode instr, char *a1, char *a2, char *a3) {
-    TACnode *n = malloc(sizeof(TACnode));
-    if (n == NULL) {
-        DEBUG_PRINT("Memory allocation error\n");
-        return NULL;
-    }
-    n->instr = instr;
-    n->a1 = a1 ? my_strdup(a1) : NULL;
-    n->a2 = a2 ? my_strdup(a2) : NULL;
-    n->a3 = a3 ? my_strdup(a3) : NULL;
-    n->next = NULL;
-    n->prev = tac.tail;
-
-    if (tac.tail) {
-        tac.tail->next = n;
-    }
-    else {
-        tac.head = n;
-    }
-    tac.tail = n;
-    return n;
+    return tac_list_append(&tac, instr, a1, a2, a3);
 }
 
 /**
@@ -56,10 +238,8 @@ char* var_lf(const char *name) {
     snprintf(buf, sizeof(buf), "LF@%s", name);
     return my_strdup(buf);
 }
-/// @brief create global variable
 
-/// @param name 
-/// @return 
+/// @brief create global variable
 char* var_gf(const char *name) {
     char buf[NAME_BUF];
     snprintf(buf, sizeof(buf), "GF@%s", name);
@@ -106,7 +286,7 @@ char* lit_string(const char *x) {
     *out = '\0';
 
     char final[4200];
-    snprintf(final, sizeof(final), "string2%s", buf);
+    snprintf(final, sizeof(final), "string@%s", buf);
     return my_strdup(final);
 }
 char* lit_nil() {
@@ -170,7 +350,7 @@ TACnode* get_tac_head ();
 
 /// @brief prints the entire list to standard output 
 void print_tac() {
-    DEBUG_PRINT("NOT DONE");
+    printf(".IFJcode25");
 }
 
 
@@ -194,13 +374,13 @@ void handle_node (ASTptr node) {
     }
 }
 
+void header() {
+    
+}
+
 void generate(ASTptr tree) {
     // create header .IFJcode25
     (void) tree;
-/* OUTPUT */
+    /* OUTPUT -- no optimalizations */
     print_tac();
-    /*
-    for (node = head; node != NULL; node = node->next)
-        print(node->instr); 
-    */
 }

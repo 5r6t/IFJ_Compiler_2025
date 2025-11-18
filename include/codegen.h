@@ -165,5 +165,14 @@ typedef struct {
     TACnode *tail;
 }TAClist;
 
+void tac_list_init(TAClist *list);
+bool tac_list_is_empty(const TAClist *list);
+TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char *a2, const char *a3);
+TACnode *tac_list_pop_front(TAClist *list);
+void tac_node_free(TACnode *node);
+void tac_list_clear(TAClist *list);
+void tac_print_list_state(const char *label, const TAClist *list);
+void tac_print_node(const char *label, const TACnode *node);
+
 void generate(ASTptr tree);
 #endif // CODEGEN_H
