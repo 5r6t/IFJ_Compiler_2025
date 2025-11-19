@@ -132,7 +132,7 @@ void checkFunctionDefinition(ASTptr programNode){
         scopeStack_push(&scopeStack, currentScope);
     }
 
-    //semanticNode(programNode->func.body);
+    semanticNode(programNode->func.body);
     scopeStack_pop(&scopeStack);
 }
 
