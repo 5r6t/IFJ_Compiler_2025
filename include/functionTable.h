@@ -15,6 +15,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+
+struct ASTnode;
+typedef struct ASTnode *ASTptr;
+
 
 typedef enum {
     FUNC_NORMAL,

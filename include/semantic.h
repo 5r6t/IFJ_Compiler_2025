@@ -21,5 +21,7 @@ void sem_block(ASTptr block);
 void sem_varDecl(ASTptr varDecl);
 void sem_assignStmt(ASTptr assignStmt);
 void sem_funcCall(ASTptr funcCall);
+void sem_ifStmt(ASTptr node);
+void sem_whileStmt(ASTptr node);
 
 #endif // SEMANTIC_H

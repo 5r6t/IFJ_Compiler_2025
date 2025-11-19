@@ -40,10 +40,18 @@ void funcTableResize(FuncTable *table){
  * @return FuncInfo* pointer to the function info if found, NULL otherwise
  */
 FuncInfo *funcTableGet(FuncTable *table, const char *name, const int paramCount){
-    for(int i = 0; i < table->funcCount; i++){
-        if(strcmp(table->functions[i].name, name) == 0 && table->functions[i].paramCount == paramCount){
-            return &table->functions[i];
+    if(paramCount == -1){ // search without parameters
+        for(int i = 0; i < table->funcCount; i++){
+            if(strcmp(table->functions[i].name, name)){
+                return &table->functions[i];
+            }
         }
+    }else{
+        for(int i = 0; i < table->funcCount; i++){
+            if(strcmp(table->functions[i].name, name) == 0 && table->functions[i].paramCount == paramCount){
+                return &table->functions[i];
+            }
+    }
     }
     return NULL;
 }

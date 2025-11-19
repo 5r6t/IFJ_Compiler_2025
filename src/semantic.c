@@ -30,6 +30,7 @@ void semantic(ASTptr root) {
 }
 
 void semanticNode(ASTptr root){
+    printf("Semantic analysis node type: %d\n", root->type);
     switch(root->type) {
         case AST_PROGRAM:
             for(int i = 0; i < root->program.funcsCount; i++) {
@@ -52,7 +53,10 @@ void semanticNode(ASTptr root){
             sem_funcCall(root);
             break;
         case AST_IF_STMT:
-            // TODO
+            sem_ifStmt(root);
+            break;
+        case AST_WHILE_STMT:
+            sem_whileStmt(root);
             break;
         case AST_RETURN_STMT:
             // TODO
@@ -93,6 +97,7 @@ void registerFunctions(ASTptr programNode){
     // checks for main function
     if (funcTableGet(&globalFunc, "main", 0) == NULL) {
         // ERROR - main function not found - TODO error handling
+        fprintf(stderr, "Error: main function not found\n");
         exit(3);
     }
 }
@@ -111,12 +116,14 @@ void checkFunctionDefinition(ASTptr programNode){
 
         if(paramName[0] == '_' && paramName[1] == '_'){ // parameter can't be global
             // ERROR - invalid parameter name - TODO error handling
+            fprintf(stderr, "Error: invalid parameter name\n");
             exit(4);
         }
 
         SymTableNode *currentScope = scopeStack_top(&scopeStack);
         if(bst_search(currentScope, paramName)){
             // ERROR - parameter redefinition - TODO error handling
+            fprintf(stderr, "Error: parameter redefinition\n");
             exit(4);
         }
 
@@ -125,7 +132,7 @@ void checkFunctionDefinition(ASTptr programNode){
         scopeStack_push(&scopeStack, currentScope);
     }
 
-    semanticNode(programNode->func.body);
+    //semanticNode(programNode->func.body);
     scopeStack_pop(&scopeStack);
 }
 
@@ -205,18 +212,21 @@ void sem_funcCall(ASTptr funcCall){
     char *funcName = funcCall->call.funcName;
     int argc = funcCall->call.argCount;
 
-    FuncInfo *func = funcTableGet(&globalFunc, funcName, argc);
-
-    if(func == NULL){
-        // ERROR - function not found - TODO error handling
+    FuncInfo *cand = funcTableGet(&globalFunc, funcName, -1); // search only for a function name, without arity
+    if(!cand){ // function does not exist
         exit(3);
     }
 
-    if(func->kind == FUNC_GETTER && argc != 0){
+    FuncInfo *func = funcTableGet(&globalFunc, funcName, argc);
+    if(func == NULL){ // function does not exist with same arity
         exit(5);
     }
 
-    if(func->kind == FUNC_SETTER){
+    if(func->kind == FUNC_GETTER && argc != 0){ // function is getter but called with arguments
+        exit(5);
+    }
+
+    if(func->kind == FUNC_SETTER){ // function is setter but called with wrong number of arguments
         exit(3);
     }
 
@@ -226,3 +236,34 @@ void sem_funcCall(ASTptr funcCall){
         semanticNode(funcCall->call.args[i]);
     }
 }
+
+/**
+ * @brief semantic analysis for if statement node
+ * 
+ * @param node pointer to the if statement AST node
+ */
+void sem_ifStmt(ASTptr node){
+    semanticNode(node->ifstmt.cond); // condition
+
+    if(node->ifstmt.then != NULL){ // then node
+        semanticNode(node->ifstmt.then);
+    }
+
+    if(node->ifstmt.elsestmt != NULL){ // else node
+        semanticNode(node->ifstmt.elsestmt);
+    }
+}
+
+/**
+ * @brief semantic analysis for while statement node
+ * 
+ * @param node pointer to the while statement AST node
+ */
+void sem_whileStmt(ASTptr node){
+    semanticNode(node->while_stmt.cond); // condition
+
+    if(node->while_stmt.body != NULL){
+        semanticNode(node->while_stmt.body); // body
+    }
+}
+
