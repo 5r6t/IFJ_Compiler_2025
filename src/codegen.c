@@ -193,29 +193,32 @@ TACnode* tac_append(OpCode instr, char *a1, char *a2, char *a3) {
 }
 
 /**
- * @brief Creates string in "LABEL $x" format, x is a string
+ * @brief Creates string in "$x" format, x is a string for functions
  */
-char *new_label(char* name) {
+char *fnc_label(char* name) {
     char buf[NAME_BUF];
-    snprintf(buf, sizeof(buf), "LABEL $%s", name);
+    snprintf(buf, sizeof(buf), "$%s", name);
     return my_strdup(buf);
 }
 
-char* var_lf(const char *name) {
-    char buf[NAME_BUF];
-    snprintf(buf, sizeof(buf), "LF@%s", name);
-    return my_strdup(buf);
-}
-
-/// @brief create global variable
+/* returns string for a global variable */
 char* var_gf(const char *name) {
     char buf[NAME_BUF];
     snprintf(buf, sizeof(buf), "GF@%s", name);
     return my_strdup(buf);
 }
-char* var_tf(const char *name) {
+/* returns string for a local variable */
+char* var_lf(const char *name) {
     char buf[NAME_BUF];
-    snprintf(buf, sizeof(buf), "TF@%s", name);
+    snprintf(buf, sizeof(buf), "LF@%s", name);
+    return my_strdup(buf);
+}
+/**
+ * @brief global counter for temporary TF variables
+*/
+char* new_tf(num) {
+    char buf[NAME_BUF];
+    snprintf(buf, sizeof(buf), "TF@%%%d", num);
     return my_strdup(buf);
 }
 
@@ -231,7 +234,7 @@ char* lit_bool(bool x) {
     snprintf(buf, sizeof(buf), "bool@%s", x ? "true" : "false");
     return my_strdup(buf);
 }
-char* lit_lit_float(double x) {
+char* lit_float(double x) {
     char buf[NAME_BUF * 2];
     snprintf(buf, sizeof(buf), "float@%a", x);
     return my_strdup(buf);
@@ -280,21 +283,22 @@ char* var_gf_or_lf(char *name, int scope_depth) {
     between global, local and temporary variables
 */
 
+// function that appends the prolog of a program to a list 
 void gen_program(ASTptr node)
 {
     printf(".IFJcode25\n");
     tac_append(JUMP, "$$main", NULL, NULL);
 }
-
+// function that appends instructions for a definition of a function to a list
 void gen_func_def(ASTptr node) 
 {
     bool is_main = false;
     char *label;
     if (strcmp(node->func.name, "main") == 0) {
-        label = "LABEL $$main";
+        label = "$$main";
         is_main = true;
     } else {
-        label = new_label(node->func.name);
+        label = fnc_label(node->func.name);
     }
     tac_append(LABEL, label, NULL, NULL);
     if (is_main == true) {
@@ -306,7 +310,7 @@ void gen_func_def(ASTptr node)
     for (int i = 0; i < node->func.paramCount; i++) {
         char* local_param = var_lf(node->func.paramNames[i]);
         tac_append(DEFVAR, local_param, NULL, NULL);
-        char* local_var = var_lf(node->call.args[i]);
+        char* local_var = var_lf(node->call.args[i]);   // look at later
         tac_append(MOVE, local_param, local_var, NULL);
     }
 
@@ -318,8 +322,30 @@ void gen_func_def(ASTptr node)
         tac_append(RETURN, NULL, NULL, NULL);
     }  
 }
+// function that appends instruction for calling a function to a list
 void gen_func_call(ASTptr node) {
+    tac_append(CREATEFRAME, NULL, NULL, NULL);
 
+    // for every function argument
+    for (int i = 0; i < node->call.argCount; i++) {
+        char* temp_frame = new_tf();
+        tac_append(DEFVAR, temp_frame, NULL, NULL);
+        
+        ASTptr argNode = node->call.args[i];
+        char* fnc_param;
+        // argument is a variable
+        if (argNode->type == AST_IDENTIFIER) {
+            fnc_param = gen_identifier(argNode);
+        }
+        // argument is a literal
+        else if (argNode->type == AST_LITERAL) {
+            fnc_param = gen_literal(argNode);
+        }
+
+        tac_append(MOVE, temp_frame, fnc_param, NULL);
+    }
+    char* name = fnc_name(node->call.funcName);
+    tac_append(CALL, name, NULL, NULL);
 }
 void gen_block(ASTptr node);
 void gen_if_stmt(ASTptr node, int scopeDepth);
@@ -331,8 +357,47 @@ void gen_var_decl(ASTptr node, int scope_depth) {
 }
 void gen_assign_stmt(ASTptr node);
 void gen_while_stmt(ASTptr node, int scopeDepth);
-void gen_identifier(ASTptr node);
-void gen_literal(ASTptr node);
+// function that converts identifiers to a desired format
+char* gen_identifier(ASTptr node) {
+    // if global:
+
+    // if local:
+    return var_lf(node->identifier.name);
+}
+// function that converts literals to a desired format
+char* gen_literal(ASTptr node) {
+    switch(node->literal.liType) {
+        case LIT_NULL:
+            char *r = lit_nul();
+            return r;
+        
+        /* case LIT_BOOL: 
+            bool b = node->literal.bool;
+            char *r = lit_bool(b);
+            return r;
+        */
+
+        case LIT_NUMBER:
+            double v = node->literal.num;
+
+            long long iv = (long long)v;
+            if((double)iv == v) {
+                char *r = lit_int(iv);
+                return r;
+            }
+            else {
+                char *r = lit_float(v);
+                return r;
+            }
+        
+        case LIT_STRING:
+            char *r = lit_string(node->literal.str);
+            return r;
+
+        default:
+            return NULL;
+    }
+}
 void gen_binop(ASTptr node) {
     switch(node->binop.opType) {
         case BINOP_ADD:     break;
