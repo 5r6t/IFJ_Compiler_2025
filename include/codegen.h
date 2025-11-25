@@ -244,5 +244,14 @@ void tac_print_node(const char *label, const TACnode *node);
 void generate(ASTptr tree);
 void gen_program(ASTptr node);
 
+char* gen_identifier(ASTptr node);
+char* gen_literal(ASTptr node);
+char* fnc_name(const char* name);
 
+void gen_block(ASTptr node);
+void gen_if_stmt(ASTptr node, int scopeDepth);
+void gen_return_stmt(ASTptr node, int scopeDepth);
+char* gen_identifier(ASTptr node);
+char* gen_literal(ASTptr node);
 #endif // CODEGEN_H
+void gen_assign_stmt(ASTptr node);
