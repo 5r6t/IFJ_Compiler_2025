@@ -43,7 +43,7 @@ extern bool pending;
 ASTptr parser(FILE *file);
 
 ASTptr PROGRAM(TokenPtr *nextToken, FILE *file);
-int PROLOG(TokenPtr *nextToken, FILE *file);
+void PROLOG(TokenPtr *nextToken, FILE *file);
 ASTptr CLASS(TokenPtr *nextToken, FILE *file);
 ASTptr PAR(TokenPtr *nextToken, FILE *file, parArr *pA);
 ASTptr NEXT_PAR(TokenPtr *nextToken, FILE *file, parArr *pA);
@@ -111,7 +111,7 @@ static inline void parArrAdd(parArr *pA, const char *name, FILE *file, TokenPtr 
         pA->arrCap = newCap;
     }
 
-    pA->parNames[pA->arrCnt] = strdup(name);
+    pA->parNames[pA->arrCnt] = my_strdup(name);
     pA->arrCnt++;
 }
 
