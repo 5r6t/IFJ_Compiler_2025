@@ -64,6 +64,8 @@ typedef enum
 typedef enum
 {
     LIT_NULL,
+    LIT_LOCAL_ID,
+    LIT_GLOBAL_ID,
     LIT_NUMBER,
     LIT_STRING
 } LiteralType;

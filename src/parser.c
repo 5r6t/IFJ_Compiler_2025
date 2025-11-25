@@ -8,6 +8,7 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
+#define _POSIX_C_SOURCE 200809L
 #include "../include/common.h"
 #include "../include/lex.h"
 #include "../include/parser.h"
@@ -17,6 +18,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
+TokenPtr lookahead;
+bool pending = false;
 
 /*NOTES:
    - once in time should call semantic analyze to make AST from simulated derivation tree -> quit confused how to do that
@@ -84,20 +88,21 @@ RETURN ::= return EXPRESSION /
 
  */
 
-ASTptr parser(FILE *file) // change return type to ASTnode
+ASTptr
+parser(FILE *file)
 {
-    TokenPtr token = lexer(file); // lookahead -> maybe i shouldn`t declare nextToken here, something to think about
+    TokenPtr token = getToken(file); // lookahead -> maybe i shouldn`t declare nextToken here, something to think about
     ASTptr root = (ASTptr)malloc(sizeof(ASTnode));
     root = PROGRAM(&token, file);
     return root;
 }
 
-ASTptr PROGRAM(TokenPtr *nextToken, FILE *file) 
+ASTptr PROGRAM(TokenPtr *nextToken, FILE *file)
 {
-    if(!PROLOG(nextToken, file))
+    if (!PROLOG(nextToken, file))
     {
-        program_error(file, 2, 4, nextToken);
-        return 1;
+        program_error(file, 2, 4, *nextToken);
+        return NULL;
     }
 
     ASTptr program = (ASTptr)malloc(sizeof(ASTnode));
@@ -107,10 +112,10 @@ ASTptr PROGRAM(TokenPtr *nextToken, FILE *file)
     return program;
 }
 
-int PROLOG(TokenPtr *nextToken, FILE *file) 
+int PROLOG(TokenPtr *nextToken, FILE *file)
 {
     static const target PROLOG_TARGET[] = {
-        {KW_IMPORT, NULL, "import"}, 
+        {KW_IMPORT, NULL, "import"},
         {STRING, NULL, "ifj25"},
         {KW_FOR, NULL, "for"},
         {KW_IFJ, NULL, "Ifj"},
@@ -129,19 +134,18 @@ ASTptr CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 
     static const target CLASS_TARGET[] =
         {
-            {KW_CLASS, "class", NULL},
-            {IDENTIFIER, "Program", NULL},
-            {SPECIAL, "{", NULL},
+            {KW_CLASS, NULL, "class"},
+            {IDENTIFIER, NULL, "Program"},
+            {SPECIAL, NULL, "{"},
             {NEWLINE, NULL, NULL}};
 
     static const size_t PROLOG_TARGET_LEN = sizeof(CLASS_TARGET) / sizeof(CLASS_TARGET[0]);
     for_function(CLASS_TARGET, file, nextToken, PROLOG_TARGET_LEN);
 
-    // create ASTnode for class Program - TODO
     ASTptr class = (ASTptr)malloc(sizeof(struct ASTnode));
-    if(!class)
+    if (!class)
     {
-        program_error(file, 0, 0, nextToken);
+        program_error(file, 0, 0, *nextToken);
     }
     class->type = AST_PROGRAM;
     class->program.funcs = NULL;
@@ -149,35 +153,27 @@ ASTptr CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     class->program.funcsCap = 0;
 
     FUNCTIONS(nextToken, file, class);
-    // nextToken = lexer(file);
 
-    static const target CLASS_TARGET_END = {SPECIAL, "}", NULL};
+    static const target CLASS_TARGET_END = {SPECIAL, NULL, "}"};
     advance(&CLASS_TARGET_END, nextToken, file);
 
-    return 0;
+    return class;
 }
 
 ASTptr FUNCTIONS(TokenPtr *nextToken, FILE *file, ASTptr programNode) // change return type to ASTnode
 {
-    static const target FUNCTIONS_FOLLOW = {SPECIAL, "}", NULL};
+    static const target FUNCTIONS_FOLLOW = {SPECIAL, NULL, "}"};
 
     if ((*nextToken)->type == KW_STATIC)
     {
-        /* // TODO -> need to talk with ya about this
-        ASTptr func_node = (ASTptr)malloc(sizeof(struct ASTnode));
-        func_node->type = FUNC_NODE;
-        func_node->func.name = FUNC_NAME(nextToken, file);
-        func_node->func.params = FUNC_GET_SET_DEF(nextToken, file);
-        func_node->func.body = FUNCTIONS(nextToken, file);
-        */
-        static const target FUNCTIONS_FIRST = {KW_STATIC, "static", NULL};
+        static const target FUNCTIONS_FIRST = {KW_STATIC, NULL, "static"};
         advance(&FUNCTIONS_FIRST, nextToken, file);
 
         TokenPtr funcName = *nextToken;
 
-        if(FUNC_NAME(nextToken, file))        // dont forget to iterate nextToken inside this function!!!
+        if (FUNC_NAME(nextToken, file)) // dont forget to iterate nextToken inside this function!!!
         {
-            program_error(file, 2, 4, nextToken);
+            program_error(file, 2, 4, *nextToken);
         }
 
         ASTptr function = (ASTptr)malloc(sizeof(ASTnode));
@@ -192,12 +188,12 @@ ASTptr FUNCTIONS(TokenPtr *nextToken, FILE *file, ASTptr programNode) // change 
         FUNC_GET_SET_DEF(nextToken, file, function); // dont forget to iterate nextToken inside this function!!!
 
         // check if realloc is needed
-        if(programNode->program.funcsCount == programNode->program.funcsCap)
+        if (programNode->program.funcsCount == programNode->program.funcsCap)
         {
             int newCap;
-            if(programNode->program.funcsCap == 0)
+            if (programNode->program.funcsCap == 0)
             {
-               newCap = 4; 
+                newCap = 4;
             }
             else
             {
@@ -205,56 +201,41 @@ ASTptr FUNCTIONS(TokenPtr *nextToken, FILE *file, ASTptr programNode) // change 
             }
 
             // realloc programNode
-            ASTptr *newProgramNode = realloc(programNode, newCap*sizeof(ASTptr));
-            if(!newProgramNode)
+            ASTptr *newProgramNode = realloc(programNode->program.funcs, newCap * sizeof(ASTptr));
+            if (!newProgramNode)
             {
-                program_error(file,0,0,nextToken);
+                program_error(file, 0, 0, *nextToken);
             }
 
             programNode->program.funcsCap = newCap;
             programNode->program.funcs = newProgramNode;
-
-            // add to function to dynamic array
-            programNode->program.funcs[programNode->program.funcsCount] = function;
-            programNode->program.funcsCount++;
         }
 
-        FUNCTIONS(nextToken, file, programNode);
-        return programNode;
+        // add to function to dynamic array
+        programNode->program.funcs[programNode->program.funcsCount] = function;
+        programNode->program.funcsCount++;
+
+        return FUNCTIONS(nextToken, file, programNode);
     }
     else if (peek(&FUNCTIONS_FOLLOW, *nextToken)) // epsilon
     {
-        return 0;
+        return programNode;
     }
     else // should call program error
     {
         program_error(file, 2, 4, *nextToken);
     }
-    return 1;
+    return NULL;
 }
 
-int FUNC_NAME(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+int FUNC_NAME(TokenPtr *nextToken, FILE *file)
 {
-    /*static const target FUNC_NAME_SEQ[] =
-        {
-            {KW_IFJ, NULL, NULL},
-            {SPECIAL, ".", NULL},
-            {IDENTIFIER, NULL, NULL}};
-
-    size_t FUNC_NAME_SEQ_LEN = sizeof(FUNC_NAME_SEQ) / sizeof(FUNC_NAME_SEQ[0]);*/
-    // static const target FUNC_NAME_TARGET = {IDENTIFIER, NULL};
     if ((*nextToken)->type == IDENTIFIER)
     {
         // advance(&FUNC_NAME_TARGET, nextToken, file); // is nextToken pointer?
-        *nextToken = lexer(file);
+        *nextToken = getToken(file);
         return 0;
     }
-    /*else if ((*nextToken)->type == KW_IFJ)
-    {
-        for_function(FUNC_NAME_SEQ, file, nextToken, FUNC_NAME_SEQ_LEN);
-        return 0;
-    }*/
-
     else
     {
         program_error(file, 2, 4, *nextToken);
@@ -262,125 +243,188 @@ int FUNC_NAME(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
     return 1;
 }
 
-ASTptr FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file, ASTptr functionNode) // change return type to ASTnode
+ASTptr FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file, ASTptr functionNode)
 {
-    target FUNC_DEF = {SPECIAL, "(", NULL};
+    static target FUNC_DEF = {SPECIAL, NULL, "("};
 
-    target FUNC_GET = {SPECIAL, "{", NULL};
+    static target FUNC_GET = {SPECIAL, NULL, "{"};
+
+    static target FUNC_IDENT = {IDENTIFIER, NULL, NULL};
 
     static const target FUNC_SET_SEQ[] =
         {
-            {CMP_OPERATOR, "=", NULL},
-            {SPECIAL, "(", NULL},
-            {IDENTIFIER, NULL, NULL},
-            {SPECIAL, ")", NULL},
-            {SPECIAL, "{", NULL},
-            {NEWLINE, NULL, NULL}};
+            {CMP_OPERATOR, NULL, "="},
+            {SPECIAL, NULL, "("},
+        };
 
     target FUNC_DEF_SEQ[] =
         {
-            {SPECIAL, ")", NULL},
-            {SPECIAL, "{", NULL},
+            {SPECIAL, NULL, ")"},
+            {SPECIAL, NULL, "{"},
             {NEWLINE, NULL, NULL}};
 
     target FUNC_GET_SET_DEF_END[] = // last two lexem in rules for FUNC_GET_SET_DEF are same -> } EOL
         {
-            {SPECIAL, "}", NULL},
+            {SPECIAL, NULL, "}"},
             {NEWLINE, NULL, NULL}};
 
     size_t FUNC_SET_SEQ_LEN = sizeof(FUNC_SET_SEQ) / sizeof(FUNC_SET_SEQ[0]);
     size_t FUNC_DEF_SEQ_LEN = sizeof(FUNC_DEF_SEQ) / sizeof(FUNC_DEF_SEQ[0]);
     size_t FUNC_GET_SET_DEF_END_LEN = sizeof(FUNC_GET_SET_DEF_END) / sizeof(FUNC_GET_SET_DEF_END[0]);
 
-    if (peek(&FUNC_DEF, *nextToken) == 0) // definition of function -> should call semantic analyzer to check if function id is already used -> beware of shadowing!!!
+    if (peek(&FUNC_DEF, *nextToken)) // definition of function -> should call semantic analyzer to check if function id is already used -> beware of shadowing!!!
     {
-        *nextToken = lexer(file);
-        PAR(nextToken, file); // dont forget to iterate nextToken inside this function!!!
+        *nextToken = getToken(file);
+
+        // Loading par of function into the AST
+        parArr pA;
+        parArrInit(&pA);
+        PAR(nextToken, file, &pA); // dont forget to iterate nextToken inside this function!!!
+        functionNode->func.paramNames = pA.parNames;
+        functionNode->func.paramCount = pA.arrCnt;
         for_function(FUNC_DEF_SEQ, file, nextToken, FUNC_DEF_SEQ_LEN);
-        FUNC_BODY(nextToken, file); // dont forget to iterate nextToken inside this function!!!
+
+        // Loading function body to the AST
+        ASTptr blockNode = (ASTptr)malloc(sizeof(ASTnode));
+        if (!blockNode)
+        {
+            program_error(file, 0, 0, *nextToken);
+        }
+        blockNodeInit(blockNode);
+        FUNC_BODY(nextToken, file, blockNode); // dont forget to iterate nextToken inside this function!!!
+        functionNode->func.body = blockNode;
+
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
-        return 0;
+        return functionNode;
     }
-    else if (peek(&FUNC_GET, *nextToken) == 0) // getter -> should I call semantic analyzer here too? FATAL OVERSIGTH: THIS WILL KILL THE PROGRAM WITHOUT CHCEKING ALL RULES FIRST
+    else if (peek(&FUNC_GET, *nextToken)) // getter
     {
-        *nextToken = lexer(file);
-        FUNC_GET.data = NULL;
-        FUNC_DEF.type = NEWLINE;
-        advance(&FUNC_GET, nextToken, file);
-        FUNC_BODY(nextToken, file); // dont forget to iterate nextToken inside this function!!!
+        *nextToken = getToken(file);
+        static target AFTER_BRACE = {NEWLINE, NULL, NULL};
+
+        functionNode->func.isGetter = true;
+        functionNode->func.isSetter = false;
+
+        advance(&AFTER_BRACE, nextToken, file);
+
+        ASTptr blockNode = (ASTptr)malloc(sizeof(ASTnode));
+        if (!blockNode)
+        {
+            program_error(file, 0, 0, *nextToken);
+        }
+        blockNodeInit(blockNode);
+        FUNC_BODY(nextToken, file, blockNode); // dont forget to iterate nextToken inside this function!!!
+        functionNode->func.body = blockNode;
+
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
-        return 0;
+        return functionNode;
     }
     else if ((*nextToken)->type == CMP_OPERATOR) // setter
     {
         for_function(FUNC_SET_SEQ, file, nextToken, FUNC_SET_SEQ_LEN);
-        FUNC_BODY(nextToken, file); // dont forget to iterate nextToken inside this function!!!
+
+        // IDENTIFIER
+        char *name = strdup((*nextToken)->id);
+        advance(&FUNC_IDENT, nextToken, file);
+
+        // AST
+        functionNode->func.isSetter = true;
+        functionNode->func.isGetter = false;
+
+        functionNode->func.paramCount = 1;
+        functionNode->func.paramNames = malloc(sizeof(char *));
+        if (!functionNode->func.paramNames)
+        {
+            program_error(file, 0, 0, *nextToken);
+        }
+
+        functionNode->func.paramNames[0] = name;
+
+        // continue
+        for_function(FUNC_DEF_SEQ, file, nextToken, FUNC_DEF_SEQ_LEN);
+        ASTptr blockNode = (ASTptr)malloc(sizeof(ASTnode));
+        if (!blockNode)
+        {
+            program_error(file, 0, 0, *nextToken);
+        }
+        blockNodeInit(blockNode);
+        FUNC_BODY(nextToken, file, blockNode); // dont forget to iterate nextToken inside this function!!!
+        functionNode->block.stmt = &blockNode;
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
-        return 0;
+        return functionNode;
     }
     else
     {
         program_error(file, 2, 4, *nextToken);
     }
-    return 1;
+
+    return NULL;
 }
 
-ASTptr PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr PAR(TokenPtr *nextToken, FILE *file, parArr *pA)
 {
     static const target PAR_FIRST = {IDENTIFIER, NULL, NULL};
-    static const target PAR_FOLLOW = {SPECIAL, ")", NULL};
+    static const target PAR_FOLLOW = {SPECIAL, NULL, ")"};
     if ((*nextToken)->type == IDENTIFIER)
     {
+        char *name = strdup((*nextToken)->id);
+        parArrAdd(pA, name, file, *nextToken);
+
         advance(&PAR_FIRST, nextToken, file);
-        NEXT_PAR(nextToken, file); // dont forget to iterate nextToken inside this function!!!
-        return 0;
+
+        return NEXT_PAR(nextToken, file, pA); // dont forget to iterate nextToken inside this function!!!
     }
-    else if ((*nextToken)->type == SPECIAL)
+    else if (peek(&PAR_FOLLOW, *nextToken))
     {
-        peek(&PAR_FOLLOW, *nextToken);
-        return 0;
+        return NULL;
     }
     else
     {
         program_error(file, 2, 4, *nextToken);
     }
-    return 1;
+    return NULL;
 }
 
-ASTptr NEXT_PAR(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr NEXT_PAR(TokenPtr *nextToken, FILE *file, parArr *pA)
 {
-    static const target NEXT_PAR_FIRST = {SPECIAL, ",", NULL};
-    static const target NEXT_PAR_FOLLOW = {SPECIAL, ")", NULL};
-    if ((*nextToken)->type == SPECIAL)
+    static const target NEXT_PAR_FIRST = {SPECIAL, NULL, ","};
+    static const target NEXT_PAR_FOLLOW = {SPECIAL, NULL, ")"};
+    static const target NEXT_PAR_IDEN = {IDENTIFIER, NULL, NULL};
+    if (peek(&NEXT_PAR_FIRST, *nextToken))
     {
         advance(&NEXT_PAR_FIRST, nextToken, file);
-        NEXT_PAR(nextToken, file);
-        return 0;
+
+        char *name = strdup((*nextToken)->id);
+        parArrAdd(pA, name, file, *nextToken);
+        advance(&NEXT_PAR_IDEN, nextToken, file);
+
+        return NEXT_PAR(nextToken, file, pA);
     }
     else if (peek(&NEXT_PAR_FOLLOW, *nextToken)) // epsilon
     {
-        return 0;
+        return NULL;
     }
     else
     {
         program_error(file, 2, 4, *nextToken);
     }
-    return 1;
+    return NULL;
 }
 
-ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
 {
-    static const target DUMMY_EXPRESSION = {IDENTIFIER, NULL, NULL};
-    static const target END_IF_EXP = {SPECIAL, ")", NULL};
+
+    static const target END_IF_EXP = {SPECIAL, NULL, ")"};
     static const target RETURN_FIRST = {KW_RETURN, NULL, NULL};
     static const target FUNC_BODY_END = {NEWLINE, NULL, NULL};
-    static const target FUNC_BODY_FOLLOW = {SPECIAL, "}", NULL};
-    static const target VAR_ASS_CALL_GET = {CMP_OPERATOR, "=", NULL};
+    static const target FUNC_BODY_FOLLOW = {SPECIAL, NULL, "}"};
+    static const target VAR_ASS_CALL_GET = {CMP_OPERATOR, NULL, "="};
+    static const target END_RETURN_EXP = {NEWLINE, NULL, NULL};
 
-    static const target FUNC_INTRO_SEQ[] =
+    /*static const target FUNC_INTRO_SEQ[] =
         {
             {SPECIAL, "(", NULL},
-            {NEWLINE, NULL, NULL}};
+            {NEWLINE, NULL, NULL}};*/
 
     /*static const target FUNC_BODY_DECL_SEQ[] =
         {
@@ -427,192 +471,402 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file) // change return type to ASTno
     // size_t VAR_ASS_CALL_GET_SEQ_LEN = sizeof(VAR_ASS_CALL_GET_SEQ) / sizeof(VAR_ASS_CALL_GET_SEQ[0]);
     // size_t FUNC_BODY_DECL_SEQ_LEN = sizeof(FUNC_BODY_DECL_SEQ) / sizeof(FUNC_BODY_DECL_SEQ[0]);
     size_t WHILE_START_SEQ_LEN = sizeof(WHILE_START_SEQ) / sizeof(WHILE_START_SEQ[0]);
-    size_t FUNC_INTRO_SEQ_LEN = sizeof(FUNC_INTRO_SEQ) / sizeof(FUNC_INTRO_SEQ[0]);
+    // size_t FUNC_INTRO_SEQ_LEN = sizeof(FUNC_INTRO_SEQ) / sizeof(FUNC_INTRO_SEQ[0]);
     size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
 
-    if ((*nextToken)->type == KW_VAR) // rework -> Add var name as function -> did i already done that?
+    if ((*nextToken)->type == KW_VAR) // declare
     {
         // for_function(FUNC_BODY_DECL_SEQ, file, nextToken, FUNC_BODY_DECL_SEQ_LEN);
-        *nextToken = lexer(file);
-        VAR_NAME(nextToken, file);
+        *nextToken = getToken(file);
+        char *varName = (*nextToken)->id;
+        int result = VAR_NAME(nextToken, file);
+        if (!result)
+            program_error(file, 2, 4, *nextToken);
+
+        ASTptr varNode = (ASTptr)malloc(sizeof(ASTnode));
+        varNode->type = AST_VAR_DECL;
+        varNode->var_decl.varName = strdup(varName);
+
+        *nextToken = getToken(file);
         advance(&FUNC_BODY_END, nextToken, file);
-        FUNC_BODY(nextToken, file);
-        return 0;
+
+        varNameAdd(blockNode, varNode, file, *nextToken);
+
+        return FUNC_BODY(nextToken, file, blockNode);
     }
-    else if (VAR_NAME(nextToken, file)) // beware GLOBAL ID can be here used as name so this must function should work different
+    else if (VAR_NAME(nextToken, file)) // assign
     {
-        // for_function(VAR_ASS_CALL_GET_SEQ, file, nextToken, VAR_ASS_CALL_GET_SEQ_LEN);
-        //  here should be creation of node for ast or something, should discus with Honza
+        AssignTargetType asType;
+        if ((*nextToken)->type == ID_GLOBAL)
+        {
+            asType = TARGET_GLOBAL;
+        }
+        else
+        {
+            asType = TARGET_LOCAL;
+        }
+        char *varName = (*nextToken)->id;
+        ASTptr assignNode = (ASTptr)malloc(sizeof(ASTnode));
+        assignNode->type = AST_ASSIGN_STMT;
+        assignNode->assign_stmt.targetName = strdup(varName);
+        assignNode->assign_stmt.asType = asType;
+
+        *nextToken = getToken(file);
         advance(&VAR_ASS_CALL_GET, nextToken, file);
-        RSA(nextToken, file);
-        return 0;
+        ASTptr exprNode = RSA(nextToken, file);
+
+        assignNode->assign_stmt.expr = exprNode;
+
+        varNameAdd(blockNode, assignNode, file, *nextToken);
+        return FUNC_BODY(nextToken, file, blockNode);
     }
-    else if ((*nextToken)->type == KW_IF) // if statment
+    else if ((*nextToken)->type == KW_IF) // if statement
     {
         for_function(IF_STATMENT_START_SEQ, file, nextToken, IF_STATMENT_START_SEQ_LEN);
-        // Here I will give control to PSA, for now I will use dummy expresion
-        // advance(&DUMMY_EXPRESSION, nextToken, file);
+
         parse_expression(nextToken, file, &END_IF_EXP);
         for_function(IF_STATMENT_MIDDLE_SEQ, file, nextToken, IF_STATMENT_MIDDLE_SEQ_LEN);
-        FUNC_BODY(nextToken, file);
+        FUNC_BODY(nextToken, file, blockNode);
         for_function(IF_STATMENT_ELSE_BRANCH_SEQ, file, nextToken, IF_STATMENT_ELSE_BRANCH_SEQ_LEN);
-        FUNC_BODY(nextToken, file);
+        FUNC_BODY(nextToken, file, blockNode);
         for_function(END_SEQ, file, nextToken, END_SEQ_LEN);
-        FUNC_BODY(nextToken, file);
-        return 0;
+
+        return FUNC_BODY(nextToken, file, blockNode);
     }
-    else if ((*nextToken)->type == KW_WHILE)
+    else if ((*nextToken)->type == KW_WHILE) // while statement
     {
         for_function(WHILE_START_SEQ, file, nextToken, WHILE_START_SEQ_LEN);
-        // Here I will give control to PSA, for now I will use dummy expresion
-        advance(&DUMMY_EXPRESSION, nextToken, file);
+
+        parse_expression(nextToken, file, &END_IF_EXP);
         for_function(IF_STATMENT_MIDDLE_SEQ, file, nextToken, IF_STATMENT_MIDDLE_SEQ_LEN);
-        FUNC_BODY(nextToken, file);
+        FUNC_BODY(nextToken, file, blockNode);
         for_function(END_SEQ, file, nextToken, END_SEQ_LEN);
-        FUNC_BODY(nextToken, file);
-        return 0;
+        return FUNC_BODY(nextToken, file, blockNode);
     }
-    else if ((*nextToken)->type == KW_RETURN) // mozne miesto na prerobenie
+    else if ((*nextToken)->type == KW_RETURN) // return
     {
         advance(&RETURN_FIRST, nextToken, file);
-        // Here I will give control to PSA, for now I will use dummy expresion
-        advance(&DUMMY_EXPRESSION, nextToken, file);
+
+        parse_expression(nextToken, file, &END_RETURN_EXP);
         advance(&FUNC_BODY_END, nextToken, file);
-        FUNC_BODY(nextToken, file);
-        return 0;
-    }
-    else if ((*nextToken)->type == SPECIAL)
-    {
-        for_function(FUNC_INTRO_SEQ, file, nextToken, FUNC_INTRO_SEQ_LEN);
-        FUNC_BODY(nextToken, file);
-        advance(&FUNC_BODY_END, nextToken, file);
-        FUNC_BODY(nextToken, file);
-        return 0;
+        return FUNC_BODY(nextToken, file, blockNode);
     }
     else if (peek(&FUNC_BODY_FOLLOW, *nextToken)) // epsilon
     {
-        return 0;
+        return NULL;
     }
     else
     {
         program_error(file, 2, 4, *nextToken);
     }
-    return 1;
+    return NULL;
 }
 
-ASTptr RSA(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+ASTptr RSA(TokenPtr *nextToken, FILE *file)
 {
-    static const target IN_BUILT_FUNC_SEQ[] =
-        {
-            {SPECIAL, ".", NULL},
-            {IDENTIFIER, NULL, NULL},
-            {SPECIAL, "(", NULL}};
-
     static const target END_SEQ[] =
         {
             {SPECIAL, ")", NULL},
             {NEWLINE, NULL, NULL}};
 
-    size_t IN_BUILT_FUNC_SEQ_LEN = sizeof(IN_BUILT_FUNC_SEQ) / sizeof(IN_BUILT_FUNC_SEQ[0]);
+    static const target END_TARGET = {NEWLINE, NULL, NULL};
+    static const target DOT_INBUILD = {SPECIAL, NULL, "."};
+    static const target ID_INBUILD = {IDENTIFIER, NULL, NULL};
+    static const target PARAN_INBUILD = {SPECIAL, NULL, "("};
+
     size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
 
-    if ((*nextToken)->type == IDENTIFIER)
+    // working code -> should refactor so it isnt so blouted
+    if ((*nextToken)->type == KW_IFJ) // inbuilt
     {
-        (*nextToken) = lexer(file);
-        FUNC_TYPE(nextToken, file);
-        if ((*nextToken)->type != NEWLINE)
+        (*nextToken) = getToken(file);
+        advance(&DOT_INBUILD, nextToken, file);
+        char *varName = (*nextToken)->id;
+        advance(&ID_INBUILD, nextToken, file);
+
+        // call initialize -> maybe make function;
+        ASTptr inbuildCallNode = (ASTptr)malloc(sizeof(ASTnode));
+        inbuildCallNode->type = AST_FUNC_CALL;
+        inbuildCallNode->call.funcType = FUNC_INBUILD;
+        inbuildCallNode->call.funcName = strdup(varName);
+        inbuildCallNode->call.argCap = 0;
+        inbuildCallNode->call.argCount = 0;
+        inbuildCallNode->call.callInfo = NULL;
+        advance(&PARAN_INBUILD, nextToken, file);
+
+        ArgArr argArr;
+        argArrInit(&argArr);
+        ARG(nextToken, file, &argArr);
+
+        inbuildCallNode->call.argCount = argArr.arrCnt;
+        inbuildCallNode->call.argCap = argArr.arrCnt;
+
+        if (inbuildCallNode->call.argCount > 0)
         {
-            // error capture
-            exit(2);
+            inbuildCallNode->call.args = malloc(argArr.arrCnt * sizeof(ASTptr));
         }
-        return 0;
-    } // there can be a expression -> give control to PSA
-    else if ((*nextToken)->type == KW_IFJ)
-    {
-        for_function(IN_BUILT_FUNC_SEQ, file, nextToken, IN_BUILT_FUNC_SEQ_LEN);
-        ARG(nextToken, file);
+        else
+        {
+            inbuildCallNode->call.args = NULL;
+        }
+
+        for (int i = 0; i < inbuildCallNode->call.argCount; i++)
+        {
+            ASTptr item = (ASTptr)malloc(sizeof(ASTnode));
+            item->type = AST_LITERAL;
+            item->literal.liType = argArr.items[i].liType;
+            if (item->literal.liType == LIT_NUMBER)
+            {
+                item->literal.num = argArr.items[i].num;
+            }
+            else if (item->literal.liType == LIT_STRING)
+            {
+                item->literal.str = argArr.items[i].str;
+            }
+            inbuildCallNode->call.args[i] = item;
+        }
+
         for_function(END_SEQ, file, nextToken, END_SEQ_LEN);
-        return 0;
+        return inbuildCallNode;
     }
+    else if ((*nextToken)->type == NUMERICAL) // if num = expression parsing
+    {
+        return parse_expression(nextToken, file, &END_TARGET);
+    }
+    else if ((*nextToken)->type == IDENTIFIER || (*nextToken)->type == ID_GLOBAL) // is it FUNC CALL or epression?
+    {
+        char *varName = (*nextToken)->id; // this will needs to be cleared if not function call??
+        TokenPtr la = peekToken(file);
+        if (la->type == SPECIAL && strcmp(la->id, "(") == 0) //
+        {
+            ASTptr callNode = (ASTptr)malloc(sizeof(ASTnode));
+            callNode->type = AST_FUNC_CALL;
+            callNode->call.funcType = FUNC_USER;
+            callNode->call.funcName = strdup(varName);
+            callNode->call.argCap = 0;
+            callNode->call.argCount = 0;
+            callNode->call.args = NULL;
+            callNode->call.callInfo = NULL;
+
+            ArgArr argArr;
+            argArrInit(&argArr);
+
+            *nextToken = getToken(file);
+            FUNC_TYPE(nextToken, file, &argArr);
+
+            callNode->call.argCap = argArr.arrCap;
+            callNode->call.argCount = argArr.arrCnt;
+
+            if (callNode->call.argCount > 0)
+            {
+                callNode->call.args = malloc(argArr.arrCnt * sizeof(ASTptr));
+            }
+            else
+            {
+                callNode->call.args = NULL;
+            }
+
+            for (int i = 0; i < callNode->call.argCount; i++)
+            {
+                ASTptr item = (ASTptr)malloc(sizeof(ASTnode));
+                item->type = AST_LITERAL;
+                item->literal.liType = argArr.items[i].liType;
+                if (item->literal.liType == LIT_NUMBER)
+                {
+                    item->literal.num = argArr.items[i].num;
+                }
+                else if (item->literal.liType == LIT_STRING)
+                {
+                    item->literal.str = argArr.items[i].str;
+                }
+                callNode->call.args[i] = item;
+            }
+
+            if ((*nextToken)->type != NEWLINE)
+            {
+                program_error(file, 2, 4, *nextToken);
+            }
+            return callNode;
+        }
+        else
+        {
+            return parse_expression(nextToken, file, &END_TARGET);
+        }
+    } // there can be a expression -> give control to PSA
     else
     {
         program_error(file, 2, 4, *nextToken);
     }
-    return 1;
+    return NULL;
 }
 
-ASTptr FUNC_TYPE(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+void FUNC_TYPE(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 {
-    static const target FUNC_TYPE_FIRST = {SPECIAL, "(", NULL};
-    static const target FUNC_TYPE_NEXT = {SPECIAL, ")", NULL};
-    if ((*nextToken)->type == SPECIAL)
+    static const target FUNC_TYPE_FIRST = {SPECIAL, NULL, "("};
+    static const target FUNC_TYPE_NEXT = {SPECIAL, NULL, ")"};
+    if (peek(&FUNC_TYPE_FIRST, *nextToken)) // function
     {
+
         advance(&FUNC_TYPE_FIRST, nextToken, file);
-        ARG(nextToken, file);
+        ARG(nextToken, file, argArr);
         advance(&FUNC_TYPE_NEXT, nextToken, file);
-        return 0;
+        return;
     }
-    else if ((*nextToken)->type == NEWLINE)
+    else if ((*nextToken)->type == NEWLINE) // epsilon -> getter
     {
-        return 0;
+        return;
     }
     else
     {
         program_error(file, 2, 4, *nextToken);
     }
-    return 1;
+    return;
 }
 
-ASTptr ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 {
     static const target ARG_FOLLOW = {SPECIAL, ")", NULL};
 
     if (ARG_NAME(nextToken, file))
     {
         // create node
-        *nextToken = lexer(file);
-        NEXT_ARG(nextToken, file); // nextToken was itareted in this function
-        return 0;
+        literal lit;
+        if ((*nextToken)->type == NUMERICAL)
+        {
+            lit.liType = LIT_NUMBER;
+            lit.num = strtod((*nextToken)->data, NULL);
+        }
+        else if ((*nextToken)->type == STRING)
+        {
+            lit.liType = LIT_STRING;
+            lit.str = (*nextToken)->data;
+        }
+        else if ((*nextToken)->type == ID_GLOBAL)
+        {
+            lit.liType = LIT_GLOBAL_ID;
+            lit.str = (*nextToken)->id;
+        }
+        else if ((*nextToken)->type == IDENTIFIER)
+        {
+            lit.liType = LIT_LOCAL_ID;
+            lit.str = (*nextToken)->id;
+        }
+
+        if (argArr->arrCnt == argArr->arrCap)
+        {
+            int newCap;
+            if (argArr->arrCap == 0)
+            {
+                newCap = 4;
+            }
+            else
+            {
+                newCap = argArr->arrCap * 2;
+            }
+
+            literal *newArr = realloc(argArr->items, newCap * sizeof(literal));
+            if (!newArr)
+            {
+                program_error(file, 0, 0, *nextToken);
+            }
+            argArr->items = newArr;
+            argArr->arrCap = newCap;
+        }
+
+        argArr->items[argArr->arrCnt] = lit;
+        argArr->arrCnt++;
+
+        *nextToken = getToken(file);
+        NEXT_ARG(nextToken, file, argArr);
+        return; // nextToken was itareted in this function
     }
     else if (peek(&ARG_FOLLOW, *nextToken)) // epsilon
     {
-        return 0;
+        return;
     }
     else
     {
         program_error(file, 2, 4, *nextToken);
     }
-    return 1;
+    return;
 }
 
-ASTptr NEXT_ARG(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
+void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr) // change return type to ASTnode
 {
     static const target NEXT_ARG_FIRST = {SPECIAL, ",", NULL}; // look at it again please
     static const target NEXT_ARG_FOLLOW = {SPECIAL, ")", NULL};
     if (peek(&NEXT_ARG_FIRST, *nextToken))
     {
-        *nextToken = lexer(file);
+        *nextToken = getToken(file);
         ARG_NAME(nextToken, file);
-        *nextToken = lexer(file);
-        return 0;
+
+        literal lit;
+        if ((*nextToken)->type == NUMERICAL)
+        {
+            lit.liType = LIT_NUMBER;
+            lit.num = strtod((*nextToken)->data, NULL);
+        }
+        else if ((*nextToken)->type == STRING)
+        {
+            lit.liType = LIT_STRING;
+            lit.str = (*nextToken)->data;
+        }
+        else if ((*nextToken)->type == ID_GLOBAL)
+        {
+            lit.liType = LIT_GLOBAL_ID;
+            lit.str = (*nextToken)->id;
+        }
+        else if ((*nextToken)->type == IDENTIFIER)
+        {
+            lit.liType = LIT_LOCAL_ID;
+            lit.str = (*nextToken)->id;
+        }
+
+        if (argArr->arrCnt == argArr->arrCap)
+        {
+            int newCap;
+            if (argArr->arrCap == 0)
+            {
+                newCap = 4;
+            }
+            else
+            {
+                newCap = argArr->arrCap * 2;
+            }
+
+            literal *newArr = realloc(argArr->items, newCap * sizeof(literal));
+            if (!newArr)
+            {
+                program_error(file, 0, 0, *nextToken);
+            }
+            argArr->items = newArr;
+            argArr->arrCap = newCap;
+        }
+
+        argArr->items[argArr->arrCnt] = lit;
+        argArr->arrCnt++;
+
+        *nextToken = getToken(file);
+        NEXT_ARG(nextToken, file, argArr);
+        return;
     }
     else if (peek(&NEXT_ARG_FOLLOW, *nextToken)) // epsilon
     {
-        return 0;
+        return;
     }
     else
     {
         program_error(file, 2, 4, *nextToken);
     }
-    return 1; // unnecessary return -> gcc will cry if omitted
+    return;
 }
 
-ASTptr ARG_NAME(TokenPtr *nextToken, FILE *file) // THIS NEEDS TO BE INT -> NODE WILL BE CREATE IN FUNCTION ARG AND NEXT_ARG
+int ARG_NAME(TokenPtr *nextToken, FILE *file)
 {
     static const target ARG_NAME_FIRST[] = {
         {NUMERICAL, NULL, NULL},
         {IDENTIFIER, NULL, NULL},
-        {ID_GLOBAL_VAR, NULL, NULL},
+        {ID_GLOBAL, NULL, NULL},
         {STRING, NULL, NULL}};
 
     size_t ARG_NAME_FIRST_LEN = sizeof(ARG_NAME_FIRST) / sizeof(ARG_NAME_FIRST[0]);
@@ -641,11 +895,11 @@ ASTptr ARG_NAME(TokenPtr *nextToken, FILE *file) // THIS NEEDS TO BE INT -> NODE
     return 0;
 }
 
-ASTptr VAR_NAME(TokenPtr *nextToken, FILE *file)
+int VAR_NAME(TokenPtr *nextToken, FILE *file)
 {
     static const target VAR_NAME_SEQ[] = {
         {IDENTIFIER, NULL, NULL},
-        {ID_GLOBAL_VAR, NULL, NULL}};
+        {ID_GLOBAL, NULL, NULL}};
 
     size_t VAR_NAME_SEQ_LEN = sizeof(VAR_NAME_SEQ) / sizeof(VAR_NAME_SEQ[0]);
 
@@ -683,7 +937,7 @@ int peek(const target *target, TokenPtr token)
 {
     if (target->type != token->type)
     {
-        return 1;
+        return 0;
     }
     else
     {
@@ -697,12 +951,25 @@ int peek(const target *target, TokenPtr token)
 
             if (strcmp(target->data, token->data) != 0)
             {
-                return 1;
+                return 0;
             }
         }
-        return 0;
+        else if (target->id != NULL)
+        {
+            if (token->id == NULL)
+            {
+                fprintf(stderr, "SEGFAULT, token pointer is empty and you are trying reach something you can`t idiot\n");
+                exit(2);
+            }
+
+            if (strcmp(target->id, token->id) != 0)
+            {
+                return 0;
+            }
+        }
+        return 1;
     }
-    return 0;
+    return 1;
 }
 
 // helping function for more pleasing way to check matches and for updating nextToken
@@ -720,9 +987,29 @@ void for_function(const target *TARGE_SEQ, FILE *file, TokenPtr *nextToken, size
  */
 void advance(const target *target, TokenPtr *token, FILE *file)
 {
-    if (peek(target, *token) != 0)
+    if (peek(target, *token))
     {
         program_error(file, 2, 4, *token);
     }
-    *token = lexer(file);
+    *token = getToken(file);
+}
+
+TokenPtr getToken(FILE *file)
+{
+    if (pending == true)
+    {
+        pending = false;
+        return lookahead;
+    }
+    return lexer(file);
+}
+
+TokenPtr peekToken(FILE *file)
+{
+    if (pending == false)
+    {
+        lookahead = lexer(file);
+        pending = true;
+    }
+    return lookahead;
 }
