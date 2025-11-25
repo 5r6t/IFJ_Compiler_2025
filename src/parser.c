@@ -178,7 +178,7 @@ ASTptr FUNCTIONS(TokenPtr *nextToken, FILE *file, ASTptr programNode) // change 
 
         ASTptr function = (ASTptr)malloc(sizeof(ASTnode));
         function->type = AST_FUNC_DEF;
-        function->func.name = strdup(funcName->id);
+        function->func.name = my_strdup(funcName->id);
         function->func.paramNames = NULL;
         function->func.paramCount = 0;
         function->func.body = NULL;
@@ -324,7 +324,7 @@ ASTptr FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file, ASTptr functionNode)
         for_function(FUNC_SET_SEQ, file, nextToken, FUNC_SET_SEQ_LEN);
 
         // IDENTIFIER
-        char *name = strdup((*nextToken)->id);
+        char *name = my_strdup((*nextToken)->id);
         advance(&FUNC_IDENT, nextToken, file);
 
         // AST
@@ -367,7 +367,7 @@ ASTptr PAR(TokenPtr *nextToken, FILE *file, parArr *pA)
     static const target PAR_FOLLOW = {SPECIAL, NULL, ")"};
     if ((*nextToken)->type == IDENTIFIER)
     {
-        char *name = strdup((*nextToken)->id);
+        char *name = my_strdup((*nextToken)->id);
         parArrAdd(pA, name, file, *nextToken);
 
         advance(&PAR_FIRST, nextToken, file);
@@ -394,7 +394,7 @@ ASTptr NEXT_PAR(TokenPtr *nextToken, FILE *file, parArr *pA)
     {
         advance(&NEXT_PAR_FIRST, nextToken, file);
 
-        char *name = strdup((*nextToken)->id);
+        char *name = my_strdup((*nextToken)->id);
         parArrAdd(pA, name, file, *nextToken);
         advance(&NEXT_PAR_IDEN, nextToken, file);
 
@@ -485,7 +485,7 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
 
         ASTptr varNode = (ASTptr)malloc(sizeof(ASTnode));
         varNode->type = AST_VAR_DECL;
-        varNode->var_decl.varName = strdup(varName);
+        varNode->var_decl.varName = my_strdup(varName);
 
         *nextToken = getToken(file);
         advance(&FUNC_BODY_END, nextToken, file);
@@ -508,7 +508,7 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
         char *varName = (*nextToken)->id;
         ASTptr assignNode = (ASTptr)malloc(sizeof(ASTnode));
         assignNode->type = AST_ASSIGN_STMT;
-        assignNode->assign_stmt.targetName = strdup(varName);
+        assignNode->assign_stmt.targetName = my_strdup(varName);
         assignNode->assign_stmt.asType = asType;
 
         *nextToken = getToken(file);
@@ -588,7 +588,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
         ASTptr inbuildCallNode = (ASTptr)malloc(sizeof(ASTnode));
         inbuildCallNode->type = AST_FUNC_CALL;
         inbuildCallNode->call.funcType = FUNC_INBUILD;
-        inbuildCallNode->call.funcName = strdup(varName);
+        inbuildCallNode->call.funcName = my_strdup(varName);
         inbuildCallNode->call.argCap = 0;
         inbuildCallNode->call.argCount = 0;
         inbuildCallNode->call.callInfo = NULL;
@@ -642,7 +642,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
             ASTptr callNode = (ASTptr)malloc(sizeof(ASTnode));
             callNode->type = AST_FUNC_CALL;
             callNode->call.funcType = FUNC_USER;
-            callNode->call.funcName = strdup(varName);
+            callNode->call.funcName = my_strdup(varName);
             callNode->call.argCap = 0;
             callNode->call.argCount = 0;
             callNode->call.args = NULL;

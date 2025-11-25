@@ -111,7 +111,7 @@ static inline void parArrAdd(parArr *pA, const char *name, FILE *file, TokenPtr 
         pA->arrCap = newCap;
     }
 
-    pA->parNames[pA->arrCnt] = strdup(name);
+    pA->parNames[pA->arrCnt] = my_strdup(name);
     pA->arrCnt++;
 }
 

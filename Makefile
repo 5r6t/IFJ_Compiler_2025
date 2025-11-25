@@ -10,37 +10,26 @@
 # ---- settings ----
 CC       := gcc
 CFLAGS   := -g -std=c11 -pedantic -Wall -Wextra -Werror -Iinclude -DDEBUG
-OBJDIR   := build
 SRCDIR   := src
 INCDIR   := include
 TESTDIR  := testing
-TARGET   := $(OBJDIR)/test
+TARGET   := ifj25
 
 # ---- sources ----
 SRC      := $(wildcard $(SRCDIR)/*.c)
-OBJ      := $(SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
-TEST_SRC := $(wildcard $(TESTDIR)/*.c)
-TEST_OBJ := $(TEST_SRC:$(TESTDIR)/%.c=$(OBJDIR)/%.o)
+OBJ      := $(SRC:$(SRCDIR)/%.c=%.o)
 
 # ---- rules ----
 .PHONY: all clean test
 
 all: $(TARGET)
 
-$(OBJDIR):
-	mkdir -p $@
-
-$(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
+%.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/%.o: $(TESTDIR)/%.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(TARGET): $(OBJ) $(TEST_OBJ)
+$(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $^ -o $@
-
-test: $(TARGET)
-	./$(TARGET) 0 $(OBJDIR)/test.txt
+	$(RM) $(OBJ)
 
 clean:
-	$(RM) -r $(OBJDIR)/*.o 
+	$(RM) $(OBJ) $(TARGET)
