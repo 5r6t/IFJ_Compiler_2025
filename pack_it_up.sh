@@ -9,7 +9,7 @@ rm -rf "$TESTDIR"
 mkdir "$TESTDIR"
 
 # pack files, flatten the directory
-zip -j "$ARCHIVE" ./include ./src ./Makefile ./rozdeleni
+zip -j -r "$ARCHIVE" ./include ./src ./Makefile ./rozdeleni dokumentace.pdf
 
 # run the check
 ./is_it_ok.sh "$ARCHIVE" "$TESTDIR"
