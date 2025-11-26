@@ -8,6 +8,7 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
+#include "../include/parser.h"
 #include "../include/psaParser.h"
 #include "../include/stack.h"
 #include "../include/ast.h"
@@ -84,6 +85,20 @@ static struct Token endOfStackSymbol = {DOLLAR, "$", NULL};
 static struct Token shift = {SHIFT, "<", NULL};
 static struct Token TOKEN_E = {E, "E", NULL};
 
+stack_item stack_token_top_terminal(stack_token *stack)
+{
+    for (int i = stack->top; i >= 0; i--)
+    {
+        TokenPtr token = stack->items[i].token;
+
+        if (token->type == E || token->type == SHIFT)
+            continue;
+
+        return stack->items[i];
+    }
+    return stack->items[0];
+}
+
 ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
 {
     stack_token stack;
@@ -95,7 +110,20 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
 
     while (1)
     {
-        TokenPtr a = stack_token_top(&stack).token;
+        stack_item top_item = stack_token_top(&stack);
+        if (top_item.token->type == E && stack.top >= 1 && stack.items[stack.top - 1].token->type == DOLLAR)
+        {
+            if (peek(endIfExp, b))
+            {
+                ASTptr expressionNode = top_item.ast;
+                *nextToken = b;
+                return expressionNode;
+            }
+            program_error(file, 2, 4, b);
+            return NULL;
+        }
+
+        TokenPtr a = stack_token_top_terminal(&stack).token;
         switch (precedence_table[converter(&a, file)][converter(&b, file)])
         {
         case PRE_TAB_EQUAL:
@@ -116,28 +144,24 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
         default:
             break;
         }
-        if (stack_token_top(&stack).token->type == E && stack.items[stack.top - 1].token)
-        {
-            if ((b->type == endIfExp->type) && ((strcmp(b->id, endIfExp->id) == 0) || (strcmp(b->data, endIfExp->data) == 0)))
-            {
-                return NULL;
-            }
-            program_error(file, 2, 4, b);
-            return NULL;
-        }
     }
 }
 
 int converter(TokenPtr *tokenToConvert, FILE *file)
 {
     TokenPtr token = (*tokenToConvert);
-    if (token->type == SPECIAL)
+
+    if (token->type == DOLLAR)
     {
-        if (strcmp(token->id, "(") == 0)
+        return DOLLAR;
+    }
+    else if (token->type == SPECIAL)
+    {
+        if (token->id && strcmp(token->id, "(") == 0)
         {
             return LPAR;
         }
-        else if (strcmp(token->id, ")") == 0)
+        else if (token->id && strcmp(token->id, ")") == 0)
         {
             return RPAR;
         }
@@ -154,46 +178,46 @@ int converter(TokenPtr *tokenToConvert, FILE *file)
     }
     else if (token->type == ARITHMETICAL)
     {
-        if (strcmp(token->id, "+") == 0)
+        if (token->id && strcmp(token->id, "+") == 0)
         {
             return ADD;
         }
-        else if (strcmp(token->id, "-") == 0)
+        else if (token->id && strcmp(token->id, "-") == 0)
         {
             return SUB;
         }
-        else if (strcmp(token->id, "/") == 0)
+        else if (token->id && strcmp(token->id, "/") == 0)
         {
             return DIV;
         }
-        else if (strcmp(token->id, "*") == 0)
+        else if (token->id && strcmp(token->id, "*") == 0)
         {
             return MULL;
         }
     }
     else if (token->type == CMP_OPERATOR)
     {
-        if (strcmp(token->id, "==") == 0)
+        if (token->id && strcmp(token->id, "==") == 0)
         {
             return EQUAL;
         }
-        else if (strcmp(token->id, "!=") == 0)
+        else if (token->id && strcmp(token->id, "!=") == 0)
         {
             return NEQUAL;
         }
-        else if (strcmp(token->id, "<") == 0)
+        else if (token->id && strcmp(token->id, "<") == 0)
         {
             return LESS;
         }
-        else if (strcmp(token->id, ">") == 0)
+        else if (token->id && strcmp(token->id, ">") == 0)
         {
             return GREATER;
         }
-        else if (strcmp(token->id, "<=") == 0)
+        else if (token->id && strcmp(token->id, "<=") == 0)
         {
             return LSEQ;
         }
-        else if (strcmp(token->id, ">=") == 0)
+        else if (token->id && strcmp(token->id, ">=") == 0)
         {
             return GREQ;
         }
@@ -259,14 +283,14 @@ ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
         node = malloc(sizeof(ASTnode));
         node->type = AST_LITERAL;
         node->literal.liType = LIT_NUMBER;
-        // node->literal.num = token->data; -> musim zmenit na double;
+        node->literal.num = strtod(token->data, NULL);
     }
     else if (token->type == STRING)
     {
         node = malloc(sizeof(ASTnode));
         node->type = AST_LITERAL;
         node->literal.liType = LIT_STRING;
-        node->literal.str = token->data; // mozno pointer?
+        node->literal.str = my_strdup(token->data);
     }
     else
     {
@@ -381,12 +405,12 @@ ASTptr ruleComper(int index, stack_token *stack, FILE *file)
     }
     else if (strcmp(token->id, ">") == 0)
     {
-        op = BINOP_LT;
+        op = BINOP_GT;
         checkEnd(end, stack, file);
     }
     else if (strcmp(token->id, "<") == 0)
     {
-        op = BINOP_GT;
+        op = BINOP_LT;
         checkEnd(end, stack, file);
     }
     else
@@ -470,15 +494,15 @@ ASTptr ruleIS(int index, stack_token *stack, FILE *file)
 
     if (token->type == KW_NULL_TYPE)
     {
-        resType = KW_NULL_TYPE;
+        resType = TYPE_NULL;
     }
-    if (token->type == KW_NUM)
+    else if (token->type == KW_NUM)
     {
-        resType = KW_NUM;
+        resType = TYPE_NUMBER;
     }
-    if (token->type == KW_STRING)
+    else if (token->type == KW_STRING)
     {
-        resType = KW_STRING;
+        resType = TYPE_STRING;
     }
     else
     {
