@@ -236,6 +236,7 @@ void sem_assignStmt(ASTptr node)
     }
 
     exit(3); // unknown left side
+    fprintf(stderr, "Error: unknown identifier in assignment\n");
 }
 
 /**
