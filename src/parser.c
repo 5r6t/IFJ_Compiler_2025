@@ -92,7 +92,7 @@ parser(FILE *file)
 {
     TokenPtr token = getToken(file); // lookahead -> maybe i shouldn`t declare nextToken here, something to think about
     ASTptr root = PROGRAM(&token, file);
-
+    printf("Syntakticka analyza prebehla uspesne!!!\n");
     return root;
 }
 
@@ -603,7 +603,7 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
     }
     else
     {
-        printf("skoncil som v chybe\n");
+        printf("skoncil som v chybe pre FUNC_BODY\n");
         program_error(file, 2, 4, *nextToken);
     }
     printf("dostal som sa sem?\n");
@@ -628,6 +628,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
     printf("som v RSA\n");
     if ((*nextToken)->type == KW_IFJ) // inbuilt
     {
+        printf("INBUILD\n");
         (*nextToken) = getToken(file);
         advance(&DOT_INBUILD, nextToken, file);
         char *varName = (*nextToken)->id;
@@ -672,6 +673,16 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
             {
                 item->literal.str = argArr.items[i].str;
             }
+            else if (item->literal.liType == LIT_LOCAL_ID)
+            {
+                item->literal.str = argArr.items[i].str;
+                item->literal.num = 0;
+            }
+            else if (item->literal.liType == LIT_GLOBAL_ID)
+            {
+                item->literal.str = argArr.items[i].str;
+                item->literal.num = 0;
+            }
             inbuildCallNode->call.args[i] = item;
         }
 
@@ -680,16 +691,19 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
     }
     else if ((*nextToken)->type == NUMERICAL) // if num = expression parsing
     {
+        printf("numbers maison, what does they mean\n");
         ASTptr expresNode = parse_expression(nextToken, file, &END_TARGET);
         advance(&END_TARGET, nextToken, file);
         return expresNode;
     }
     else if ((*nextToken)->type == IDENTIFIER || (*nextToken)->type == ID_GLOBAL_VAR) // is it FUNC CALL or epression?
     {
+        printf("rozhodnutie je to expression / call\n");
         char *varName = (*nextToken)->id; // this will needs to be cleared if not function call??
         TokenPtr la = peekToken(file);
         if (la->type == SPECIAL && strcmp(la->id, "(") == 0) //
         {
+            printf("call\n");
             ASTptr callNode = (ASTptr)malloc(sizeof(ASTnode));
             callNode->type = AST_FUNC_CALL;
             callNode->call.funcType = FUNC_USER;
@@ -725,22 +739,42 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
                 if (item->literal.liType == LIT_NUMBER)
                 {
                     item->literal.num = argArr.items[i].num;
+                    item->literal.str = "";
                 }
                 else if (item->literal.liType == LIT_STRING)
                 {
                     item->literal.str = argArr.items[i].str;
+                    item->literal.num = 0;
+                }
+                else if (item->literal.liType == LIT_LOCAL_ID)
+                {
+                    item->literal.str = argArr.items[i].str;
+                    item->literal.num = 0;
+                }
+                else if (item->literal.liType == LIT_GLOBAL_ID)
+                {
+                    item->literal.str = argArr.items[i].str;
+                    item->literal.num = 0;
                 }
                 callNode->call.args[i] = item;
+                printf("som vo vnutri i guess\n");
             }
+            printf("token: type=%d, id=%s, data=%s\n",
+                   (*nextToken)->type,
+                   (*nextToken)->id ? (*nextToken)->id : "NULL",
+                   (*nextToken)->data ? (*nextToken)->data : "NULL");
 
             if ((*nextToken)->type != NEWLINE)
             {
+                printf("nemam newline\n");
                 program_error(file, 2, 4, *nextToken);
             }
+            (*nextToken) = getToken(file);
             return callNode;
         }
         else
         {
+            printf("expression\n");
             ASTptr expresNode = parse_expression(nextToken, file, &END_TARGET);
             advance(&END_TARGET, nextToken, file);
             return expresNode;
@@ -748,6 +782,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
     } // there can be a expression -> give control to PSA
     else
     {
+        printf("jebol som kokot\n");
         program_error(file, 2, 4, *nextToken);
     }
     return NULL;
@@ -757,14 +792,21 @@ void FUNC_TYPE(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 {
     static const target FUNC_TYPE_FIRST = {SPECIAL, NULL, "("};
     static const target FUNC_TYPE_NEXT = {SPECIAL, NULL, ")"};
-    static const target FUNC_TYPE_FOLLOW = {NEWLINE, NULL, NULL};
     if (peek(&FUNC_TYPE_FIRST, *nextToken, file)) // function
     {
+        printf("token: type=%d, id=%s, data=%s\n",
+               (*nextToken)->type,
+               (*nextToken)->id ? (*nextToken)->id : "NULL",
+               (*nextToken)->data ? (*nextToken)->data : "NULL");
 
         advance(&FUNC_TYPE_FIRST, nextToken, file);
         ARG(nextToken, file, argArr);
         advance(&FUNC_TYPE_NEXT, nextToken, file);
-        advance(&FUNC_TYPE_FOLLOW, nextToken, file);
+        printf("token: type=%d, id=%s, data=%s\n",
+               (*nextToken)->type,
+               (*nextToken)->id ? (*nextToken)->id : "NULL",
+               (*nextToken)->data ? (*nextToken)->data : "NULL");
+        printf("vraciam sa z FUNC_TYPE\n");
         return;
     }
     else if ((*nextToken)->type == NEWLINE) // epsilon -> getter
@@ -784,6 +826,10 @@ void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 
     if (ARG_NAME(nextToken, file))
     {
+        printf("token: type=%d, id=%s, data=%s\n",
+               (*nextToken)->type,
+               (*nextToken)->id ? (*nextToken)->id : "NULL",
+               (*nextToken)->data ? (*nextToken)->data : "NULL");
         // create node
         literal lit;
         if ((*nextToken)->type == NUMERICAL)
@@ -852,7 +898,15 @@ void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr) // change return 
     static const target NEXT_ARG_FOLLOW = {SPECIAL, NULL, ")"};
     if (peek(&NEXT_ARG_FIRST, *nextToken, file))
     {
+        printf("token: type=%d, id=%s, data=%s\n",
+               (*nextToken)->type,
+               (*nextToken)->id ? (*nextToken)->id : "NULL",
+               (*nextToken)->data ? (*nextToken)->data : "NULL");
         *nextToken = getToken(file);
+        printf("token: type=%d, id=%s, data=%s\n",
+               (*nextToken)->type,
+               (*nextToken)->id ? (*nextToken)->id : "NULL",
+               (*nextToken)->data ? (*nextToken)->data : "NULL");
         ARG_NAME(nextToken, file);
 
         literal lit;
@@ -902,6 +956,10 @@ void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr) // change return 
         argArr->arrCnt++;
 
         *nextToken = getToken(file);
+        printf("token: type=%d, id=%s, data=%s\n",
+               (*nextToken)->type,
+               (*nextToken)->id ? (*nextToken)->id : "NULL",
+               (*nextToken)->data ? (*nextToken)->data : "NULL");
         NEXT_ARG(nextToken, file, argArr);
         return;
     }
