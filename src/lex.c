@@ -171,7 +171,7 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 			c = fgetc(file);
 			if ((c = tolower(c)) == 'x') {
 				APPEND_TO_BUFFER(c);
-				state = NUM_HEX;
+				state = NUM_HEX_START;
 				break;
 			} else if (c == '.') {
 				APPEND_TO_BUFFER(c);
@@ -181,11 +181,12 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 				APPEND_TO_BUFFER(c);
 				state = NUM_EXP_SIGN;
 				break;
-			} else if (isblank(c) || c == EOF) {
+			} else if (c == '0') {
+				return 0; // err leading zero
+			} else {
 				FINALIZE_TOK_DATA(NUMERICAL);
 				return 1; // standalone '0'
 			} 
-			return 0; // leading 0 forbidden
 		}
 		case NUM_DEC: {
 			c = fgetc(file);
@@ -203,11 +204,10 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 				APPEND_TO_BUFFER(c);
 				state = NUM_EXP_SIGN;
 				break;
-			} else if (isspace(c) || c == EOF) {
+			} else {
 				FINALIZE_TOK_DATA(NUMERICAL);
 				return 1; // done
 			}
-			return 0; // error
 		
 		} // end NUM_DEC
 		case NUM_FRAC_START: {
@@ -304,7 +304,7 @@ int numerizer (TokenPtr token, int c, FILE* file) {
 int no_comment (FILE *file) {
 	int c = 0;
 	NC_state state = NC_seek;
-	size_t nest_lvl = 1; // inside a comment already
+	size_t nest_lvl = 1; // inside a comment already /, *
 
 	while (c != EOF) {
 		switch(state) {
@@ -323,7 +323,7 @@ int no_comment (FILE *file) {
 				if (c == '/') {
 					nest_lvl--;
 				}
-				state = NC_seek;
+				if (c != '*') state = NC_seek;
 				break;
 			}
 			case NC_slash: {
@@ -391,7 +391,7 @@ int get_cmp_op (TokenPtr token, int c, FILE* file) {
 		} // end CMP_neq
 		case CMP_end_w_eq: {
 			APPEND_TO_BUFFER(c); // append '='
-			FINALIZE_TOK_ID(CMP_OPERATOR);
+			token_update(token, buffer, NULL, CMP_OPERATOR);
 			return 1;
 		}
 		default:
@@ -672,7 +672,7 @@ TokenPtr lexer(FILE *file) {
 
 		case BLOCK_COMMENT: { // BLOCK COMMENTS can be nested
 			if ( !no_comment(file)) { 
-				program_error(file, ERR_MSG_UNENCLOSED_COMM, ERR_LEX, token);
+				program_error(file, ERR_LEX, ERR_MSG_UNENCLOSED_COMM, token);
 			}
 			c = fgetc(file);
 			state = START; // continue reading
@@ -709,5 +709,6 @@ TokenPtr lexer(FILE *file) {
 			program_error(file, ERR_MSG_NOT_IMPLEMENTED, ERR_LEX, token); // unknown token
 		}
 	} // while(!EOF)
+
 	return token;
 }

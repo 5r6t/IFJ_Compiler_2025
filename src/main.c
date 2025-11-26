@@ -7,7 +7,7 @@
 int main(int argc, char **argv) {
     FILE *input = stdin;
     if (argc > 1) {
-        input = fopen(argv[1], "r");
+        input = fopen(argv[1], "r"); // optionally allows files as well
         if (input == NULL) {
             fprintf(stderr, "Unable to open %s\n", argv[1]);
             return 1;
