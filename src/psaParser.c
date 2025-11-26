@@ -121,7 +121,7 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
 
     while (1)
     {
-        // debug_stack(&stack);
+        debug_stack(&stack);
         //  printf("som vo while\n");
         stack_item top_item = stack_token_top(&stack);
         if (!top_item.token)

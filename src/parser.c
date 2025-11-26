@@ -689,7 +689,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
         for_function(END_SEQ, file, nextToken, END_SEQ_LEN);
         return inbuildCallNode;
     }
-    else if ((*nextToken)->type == NUMERICAL) // if num = expression parsing
+    else if ((*nextToken)->type == NUMERICAL || (*nextToken)->type == STRING) // if num = expression parsing
     {
         printf("numbers maison, what does they mean\n");
         ASTptr expresNode = parse_expression(nextToken, file, &END_TARGET);
@@ -790,6 +790,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
 
 void FUNC_TYPE(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 {
+    printf("som v FUNC_TYPE\n");
     static const target FUNC_TYPE_FIRST = {SPECIAL, NULL, "("};
     static const target FUNC_TYPE_NEXT = {SPECIAL, NULL, ")"};
     if (peek(&FUNC_TYPE_FIRST, *nextToken, file)) // function
@@ -800,7 +801,9 @@ void FUNC_TYPE(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
                (*nextToken)->data ? (*nextToken)->data : "NULL");
 
         advance(&FUNC_TYPE_FIRST, nextToken, file);
+        printf("idem do ARG\n");
         ARG(nextToken, file, argArr);
+        printf("vraciam sa do FUNC_TYPE\n");
         advance(&FUNC_TYPE_NEXT, nextToken, file);
         printf("token: type=%d, id=%s, data=%s\n",
                (*nextToken)->type,
@@ -823,6 +826,7 @@ void FUNC_TYPE(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 {
     static const target ARG_FOLLOW = {SPECIAL, NULL, ")"};
+    printf("Som uz v ARG\n");
 
     if (ARG_NAME(nextToken, file))
     {
@@ -976,6 +980,7 @@ void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr) // change return 
 
 int ARG_NAME(TokenPtr *nextToken, FILE *file)
 {
+    printf("som v arg name\n");
     static const target ARG_NAME_FIRST[] = {
         {NUMERICAL, NULL, NULL},
         {IDENTIFIER, NULL, NULL},
@@ -986,9 +991,11 @@ int ARG_NAME(TokenPtr *nextToken, FILE *file)
 
     if (nameHelperFunc(nextToken, ARG_NAME_FIRST, ARG_NAME_FIRST_LEN, file))
     {
+        printf("meno sedi\n");
         return 1;
     }
-    program_error(file, 2, 4, *nextToken);
+    printf("meno nesedi gadzo\n");
+    // program_error(file, 2, 4, *nextToken);
     /*int correctTokenType = 0;
     size_t i = 0;
 
