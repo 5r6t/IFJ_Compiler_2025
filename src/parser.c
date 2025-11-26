@@ -547,20 +547,40 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
     }
     else if ((*nextToken)->type == KW_WHILE) // while statement
     {
+        ASTptr whileNode = (ASTptr)malloc(sizeof(ASTnode));
+        whileNode->type = AST_WHILE_STMT;
+
         for_function(WHILE_START_SEQ, file, nextToken, WHILE_START_SEQ_LEN);
 
-        parse_expression(nextToken, file, &END_IF_EXP);
+        ASTptr condition = parse_expression(nextToken, file, &END_IF_EXP);
+        whileNode->while_stmt.cond = condition;
+
         for_function(IF_STATMENT_MIDDLE_SEQ, file, nextToken, IF_STATMENT_MIDDLE_SEQ_LEN);
-        FUNC_BODY(nextToken, file, blockNode);
+
+        ASTptr whileBody = (ASTptr)malloc(sizeof(ASTnode));
+        blockNodeInit(whileBody);
+        FUNC_BODY(nextToken, file, whileBody);
+
         for_function(END_SEQ, file, nextToken, END_SEQ_LEN);
+
+        varNameAdd(blockNode, whileNode, file, *nextToken);
+
         return FUNC_BODY(nextToken, file, blockNode);
     }
     else if ((*nextToken)->type == KW_RETURN) // return
     {
+        ASTptr returnNode = (ASTptr)malloc(sizeof(ASTnode));
+        returnNode->type = AST_RETURN_STMT;
+
         advance(&RETURN_FIRST, nextToken, file);
 
-        parse_expression(nextToken, file, &END_RETURN_EXP);
+        ASTptr condition = parse_expression(nextToken, file, &END_RETURN_EXP);
+        returnNode->return_stmt.expr = condition;
+
         advance(&FUNC_BODY_END, nextToken, file);
+
+        varNameAdd(blockNode, returnNode, file, *nextToken);
+
         return FUNC_BODY(nextToken, file, blockNode);
     }
     else if (peek(&FUNC_BODY_FOLLOW, *nextToken)) // epsilon
