@@ -197,6 +197,7 @@ typedef ASTnode *ASTptr;
 
 ASTptr ast_program();
 ASTptr ast_function(char *name, char **paramNames);
+void astPrint(ASTptr node, int depth); // debug function -> generate with AI deleted before sending to zbynek !!!!!!
 
 /*
 // add this to parser.c when discussed with team
