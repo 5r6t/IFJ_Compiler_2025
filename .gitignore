@@ -7,3 +7,4 @@ ifjMoreTests
 # exclude comprimed files
 *.zip
 ifj25
+is_it_ok_tmp

@@ -15,21 +15,37 @@ INCDIR   := include
 TESTDIR  := testing
 TARGET   := ifj25
 
+CC       := gcc
+
+# Detect whether repo or flat dir
+SRCDIR   := $(if $(wildcard src),src,.)
+INCDIR   := $(if $(wildcard include),include,.)
+
+CFLAGS   := -g -std=c11 -pedantic -Wall -Wextra -Werror -I$(INCDIR) -DDEBUG
+
+TARGET   := ifj25
+
 # ---- sources ----
 SRC      := $(wildcard $(SRCDIR)/*.c)
-OBJ      := $(SRC:$(SRCDIR)/%.c=%.o)
+
+# Object files:  src/foo.c  → foo.o
+OBJ      := $(patsubst $(SRCDIR)/%.c,%.o,$(SRC))
 
 # ---- rules ----
-.PHONY: all clean test
+.PHONY: all clean
 
 all: $(TARGET)
 
+# Generic rule for both repo/flat:
+# - repo:     src/foo.c → foo.o
+# - zip:      ./foo.c   → foo.o
 %.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(OBJ) -o $(TARGET)
 	$(RM) $(OBJ)
 
 clean:
 	$(RM) $(OBJ) $(TARGET)
+
