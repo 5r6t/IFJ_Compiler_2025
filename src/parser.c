@@ -91,6 +91,10 @@ ASTptr
 parser(FILE *file)
 {
     TokenPtr token = getToken(file); // lookahead -> maybe i shouldn`t declare nextToken here, something to think about
+    while (token->type == NEWLINE)
+    {
+        token = getToken(file);
+    }
     ASTptr root = PROGRAM(&token, file);
     printf("Syntakticka analyza prebehla uspesne!!!\n");
     return root;
@@ -98,6 +102,7 @@ parser(FILE *file)
 
 ASTptr PROGRAM(TokenPtr *nextToken, FILE *file)
 {
+    printf("som v programe\n");
     PROLOG(nextToken, file);
 
     ASTptr program = (ASTptr)malloc(sizeof(ASTnode));
@@ -650,8 +655,9 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
 
         inbuildCallNode->call.argCount = argArr.arrCnt;
         inbuildCallNode->call.argCap = argArr.arrCnt;
+        inbuildCallNode->call.args = argArr.items;
 
-        if (inbuildCallNode->call.argCount > 0)
+        /* if (inbuildCallNode->call.argCount > 0)
         {
             inbuildCallNode->call.args = malloc(argArr.arrCnt * sizeof(ASTptr));
         }
@@ -684,7 +690,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
                 item->literal.num = 0;
             }
             inbuildCallNode->call.args[i] = item;
-        }
+        } */
 
         for_function(END_SEQ, file, nextToken, END_SEQ_LEN);
         return inbuildCallNode;
@@ -721,8 +727,9 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
 
             callNode->call.argCap = argArr.arrCap;
             callNode->call.argCount = argArr.arrCnt;
+            callNode->call.args = argArr.items;
 
-            if (callNode->call.argCount > 0)
+            /* if (callNode->call.argCount > 0)
             {
                 callNode->call.args = malloc(argArr.arrCnt * sizeof(ASTptr));
             }
@@ -757,8 +764,8 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
                     item->literal.num = 0;
                 }
                 callNode->call.args[i] = item;
-                printf("som vo vnutri i guess\n");
-            }
+            printf("som vo vnutri i guess\n");
+        }*/
             printf("token: type=%d, id=%s, data=%s\n",
                    (*nextToken)->type,
                    (*nextToken)->id ? (*nextToken)->id : "NULL",
@@ -835,26 +842,32 @@ void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
                (*nextToken)->id ? (*nextToken)->id : "NULL",
                (*nextToken)->data ? (*nextToken)->data : "NULL");
         // create node
-        literal lit;
+        ASTptr node = (ASTptr)malloc(sizeof(ASTnode));
         if ((*nextToken)->type == NUMERICAL)
         {
-            lit.liType = LIT_NUMBER;
-            lit.num = strtod((*nextToken)->data, NULL);
+            node->type = AST_LITERAL;
+            node->literal.liType = LIT_NUMBER;
+            node->literal.num = strtod((*nextToken)->data, NULL);
+            node->literal.str = NULL;
         }
         else if ((*nextToken)->type == STRING)
         {
-            lit.liType = LIT_STRING;
-            lit.str = (*nextToken)->data;
+            node->type = AST_LITERAL;
+            node->literal.liType = LIT_STRING;
+            node->literal.num = 0;
+            node->literal.str = (*nextToken)->data;
         }
         else if ((*nextToken)->type == ID_GLOBAL_VAR)
         {
-            lit.liType = LIT_GLOBAL_ID;
-            lit.str = (*nextToken)->id;
+            node->type = AST_IDENTIFIER;
+            node->identifier.idType = ID_GLOBAL;
+            node->identifier.name = (*nextToken)->id;
         }
         else if ((*nextToken)->type == IDENTIFIER)
         {
-            lit.liType = LIT_LOCAL_ID;
-            lit.str = (*nextToken)->id;
+            node->type = AST_IDENTIFIER;
+            node->identifier.idType = ID_LOCAL;
+            node->identifier.name = (*nextToken)->id;
         }
 
         if (argArr->arrCnt == argArr->arrCap)
@@ -869,7 +882,7 @@ void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
                 newCap = argArr->arrCap * 2;
             }
 
-            literal *newArr = realloc(argArr->items, newCap * sizeof(literal));
+            ASTptr *newArr = realloc(argArr->items, newCap * sizeof(ASTptr));
             if (!newArr)
             {
                 program_error(file, 0, 0, *nextToken);
@@ -878,7 +891,7 @@ void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
             argArr->arrCap = newCap;
         }
 
-        argArr->items[argArr->arrCnt] = lit;
+        argArr->items[argArr->arrCnt] = node;
         argArr->arrCnt++;
 
         *nextToken = getToken(file);
@@ -913,7 +926,7 @@ void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr) // change return 
                (*nextToken)->data ? (*nextToken)->data : "NULL");
         ARG_NAME(nextToken, file);
 
-        literal lit;
+        /* literal lit;
         if ((*nextToken)->type == NUMERICAL)
         {
             lit.liType = LIT_NUMBER;
@@ -957,6 +970,58 @@ void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr) // change return 
         }
 
         argArr->items[argArr->arrCnt] = lit;
+        argArr->arrCnt++; */
+
+        ASTptr node = (ASTptr)malloc(sizeof(ASTnode));
+        if ((*nextToken)->type == NUMERICAL)
+        {
+            node->type = AST_LITERAL;
+            node->literal.liType = LIT_NUMBER;
+            node->literal.num = strtod((*nextToken)->data, NULL);
+            node->literal.str = NULL;
+        }
+        else if ((*nextToken)->type == STRING)
+        {
+            node->type = AST_LITERAL;
+            node->literal.liType = LIT_STRING;
+            node->literal.num = 0;
+            node->literal.str = (*nextToken)->data;
+        }
+        else if ((*nextToken)->type == ID_GLOBAL_VAR)
+        {
+            node->type = AST_IDENTIFIER;
+            node->identifier.idType = ID_GLOBAL;
+            node->identifier.name = (*nextToken)->id;
+        }
+        else if ((*nextToken)->type == IDENTIFIER)
+        {
+            node->type = AST_IDENTIFIER;
+            node->identifier.idType = ID_LOCAL;
+            node->identifier.name = (*nextToken)->id;
+        }
+
+        if (argArr->arrCnt == argArr->arrCap)
+        {
+            int newCap;
+            if (argArr->arrCap == 0)
+            {
+                newCap = 4;
+            }
+            else
+            {
+                newCap = argArr->arrCap * 2;
+            }
+
+            ASTptr *newArr = realloc(argArr->items, newCap * sizeof(ASTptr));
+            if (!newArr)
+            {
+                program_error(file, 0, 0, *nextToken);
+            }
+            argArr->items = newArr;
+            argArr->arrCap = newCap;
+        }
+
+        argArr->items[argArr->arrCnt] = node;
         argArr->arrCnt++;
 
         *nextToken = getToken(file);

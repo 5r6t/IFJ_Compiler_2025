@@ -6,7 +6,7 @@
 #include "ast.h"
 #include <stdio.h>
 
-typedef struct
+/* typedef struct
 {
     LiteralType liType;
     union
@@ -14,7 +14,7 @@ typedef struct
         double num;
         char *str;
     };
-} literal;
+} literal; */
 
 typedef struct
 {
@@ -25,7 +25,7 @@ typedef struct
 
 typedef struct
 {
-    literal *items;
+    ASTptr *items;
     int arrCnt;
     int arrCap;
 } ArgArr;

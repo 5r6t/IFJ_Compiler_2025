@@ -361,9 +361,9 @@ ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
     else if (token->type == IDENTIFIER)
     {
         node = malloc(sizeof(ASTnode));
-        node->type = AST_LITERAL;
-        node->literal.liType = LIT_LOCAL_ID;
-        node->literal.str = my_strdup(token->id);
+        node->type = AST_IDENTIFIER;
+        node->identifier.idType = ID_LOCAL;
+        node->identifier.name = my_strdup(token->id);
     }
     else
     {
