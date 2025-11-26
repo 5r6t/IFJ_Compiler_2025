@@ -51,15 +51,15 @@ ASTptr FUNCTIONS(TokenPtr *nextToken, FILE *file, ASTptr programNode);
 int FUNC_NAME(TokenPtr *nextToken, FILE *file);
 ASTptr FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file, ASTptr functioNode);
 int ARG_NAME(TokenPtr *nextToken, FILE *file);
-int VAR_NAME(TokenPtr *nextToken, FILE *file);
+int VAR_NAME(TokenPtr *nextToken, FILE *file); // , FILE *file
 void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr);
 void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr);
 ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode);
 ASTptr RSA(TokenPtr *nextToken, FILE *file);
 void FUNC_TYPE(TokenPtr *nextToken, FILE *file, ArgArr *argArr);
 
-int nameHelperFunc(TokenPtr *nextToken, const target *target, size_t target_len);
-int peek(const target *target, TokenPtr token);
+int nameHelperFunc(TokenPtr *nextToken, const target *target, size_t target_len, FILE *file);
+int peek(const target *target, TokenPtr token, FILE *file);
 void for_function(const target TARGE_SEQ[], FILE *file, TokenPtr *nextToken, size_t TARGE_SEQ_LEN);
 void parser_error(target target, TokenPtr token);
 void advance(const target *target, TokenPtr *token, FILE *file);

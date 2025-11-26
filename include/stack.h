@@ -32,4 +32,6 @@ bool stack_token_empty(stack_token *stack);
 
 void stack_token_clear(stack_token *stack);
 
+void stack_token_insert_after(stack_token *stack, int a_index, TokenPtr token, ASTptr ast);
+
 #endif

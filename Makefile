@@ -9,7 +9,7 @@
 #//////////////////////////////////////////////
 # ---- settings ----
 CC       := gcc
-CFLAGS   := -g -std=c11 -pedantic -Wall -Wextra -Werror -Iinclude -DDEBUG
+CFLAGS   := -g -std=c11 -pedantic -Wall -Wextra -Werror -Iinclude -I. -I.. -DDEBUG
 SRCDIR   := src
 INCDIR   := include
 TESTDIR  := testing

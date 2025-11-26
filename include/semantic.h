@@ -11,7 +11,7 @@
 #ifndef SEMANTIC_H
 #define SEMANTIC_H
 
-#include "../include/ast.h"
+#include "ast.h"
 
 void semantic(ASTptr root);
 void semanticNode(ASTptr root);

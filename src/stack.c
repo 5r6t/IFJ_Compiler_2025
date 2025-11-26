@@ -124,3 +124,21 @@ void stack_token_clear(stack_token *stack)
     }
     stack->top = -1; // Reset the stack
 }
+
+void stack_token_insert_after(stack_token *stack, int a_index, TokenPtr token, ASTptr ast)
+{
+    if (stack->top + 1 >= MAXSTACK)
+    {
+        return;
+    }
+
+    stack->top++;
+
+    for (int i = stack->top; i > a_index + 1; --i)
+    {
+        stack->items[i] = stack->items[i - 1];
+    }
+
+    stack->items[a_index + 1].token = token;
+    stack->items[a_index + 1].ast = ast;
+}

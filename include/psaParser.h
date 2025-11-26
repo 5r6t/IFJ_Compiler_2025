@@ -5,6 +5,9 @@
 #include "lex.h"
 #include "stack.h"
 
+#define PRECEDENCE_ROWS 15
+#define PRECEDENCE_COLS 15
+
 typedef enum
 {
     PRE_TAB_NULL = 0,
@@ -41,5 +44,6 @@ void popRuleFromStack(int index_shift, stack_token *stack);
 ASTptr checkForOtherRules(int index, stack_token *stack, FILE *file);
 ASTptr checkForI(int index_shift, stack_token *stack, FILE *file);
 ASTptr reduce(FILE *file, stack_token *stack);
+void debug_stack(stack_token *stack);
 
 #endif

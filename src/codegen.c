@@ -14,7 +14,7 @@
 #include <stdbool.h>
 
 #define NAME_BUF 256
-TAClist tac = { NULL, NULL };
+TAClist tac = {NULL, NULL};
 
 /** TO-DO
  * scopedepth ~~ we'll see
@@ -23,22 +23,28 @@ TAClist tac = { NULL, NULL };
 */
 
 // used for printing NAMES of operands, see codegen.h
-static const char *tac_opcode_name(OpCode op) {
-    switch (op) {
-#define OPCODE_CASE(name) case name: return #name;
+static const char *tac_opcode_name(OpCode op)
+{
+    switch (op)
+    {
+#define OPCODE_CASE(name) \
+    case name:            \
+        return #name;
         TAC_OPCODE_LIST(OPCODE_CASE)
 #undef OPCODE_CASE
-        default:
-            return "UNKNOWN";
+    default:
+        return "UNKNOWN";
     }
 }
 
-void tac_print_list_state(const char *label, const TAClist *list) {
+void tac_print_list_state(const char *label, const TAClist *list)
+{
     const char *tag = label ? label : "TAC list";
     size_t count = 0;
     const TACnode *curr = (list ? list->head : NULL);
     // count number of nodes
-    while (curr) {
+    while (curr)
+    {
         ++count;
         curr = curr->next;
     }
@@ -47,56 +53,64 @@ void tac_print_list_state(const char *label, const TAClist *list) {
     printf("\tsize  : %zu\n", count);
     printf("\tempty : %s\n", tac_list_is_empty(list) ? "yes" : "no");
     printf("\thead  : %s\n",
-            (list && list->head) ? tac_opcode_name(list->head->instr) : "NULL");
+           (list && list->head) ? tac_opcode_name(list->head->instr) : "NULL");
     printf("\ttail  : %s\n",
-            (list && list->tail) ? tac_opcode_name(list->tail->instr) : "NULL");
+           (list && list->tail) ? tac_opcode_name(list->tail->instr) : "NULL");
 }
 
-void tac_print_node(const char *label, const TACnode *node) {
+void tac_print_node(const char *label, const TACnode *node)
+{
     const char *tag = label ? label : "TAC node";
     printf("\n-- TAC NODE :: %s --\n", tag);
-    if (node == NULL) {
+    if (node == NULL)
+    {
         printf("  (null)\n");
         return;
     }
 
     printf("\tinstr : %s (%d)\n", tac_opcode_name(node->instr), node->instr);
     printf("\targs  : %s | %s | %s\n",
-            node->a1 ? node->a1 : "NULL",
-            node->a2 ? node->a2 : "NULL",
-            node->a3 ? node->a3 : "NULL");
+           node->a1 ? node->a1 : "NULL",
+           node->a2 ? node->a2 : "NULL",
+           node->a3 ? node->a3 : "NULL");
 }
-/// @brief 
-/// @param list 
-void tac_list_init(TAClist *list) {
-    if (list == NULL) {
+/// @brief
+/// @param list
+void tac_list_init(TAClist *list)
+{
+    if (list == NULL)
+    {
         return;
     }
     list->head = NULL;
     list->tail = NULL;
 }
 
-/// @brief 
-/// @param list 
-/// @return 
-bool tac_list_is_empty(const TAClist *list) {
+/// @brief
+/// @param list
+/// @return
+bool tac_list_is_empty(const TAClist *list)
+{
     return (list == NULL) || (list->head == NULL);
 }
 
-/// @brief 
-/// @param list 
-/// @param instr 
-/// @param a1 
-/// @param a2 
-/// @param a3 
-/// @return 
-TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char *a2, const char *a3) {
-    if (list == NULL) {
+/// @brief
+/// @param list
+/// @param instr
+/// @param a1
+/// @param a2
+/// @param a3
+/// @return
+TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char *a2, const char *a3)
+{
+    if (list == NULL)
+    {
         return NULL;
     }
 
     TACnode *n = malloc(sizeof(TACnode));
-    if (n == NULL) {
+    if (n == NULL)
+    {
         fprintf(stderr, "Memory allocation error\n");
         return NULL;
     }
@@ -108,9 +122,12 @@ TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char
     n->next = NULL;
     n->prev = list->tail;
 
-    if (list->tail) {
+    if (list->tail)
+    {
         list->tail->next = n;
-    } else {
+    }
+    else
+    {
         list->head = n;
     }
     list->tail = n;
@@ -118,19 +135,24 @@ TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char
     return n;
 }
 
-/// @brief 
-/// @param list 
-/// @return 
-TACnode *tac_list_pop_front(TAClist *list) {
-    if (list == NULL || list->head == NULL) {
+/// @brief
+/// @param list
+/// @return
+TACnode *tac_list_pop_front(TAClist *list)
+{
+    if (list == NULL || list->head == NULL)
+    {
         return NULL;
     }
 
     TACnode *node = list->head;
     list->head = node->next;
-    if (list->head) {
+    if (list->head)
+    {
         list->head->prev = NULL;
-    } else {
+    }
+    else
+    {
         list->tail = NULL;
     }
     node->next = NULL;
@@ -139,23 +161,31 @@ TACnode *tac_list_pop_front(TAClist *list) {
     return node;
 }
 
-/// @brief 
-/// @param list 
-/// @param node 
-void tac_list_remove(TAClist *list, TACnode *node) {
-    if (list == NULL || node == NULL) {
+/// @brief
+/// @param list
+/// @param node
+void tac_list_remove(TAClist *list, TACnode *node)
+{
+    if (list == NULL || node == NULL)
+    {
         return;
     }
 
-    if (node->prev) {
+    if (node->prev)
+    {
         node->prev->next = node->next;
-    } else {
+    }
+    else
+    {
         list->head = node->next;
     }
 
-    if (node->next) {
+    if (node->next)
+    {
         node->next->prev = node->prev;
-    } else {
+    }
+    else
+    {
         list->tail = node->prev;
     }
 
@@ -164,9 +194,11 @@ void tac_list_remove(TAClist *list, TACnode *node) {
 }
 
 /// @brief
-/// @param node 
-void tac_node_free(TACnode *node) {
-    if (node == NULL) {
+/// @param node
+void tac_node_free(TACnode *node)
+{
+    if (node == NULL)
+    {
         return;
     }
 
@@ -177,14 +209,17 @@ void tac_node_free(TACnode *node) {
 }
 
 /// @brief Clears the entire list and resets head/tail
-/// @param list 
-void tac_list_clear(TAClist *list) {
-    if (list == NULL) {
+/// @param list
+void tac_list_clear(TAClist *list)
+{
+    if (list == NULL)
+    {
         return;
     }
 
     TACnode *curr = list->head;
-    while (curr) {
+    while (curr)
+    {
         TACnode *next = curr->next;
         tac_node_free(curr);
         curr = next;
@@ -195,12 +230,13 @@ void tac_list_clear(TAClist *list) {
 
 /// @brief Function that appends the next TAC intruction to double-linked list,
 ///        abstracting from using global TAClist structure.
-/// @param instr 
-/// @param a1 
-/// @param a2 
-/// @param a3 
-/// @return 
-TACnode* tac_append(OpCode instr, char *a1, char *a2, char *a3) {
+/// @param instr
+/// @param a1
+/// @param a2
+/// @param a3
+/// @return
+TACnode *tac_append(OpCode instr, char *a1, char *a2, char *a3)
+{
     return tac_list_append(&tac, instr, a1, a2, a3);
 }
 
@@ -209,42 +245,47 @@ TACnode* tac_append(OpCode instr, char *a1, char *a2, char *a3) {
 ///////////////////////////////////
 
 /// @brief Creates string in "$x" format, x is a string for functions
-/// @param name 
-/// @return 
-char *fnc_label(char* name) {
+/// @param name
+/// @return
+char *fnc_label(char *name)
+{
     char buf[NAME_BUF];
     snprintf(buf, sizeof(buf), "$%s", name);
     return my_strdup(buf);
 }
 
 /* returns string for a global variable */
-char* var_gf(const char *name) {
+char *var_gf(const char *name)
+{
     char buf[NAME_BUF];
     snprintf(buf, sizeof(buf), "GF@%s", name);
     return my_strdup(buf);
 }
 /* returns string for a local variable */
-char* var_lf(const char *name) {
+char *var_lf(const char *name)
+{
     char buf[NAME_BUF];
     snprintf(buf, sizeof(buf), "LF@%s", name);
     return my_strdup(buf);
 }
 
 /// @brief global counter for temporary TF variables
-/// @param num 
-/// @return 
-char* new_tf(int num) {
+/// @param num
+/// @return
+char *new_tf(int num)
+{
     char buf[NAME_BUF];
     snprintf(buf, sizeof(buf), "TF@%%%d", num);
     return my_strdup(buf);
 }
 
-/// @brief 
-/// @param name 
+/// @brief
+/// @param name
 /// @return
-/// TODO: Complete 
-char* fnc_name(const char* name) {
-    char*ret = my_strdup(name);
+/// TODO: Complete
+char *fnc_name(const char *name)
+{
+    char *ret = my_strdup(name);
     return ret;
 }
 
@@ -252,33 +293,40 @@ char* fnc_name(const char* name) {
 // ---- Data types conversions ----
 ///////////////////////////////////
 
-char* lit_int(long long x) {
+char *lit_int(long long x)
+{
     char buf[NAME_BUF * 2];
     snprintf(buf, sizeof(buf), "int@%lld", x);
     return my_strdup(buf);
 }
-char* lit_bool(bool x) {
+char *lit_bool(bool x)
+{
     char buf[NAME_BUF];
     snprintf(buf, sizeof(buf), "bool@%s", x ? "true" : "false");
     return my_strdup(buf);
 }
-char* lit_float(double x) {
+char *lit_float(double x)
+{
     char buf[NAME_BUF * 2];
     snprintf(buf, sizeof(buf), "float@%a", x);
     return my_strdup(buf);
 }
-char* lit_string(const char *x) {
+char *lit_string(const char *x)
+{
     char buf[4096];
     char *out = buf;
 
-    while (*x) {
+    while (*x)
+    {
         unsigned char c = (unsigned char)*x++;
 
         // catch escape characters 0-32, 35 (#) and 92 (\)
-        if (c <= 32 || c == '#' || c == '\\') {
+        if (c <= 32 || c == '#' || c == '\\')
+        {
             out += sprintf(out, "\\%03u", c);
         }
-        else {
+        else
+        {
             *out++ = c;
         }
     }
@@ -288,21 +336,25 @@ char* lit_string(const char *x) {
     snprintf(final, sizeof(final), "string@%s", buf);
     return my_strdup(final);
 }
-char* lit_nil() {
+char *lit_nil()
+{
     return my_strdup("nil@nil");
 }
 
 /// @brief function that determines if a variable is global or local
-/// @param name 
-/// @param scope_depth 
-/// @return 
-char* var_gf_or_lf(char *name, int scope_depth) {
+/// @param name
+/// @param scope_depth
+/// @return
+char *var_gf_or_lf(char *name, int scope_depth)
+{
     char buf[64];
 
-    if (scope_depth == 0) {
+    if (scope_depth == 0)
+    {
         snprintf(buf, sizeof(buf), "GF@%s", name);
     }
-    else {
+    else
+    {
         snprintf(buf, sizeof(buf), "LF@%s", name);
     }
     return my_strdup(buf);
@@ -316,7 +368,7 @@ char* var_gf_or_lf(char *name, int scope_depth) {
 /// @param node
 void gen_program(ASTptr node)
 {
-    (void) node;
+    (void)node;
     printf(".IFJcode25\n");
     tac_append(JUMP, "$$main", NULL, NULL);
     return;
@@ -324,93 +376,106 @@ void gen_program(ASTptr node)
 
 /// @brief function that appends instructions for a definition of a function to a list
 /// @param node
-void gen_func_def(ASTptr node) 
+void gen_func_def(ASTptr node)
 {
     bool is_main = false;
     char *label;
-    if (strcmp(node->func.name, "main") == 0) {
+    if (strcmp(node->func.name, "main") == 0)
+    {
         label = "$$main";
         is_main = true;
-    } else {
+    }
+    else
+    {
         label = fnc_label(node->func.name);
     }
     tac_append(LABEL, label, NULL, NULL);
-    if (is_main == true) {
+    if (is_main == true)
+    {
         tac_append(CREATEFRAME, NULL, NULL, NULL);
     }
     tac_append(PUSHFRAME, NULL, NULL, NULL);
-    
+
     // handle parameters
-    for (int i = 0; i < node->func.paramCount; i++) {
+    for (int i = 0; i < node->func.paramCount; i++)
+    {
         // ASTptr argNode = node->call.args[i]; forgot what i wanted
-        char* local_param = var_lf(node->func.paramNames[i]);
+        char *local_param = var_lf(node->func.paramNames[i]);
 
         tac_append(DEFVAR, local_param, NULL, NULL);
-        char* local_var = var_lf(node->func.paramNames[i]); // var_lf expects a name string
+        char *local_var = var_lf(node->func.paramNames[i]); // var_lf expects a name string
 
         tac_append(MOVE, local_param, local_var, NULL);
     }
 
-    // TODO: handle body 
+    // TODO: handle body
 
-    if (is_main == false) {
+    if (is_main == false)
+    {
         tac_append(POPFRAME, NULL, NULL, NULL);
         tac_append(RETURN, NULL, NULL, NULL);
-    }  
+    }
 }
 
-/// @brief 
-/// @param node 
-void gen_func_call(ASTptr node) {
+/// @brief
+/// @param node
+void gen_func_call(ASTptr node)
+{
     tac_append(CREATEFRAME, NULL, NULL, NULL);
 
     // for every function argument
-    for (int i = 0; i < node->call.argCount; i++) {
+    for (int i = 0; i < node->call.argCount; i++)
+    {
         int REPLACE_LATER = 0;
-        char* temp_frame = new_tf(REPLACE_LATER);
+        char *temp_frame = new_tf(REPLACE_LATER);
         tac_append(DEFVAR, temp_frame, NULL, NULL);
-        
+
         ASTptr argNode = node->call.args[i];
-        char* fnc_param;
+        char *fnc_param;
         // argument is a variable
-        if (argNode->type == AST_IDENTIFIER) {
+        if (argNode->type == AST_IDENTIFIER)
+        {
             fnc_param = gen_identifier(argNode);
         }
         // argument is a literal
-        else if (argNode->type == AST_LITERAL) {
+        else if (argNode->type == AST_LITERAL)
+        {
             fnc_param = gen_literal(argNode);
         }
 
         tac_append(MOVE, temp_frame, fnc_param, NULL);
     }
-    char* name = fnc_name(node->call.funcName);
+    char *name = fnc_name(node->call.funcName);
     tac_append(CALL, name, NULL, NULL);
 }
 
 /// @brief declaration of a variable
-/// @param node 
-/// @param scope_depth 
-void gen_var_decl(ASTptr node, int scope_depth) {
+/// @param node
+/// @param scope_depth
+void gen_var_decl(ASTptr node, int scope_depth)
+{
     char *var = var_gf_or_lf(node->var_decl.varName, scope_depth);
     tac_append(DEFVAR, var, NULL, NULL);
 }
 
-/// @brief 
-/// @param node 
-void gen_assign_stmt(ASTptr node) {
+/// @brief
+/// @param node
+void gen_assign_stmt(ASTptr node)
+{
     (void)node;
     return;
 }
 
-/// @brief 
-/// @param node 
-/// @param scopeDepth 
+/// @brief
+/// @param node
+/// @param scopeDepth
 void gen_while_stmt(ASTptr node, int scopeDepth);
 
 /// @brief function that converts identifiers to a desired format
-/// @param node 
-/// @return 
-char* gen_identifier(ASTptr node) {
+/// @param node
+/// @return
+char *gen_identifier(ASTptr node)
+{
     // if global:
 
     // if local:
@@ -418,62 +483,83 @@ char* gen_identifier(ASTptr node) {
 }
 
 /// @brief function that converts literals to a desired format
-/// @param node 
-/// @return 
-char* gen_literal(ASTptr node) {
-    switch(node->literal.liType) {
+/// @param node
+/// @return
+char *gen_literal(ASTptr node)
+{
+    switch (node->literal.liType)
+    {
         char *r;
-        case LIT_NULL:
-            r = lit_nil();
-            return r;
-        
-        /* case LIT_BOOL: 
+    case LIT_NULL:
+        r = lit_nil();
+        return r;
+
+        /* case LIT_BOOL:
             bool b = node->literal.bool;
             char *r = lit_bool(b);
             return r;
         */
 
-        case LIT_NUMBER: {
-            double v = node->literal.num;
+    case LIT_NUMBER:
+    {
+        double v = node->literal.num;
 
-            long long iv = (long long)v;
-            if((double)iv == v) {
-                char *r = lit_int(iv);
-                return r;
-            }
-            else {
-                r = lit_float(v);
-                return r;
-            }
-        }
-        
-        case LIT_STRING:
-            r = lit_string(node->literal.str);
+        long long iv = (long long)v;
+        if ((double)iv == v)
+        {
+            char *r = lit_int(iv);
             return r;
+        }
+        else
+        {
+            r = lit_float(v);
+            return r;
+        }
+    }
 
-        default:
-            return NULL;
+    case LIT_STRING:
+        r = lit_string(node->literal.str);
+        return r;
+
+    default:
+        return NULL;
     }
 }
 
-/// @brief 
-/// @param node 
-void gen_binop(ASTptr node) {
-    switch(node->binop.opType) {
-        case BINOP_ADD:     break;
-        case BINOP_SUB:     break;
-        case BINOP_MUL:     break;
-        case BINOP_DIV:     break;
-        case BINOP_LT:      break;
-        case BINOP_GT:      break;
-        case BINOP_EQ:      break;
-        case BINOP_NEQ:     break;
-        case BINOP_LTE:     break;
-        case BINOP_GTE:     break;
-        case BINOP_AND:     break;
-        case BINOP_OR:      break;
-        case BINOP_IS:      break;
-        default:            break;
+/// @brief
+/// @param node
+void gen_binop(ASTptr node)
+{
+    switch (node->binop.opType)
+    {
+    case BINOP_ADD:
+        break;
+    case BINOP_SUB:
+        break;
+    case BINOP_MUL:
+        break;
+    case BINOP_DIV:
+        break;
+    case BINOP_LT:
+        break;
+    case BINOP_GT:
+        break;
+    case BINOP_EQ:
+        break;
+    case BINOP_NEQ:
+        break;
+    case BINOP_LTE:
+        break;
+    case BINOP_GTE:
+        break;
+    case BINOP_AND:
+        break;
+    case BINOP_OR:
+        break;
+    case BINOP_IS:
+        break;
+    default:
+        break;
     }
 }
 
@@ -481,24 +567,41 @@ void gen_binop(ASTptr node) {
 // ---- Traversal and Output
 ///////////////////////////////////
 
-/// @brief 
-/// @param node 
-/// @return 
-bool handle_node (ASTptr node) {
-    switch(node->type) {
-    case AST_PROGRAM:       gen_program(node);  break; // return int function(); // int being fail/success
-    case AST_FUNC_DEF:      gen_func_def(node); break;
-    case AST_FUNC_CALL:     break;
-    case AST_BLOCK:         break;
-    case AST_IF_STMT:       break;
-    case AST_RETURN_STMT:   break;
+/// @brief
+/// @param node
+/// @return
+bool handle_node(ASTptr node)
+{
+    switch (node->type)
+    {
+    case AST_PROGRAM:
+        gen_program(node);
+        break; // return int function(); // int being fail/success
+    case AST_FUNC_DEF:
+        gen_func_def(node);
+        break;
+    case AST_FUNC_CALL:
+        break;
+    case AST_BLOCK:
+        break;
+    case AST_IF_STMT:
+        break;
+    case AST_RETURN_STMT:
+        break;
     // assumes global for now
-    case AST_VAR_DECL:      gen_var_decl(node, 0); break;
-    case AST_ASSIGN_STMT:   break;
-    case AST_WHILE_STMT:    break;
-    case AST_IDENTIFIER:    break;
-    case AST_LITERAL:       break;
-    case AST_BINOP :        break;
+    case AST_VAR_DECL:
+        gen_var_decl(node, 0);
+        break;
+    case AST_ASSIGN_STMT:
+        break;
+    case AST_WHILE_STMT:
+        break;
+    case AST_IDENTIFIER:
+        break;
+    case AST_LITERAL:
+        break;
+    case AST_BINOP:
+        break;
     default:
         /* invalid node? */
         DEBUG_PRINT("Invalid node encountered");
@@ -507,23 +610,28 @@ bool handle_node (ASTptr node) {
     return true;
 }
 
-/// @brief prints the entire list to standard output 
-/// @param  
-void print_tac(void) {
-    for (const TACnode *curr = tac.head; curr; curr = curr->next) {
+/// @brief prints the entire list to standard output
+/// @param
+void print_tac(void)
+{
+    for (const TACnode *curr = tac.head; curr; curr = curr->next)
+    {
         printf("%s", tac_opcode_name(curr->instr));
-        if (curr->a1) printf(" %s", curr->a1);
-        if (curr->a2) printf(" %s", curr->a2);
-        if (curr->a3) printf(" %s", curr->a3);
+        if (curr->a1)
+            printf(" %s", curr->a1);
+        if (curr->a2)
+            printf(" %s", curr->a2);
+        if (curr->a3)
+            printf(" %s", curr->a3);
         putchar('\n');
     }
 }
 
 /// @brief Entry Point of the Codegen Part
-/// @param tree 
-void generate(ASTptr tree) 
+/// @param tree
+void generate(ASTptr tree)
 {
-    //if (!tree) exit(ERR_INTERNAL);
+    // if (!tree) exit(ERR_INTERNAL);
     gen_program(tree);
 
     /* OUTPUT -- no optimalizations */

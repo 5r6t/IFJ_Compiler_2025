@@ -8,8 +8,8 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
-#include "../include/common.h"
-#include "../include/lex.h"
+#include "common.h"
+#include "lex.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -69,14 +69,16 @@ TokenPtr token_init()
  * @brief Tries to match a string against a provided regex pattern (string)
  * @return 0 on success
  */
-int regex_match(const char *string, const char *pattern) {
+int regex_match(const char *string, const char *pattern)
+{
     regex_t regex;
     int ret;
 
     // compile regex
     ret = regcomp(&regex, pattern, REG_EXTENDED);
-    if (ret) program_error(NULL, ERR_INTERNAL, ERR_MSG_INTERNAL, NULL);
-    
+    if (ret)
+        program_error(NULL, ERR_INTERNAL, ERR_MSG_INTERNAL, NULL);
+
     // execute regex
     ret = regexec(&regex, string, 0, NULL, 0);
     regfree(&regex);
@@ -128,44 +130,45 @@ void token_free(TokenPtr token)
 
 // TABLE for printing token types as strings, not numbers
 static const char *names[] = {
-    [START]            = "START",
-    [IDENTIFIER]       = "IDENTIFIER",
-    [ID_GLOBAL_VAR]    = "ID_GLOBAL_VAR",
-    [NUMERICAL]        = "NUMERICAL",
-    [STRING]           = "STRING",
+    [START] = "START",
+    [IDENTIFIER] = "IDENTIFIER",
+    [ID_GLOBAL_VAR] = "ID_GLOBAL_VAR",
+    [NUMERICAL] = "NUMERICAL",
+    [STRING] = "STRING",
     [MULTILINE_STRING] = "MULTILINE_STRING",
-    [STRING_SPECIAL]   = "STRING_SPECIAL",
+    [STRING_SPECIAL] = "STRING_SPECIAL",
 
-    [CMP_OPERATOR]     = "CMP_OPERATOR",
-    [ARITHMETICAL]     = "ARITHMETICAL",
+    [CMP_OPERATOR] = "CMP_OPERATOR",
+    [ARITHMETICAL] = "ARITHMETICAL",
 
-    [SPECIAL]          = "SPECIAL",
-    [NEWLINE]          = "NEWLINE",
+    [SPECIAL] = "SPECIAL",
+    [NEWLINE] = "NEWLINE",
 
-    [COMMENT]          = "COMMENT",
-    [BLOCK_COMMENT]    = "BLOCK_COMMENT",
+    [COMMENT] = "COMMENT",
+    [BLOCK_COMMENT] = "BLOCK_COMMENT",
 
-    [KW_CLASS]         = "KW_CLASS",
-    [KW_ELSE]          = "KW_ELSE",
-    [KW_FOR]           = "KW_FOR",
-    [KW_IF]            = "KW_IF",
-    [KW_IFJ]           = "KW_IFJ",
-    [KW_IMPORT]        = "KW_IMPORT",
-    [KW_IS]            = "KW_IS",
-    [KW_NULL]          = "KW_NULL",        // "null" literal
-    [KW_NULL_TYPE]     = "KW_NULL_TYPE",   // "Null" type
-    [KW_NUM]           = "KW_NUM",
-    [KW_RETURN]        = "KW_RETURN",
-    [KW_STATIC]        = "KW_STATIC",
-    [KW_STRING]        = "KW_STRING",
-    [KW_VAR]           = "KW_VAR",
-    [KW_WHILE]         = "KW_WHILE"
-};
+    [KW_CLASS] = "KW_CLASS",
+    [KW_ELSE] = "KW_ELSE",
+    [KW_FOR] = "KW_FOR",
+    [KW_IF] = "KW_IF",
+    [KW_IFJ] = "KW_IFJ",
+    [KW_IMPORT] = "KW_IMPORT",
+    [KW_IS] = "KW_IS",
+    [KW_NULL] = "KW_NULL",           // "null" literal
+    [KW_NULL_TYPE] = "KW_NULL_TYPE", // "Null" type
+    [KW_NUM] = "KW_NUM",
+    [KW_RETURN] = "KW_RETURN",
+    [KW_STATIC] = "KW_STATIC",
+    [KW_STRING] = "KW_STRING",
+    [KW_VAR] = "KW_VAR",
+    [KW_WHILE] = "KW_WHILE"};
 
-const char *token_type_name(int type) {
+const char *token_type_name(int type)
+{
     // Must match the defines in lex.h
-    if (type == FILE_END) return "FILE_END";
-    if (type >= 0 && type < (int)(sizeof(names)/sizeof(names[0])) && names[type])
+    if (type == FILE_END)
+        return "FILE_END";
+    if (type >= 0 && type < (int)(sizeof(names) / sizeof(names[0])) && names[type])
         return names[type];
     return NULL;
 }
@@ -202,8 +205,7 @@ char *error_list[] = {
     "\n!!! String has reached the implementation limit !!!\n", // MAX_BUFFER_LENGTH
     "\n!!! Problem has occurred during scanning. Logic not implemented yet? Problem with:\n",
     "\n!!! Error: wrong syntax found (Tak tohle je spatne a ja te zabiju) \n",
-    "\n!!! Unenclosed comment found - Valve please fix. !!! "
-};
+    "\n!!! Unenclosed comment found - Valve please fix. !!! "};
 
 /**
  * @brief Closes a file and exits the program with an error code.

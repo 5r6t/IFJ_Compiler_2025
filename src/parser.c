@@ -8,11 +8,11 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
-#include "../include/common.h"
-#include "../include/lex.h"
-#include "../include/parser.h"
-#include "../include/ast.h"
-#include "../include/psaParser.h"
+#include "common.h"
+#include "lex.h"
+#include "parser.h"
+#include "ast.h"
+#include "psaParser.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -212,7 +212,7 @@ ASTptr FUNCTIONS(TokenPtr *nextToken, FILE *file, ASTptr programNode) // change 
 
         return FUNCTIONS(nextToken, file, programNode);
     }
-    else if (peek(&FUNCTIONS_FOLLOW, *nextToken)) // epsilon
+    else if (peek(&FUNCTIONS_FOLLOW, *nextToken, file)) // epsilon
     {
         return programNode;
     }
@@ -248,7 +248,7 @@ ASTptr FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file, ASTptr functionNode)
 
     static const target FUNC_SET_SEQ[] =
         {
-            {CMP_OPERATOR, NULL, "="},
+            {SPECIAL, NULL, "="},
             {SPECIAL, NULL, "("},
         };
 
@@ -267,7 +267,7 @@ ASTptr FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file, ASTptr functionNode)
     size_t FUNC_DEF_SEQ_LEN = sizeof(FUNC_DEF_SEQ) / sizeof(FUNC_DEF_SEQ[0]);
     size_t FUNC_GET_SET_DEF_END_LEN = sizeof(FUNC_GET_SET_DEF_END) / sizeof(FUNC_GET_SET_DEF_END[0]);
 
-    if (peek(&FUNC_DEF, *nextToken)) // definition of function -> should call semantic analyzer to check if function id is already used -> beware of shadowing!!!
+    if (peek(&FUNC_DEF, *nextToken, file)) // definition of function -> should call semantic analyzer to check if function id is already used -> beware of shadowing!!!
     {
         *nextToken = getToken(file);
 
@@ -287,12 +287,18 @@ ASTptr FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file, ASTptr functionNode)
         }
         blockNodeInit(blockNode);
         FUNC_BODY(nextToken, file, blockNode); // dont forget to iterate nextToken inside this function!!!
+        printf("vratil som sa z body\n");
         functionNode->func.body = blockNode;
 
+        printf("idem na koniec toto je v tokene\n");
+        printf("token: type=%d, id=%s, data=%s\n",
+               (*nextToken)->type,
+               (*nextToken)->id ? (*nextToken)->id : "NULL",
+               (*nextToken)->data ? (*nextToken)->data : "NULL");
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
         return functionNode;
     }
-    else if (peek(&FUNC_GET, *nextToken)) // getter
+    else if (peek(&FUNC_GET, *nextToken, file)) // getter
     {
         *nextToken = getToken(file);
         static target AFTER_BRACE = {NEWLINE, NULL, NULL};
@@ -314,7 +320,7 @@ ASTptr FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file, ASTptr functionNode)
         for_function(FUNC_GET_SET_DEF_END, file, nextToken, FUNC_GET_SET_DEF_END_LEN);
         return functionNode;
     }
-    else if ((*nextToken)->type == CMP_OPERATOR) // setter
+    else if ((*nextToken)->type == SPECIAL && strcmp((*nextToken)->id, "=") == 0) // setter
     {
         for_function(FUNC_SET_SEQ, file, nextToken, FUNC_SET_SEQ_LEN);
 
@@ -369,7 +375,7 @@ ASTptr PAR(TokenPtr *nextToken, FILE *file, parArr *pA)
 
         return NEXT_PAR(nextToken, file, pA); // dont forget to iterate nextToken inside this function!!!
     }
-    else if (peek(&PAR_FOLLOW, *nextToken))
+    else if (peek(&PAR_FOLLOW, *nextToken, file))
     {
         return NULL;
     }
@@ -385,7 +391,7 @@ ASTptr NEXT_PAR(TokenPtr *nextToken, FILE *file, parArr *pA)
     static const target NEXT_PAR_FIRST = {SPECIAL, NULL, ","};
     static const target NEXT_PAR_FOLLOW = {SPECIAL, NULL, ")"};
     static const target NEXT_PAR_IDEN = {IDENTIFIER, NULL, NULL};
-    if (peek(&NEXT_PAR_FIRST, *nextToken))
+    if (peek(&NEXT_PAR_FIRST, *nextToken, file))
     {
         advance(&NEXT_PAR_FIRST, nextToken, file);
 
@@ -395,7 +401,7 @@ ASTptr NEXT_PAR(TokenPtr *nextToken, FILE *file, parArr *pA)
 
         return NEXT_PAR(nextToken, file, pA);
     }
-    else if (peek(&NEXT_PAR_FOLLOW, *nextToken)) // epsilon
+    else if (peek(&NEXT_PAR_FOLLOW, *nextToken, file)) // epsilon
     {
         return NULL;
     }
@@ -413,7 +419,7 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
     static const target RETURN_FIRST = {KW_RETURN, NULL, NULL};
     static const target FUNC_BODY_END = {NEWLINE, NULL, NULL};
     static const target FUNC_BODY_FOLLOW = {SPECIAL, NULL, "}"};
-    static const target VAR_ASS_CALL_GET = {CMP_OPERATOR, NULL, "="};
+    static const target VAR_ASS_CALL_GET = {SPECIAL, NULL, "="};
     static const target END_RETURN_EXP = {NEWLINE, NULL, NULL};
 
     /*static const target FUNC_INTRO_SEQ[] =
@@ -469,9 +475,11 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
     // size_t FUNC_INTRO_SEQ_LEN = sizeof(FUNC_INTRO_SEQ) / sizeof(FUNC_INTRO_SEQ[0]);
     size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
 
+    printf("idem do body\n");
     if ((*nextToken)->type == KW_VAR) // declare
     {
-        // for_function(FUNC_BODY_DECL_SEQ, file, nextToken, FUNC_BODY_DECL_SEQ_LEN);
+        printf("deklaracia\n");
+        //  for_function(FUNC_BODY_DECL_SEQ, file, nextToken, FUNC_BODY_DECL_SEQ_LEN);
         *nextToken = getToken(file);
         char *varName = (*nextToken)->id;
         int result = VAR_NAME(nextToken, file);
@@ -491,8 +499,9 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
     }
     else if (VAR_NAME(nextToken, file)) // assign
     {
+        printf("priradenie\n");
         AssignTargetType asType;
-        if ((*nextToken)->type == ID_GLOBAL)
+        if ((*nextToken)->type == ID_GLOBAL_VAR)
         {
             asType = TARGET_GLOBAL;
         }
@@ -513,10 +522,12 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
         assignNode->assign_stmt.expr = exprNode;
 
         varNameAdd(blockNode, assignNode, file, *nextToken);
+        printf("vraciam sa z body\n");
         return FUNC_BODY(nextToken, file, blockNode);
     }
     else if ((*nextToken)->type == KW_IF) // if statement
     {
+        printf("if\n");
         ASTptr ifNode = (ASTptr)malloc(sizeof(ASTnode));
         ifNode->type = AST_IF_STMT;
 
@@ -547,6 +558,7 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
     }
     else if ((*nextToken)->type == KW_WHILE) // while statement
     {
+        printf("while\n");
         ASTptr whileNode = (ASTptr)malloc(sizeof(ASTnode));
         whileNode->type = AST_WHILE_STMT;
 
@@ -569,6 +581,7 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
     }
     else if ((*nextToken)->type == KW_RETURN) // return
     {
+        printf("return\n");
         ASTptr returnNode = (ASTptr)malloc(sizeof(ASTnode));
         returnNode->type = AST_RETURN_STMT;
 
@@ -583,14 +596,17 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
 
         return FUNC_BODY(nextToken, file, blockNode);
     }
-    else if (peek(&FUNC_BODY_FOLLOW, *nextToken)) // epsilon
+    else if (peek(&FUNC_BODY_FOLLOW, *nextToken, file)) // epsilon
     {
+        printf("som v epsilone\n");
         return NULL;
     }
     else
     {
+        printf("skoncil som v chybe\n");
         program_error(file, 2, 4, *nextToken);
     }
+    printf("dostal som sa sem?\n");
     return NULL;
 }
 
@@ -598,7 +614,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
 {
     static const target END_SEQ[] =
         {
-            {SPECIAL, ")", NULL},
+            {SPECIAL, NULL, ")"},
             {NEWLINE, NULL, NULL}};
 
     static const target END_TARGET = {NEWLINE, NULL, NULL};
@@ -609,6 +625,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
     size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
 
     // working code -> should refactor so it isnt so blouted
+    printf("som v RSA\n");
     if ((*nextToken)->type == KW_IFJ) // inbuilt
     {
         (*nextToken) = getToken(file);
@@ -663,9 +680,11 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
     }
     else if ((*nextToken)->type == NUMERICAL) // if num = expression parsing
     {
-        return parse_expression(nextToken, file, &END_TARGET);
+        ASTptr expresNode = parse_expression(nextToken, file, &END_TARGET);
+        advance(&END_TARGET, nextToken, file);
+        return expresNode;
     }
-    else if ((*nextToken)->type == IDENTIFIER || (*nextToken)->type == ID_GLOBAL) // is it FUNC CALL or epression?
+    else if ((*nextToken)->type == IDENTIFIER || (*nextToken)->type == ID_GLOBAL_VAR) // is it FUNC CALL or epression?
     {
         char *varName = (*nextToken)->id; // this will needs to be cleared if not function call??
         TokenPtr la = peekToken(file);
@@ -722,7 +741,9 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
         }
         else
         {
-            return parse_expression(nextToken, file, &END_TARGET);
+            ASTptr expresNode = parse_expression(nextToken, file, &END_TARGET);
+            advance(&END_TARGET, nextToken, file);
+            return expresNode;
         }
     } // there can be a expression -> give control to PSA
     else
@@ -736,12 +757,14 @@ void FUNC_TYPE(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 {
     static const target FUNC_TYPE_FIRST = {SPECIAL, NULL, "("};
     static const target FUNC_TYPE_NEXT = {SPECIAL, NULL, ")"};
-    if (peek(&FUNC_TYPE_FIRST, *nextToken)) // function
+    static const target FUNC_TYPE_FOLLOW = {NEWLINE, NULL, NULL};
+    if (peek(&FUNC_TYPE_FIRST, *nextToken, file)) // function
     {
 
         advance(&FUNC_TYPE_FIRST, nextToken, file);
         ARG(nextToken, file, argArr);
         advance(&FUNC_TYPE_NEXT, nextToken, file);
+        advance(&FUNC_TYPE_FOLLOW, nextToken, file);
         return;
     }
     else if ((*nextToken)->type == NEWLINE) // epsilon -> getter
@@ -757,7 +780,7 @@ void FUNC_TYPE(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 
 void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 {
-    static const target ARG_FOLLOW = {SPECIAL, ")", NULL};
+    static const target ARG_FOLLOW = {SPECIAL, NULL, ")"};
 
     if (ARG_NAME(nextToken, file))
     {
@@ -773,7 +796,7 @@ void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
             lit.liType = LIT_STRING;
             lit.str = (*nextToken)->data;
         }
-        else if ((*nextToken)->type == ID_GLOBAL)
+        else if ((*nextToken)->type == ID_GLOBAL_VAR)
         {
             lit.liType = LIT_GLOBAL_ID;
             lit.str = (*nextToken)->id;
@@ -812,7 +835,7 @@ void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
         NEXT_ARG(nextToken, file, argArr);
         return; // nextToken was itareted in this function
     }
-    else if (peek(&ARG_FOLLOW, *nextToken)) // epsilon
+    else if (peek(&ARG_FOLLOW, *nextToken, file)) // epsilon
     {
         return;
     }
@@ -825,9 +848,9 @@ void ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr)
 
 void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr) // change return type to ASTnode
 {
-    static const target NEXT_ARG_FIRST = {SPECIAL, ",", NULL}; // look at it again please
-    static const target NEXT_ARG_FOLLOW = {SPECIAL, ")", NULL};
-    if (peek(&NEXT_ARG_FIRST, *nextToken))
+    static const target NEXT_ARG_FIRST = {SPECIAL, NULL, ","}; // look at it again please
+    static const target NEXT_ARG_FOLLOW = {SPECIAL, NULL, ")"};
+    if (peek(&NEXT_ARG_FIRST, *nextToken, file))
     {
         *nextToken = getToken(file);
         ARG_NAME(nextToken, file);
@@ -843,7 +866,7 @@ void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr) // change return 
             lit.liType = LIT_STRING;
             lit.str = (*nextToken)->data;
         }
-        else if ((*nextToken)->type == ID_GLOBAL)
+        else if ((*nextToken)->type == ID_GLOBAL_VAR)
         {
             lit.liType = LIT_GLOBAL_ID;
             lit.str = (*nextToken)->id;
@@ -882,7 +905,7 @@ void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr) // change return 
         NEXT_ARG(nextToken, file, argArr);
         return;
     }
-    else if (peek(&NEXT_ARG_FOLLOW, *nextToken)) // epsilon
+    else if (peek(&NEXT_ARG_FOLLOW, *nextToken, file)) // epsilon
     {
         return;
     }
@@ -898,12 +921,12 @@ int ARG_NAME(TokenPtr *nextToken, FILE *file)
     static const target ARG_NAME_FIRST[] = {
         {NUMERICAL, NULL, NULL},
         {IDENTIFIER, NULL, NULL},
-        {ID_GLOBAL, NULL, NULL},
+        {ID_GLOBAL_VAR, NULL, NULL},
         {STRING, NULL, NULL}};
 
     size_t ARG_NAME_FIRST_LEN = sizeof(ARG_NAME_FIRST) / sizeof(ARG_NAME_FIRST[0]);
 
-    if (nameHelperFunc(nextToken, ARG_NAME_FIRST, ARG_NAME_FIRST_LEN))
+    if (nameHelperFunc(nextToken, ARG_NAME_FIRST, ARG_NAME_FIRST_LEN, file))
     {
         return 1;
     }
@@ -927,28 +950,28 @@ int ARG_NAME(TokenPtr *nextToken, FILE *file)
     return 0;
 }
 
-int VAR_NAME(TokenPtr *nextToken, FILE *file)
+int VAR_NAME(TokenPtr *nextToken, FILE *file) //, FILE *file
 {
     static const target VAR_NAME_SEQ[] = {
         {IDENTIFIER, NULL, NULL},
-        {ID_GLOBAL, NULL, NULL}};
+        {ID_GLOBAL_VAR, NULL, NULL}};
 
     size_t VAR_NAME_SEQ_LEN = sizeof(VAR_NAME_SEQ) / sizeof(VAR_NAME_SEQ[0]);
 
-    if (nameHelperFunc(nextToken, VAR_NAME_SEQ, VAR_NAME_SEQ_LEN))
+    if (nameHelperFunc(nextToken, VAR_NAME_SEQ, VAR_NAME_SEQ_LEN, file))
     {
         return 1;
     }
-    program_error(file, 2, 4, *nextToken);
+    // program_error(file, 2, 4, *nextToken);
     return 0;
 }
 
-int nameHelperFunc(TokenPtr *nextToken, const target *target, size_t target_len)
+int nameHelperFunc(TokenPtr *nextToken, const target *target, size_t target_len, FILE *file)
 {
     size_t i = 0;
     while (i < target_len)
     {
-        if (peek(&target[i], *nextToken))
+        if (peek(&target[i], *nextToken, file))
         {
             return 1;
         }
@@ -965,7 +988,7 @@ int nameHelperFunc(TokenPtr *nextToken, const target *target, size_t target_len)
  *
  * @return wrong terminal will trigger stderr and program will end, correct terminal will return 1
  */
-int peek(const target *target, TokenPtr token)
+int peek(const target *target, TokenPtr token, FILE *file)
 {
     if (target->type != token->type)
     {
@@ -977,8 +1000,9 @@ int peek(const target *target, TokenPtr token)
         {
             if (token->data == NULL)
             {
-                fprintf(stderr, "SEGFAULT, token pointer is empty and you are trying reach something you can`t idiot\n");
-                exit(2);
+                program_error(file, 0, 0, token);
+                /*fprintf(stderr, "SEGFAULT, token pointer is empty and you are trying reach something you can`t idiot\n");
+                exit(2);*/
             }
 
             if (strcmp(target->data, token->data) != 0)
@@ -990,8 +1014,9 @@ int peek(const target *target, TokenPtr token)
         {
             if (token->id == NULL)
             {
-                fprintf(stderr, "SEGFAULT, token pointer is empty and you are trying reach something you can`t idiot\n");
-                exit(2);
+                program_error(file, 0, 0, token);
+                /*fprintf(stderr, "SEGFAULT, token pointer is empty and you are trying reach something you can`t idiot\n");
+                exit(2);*/
             }
 
             if (strcmp(target->id, token->id) != 0)
@@ -1019,7 +1044,7 @@ void for_function(const target *TARGE_SEQ, FILE *file, TokenPtr *nextToken, size
  */
 void advance(const target *target, TokenPtr *token, FILE *file)
 {
-    if (!peek(target, *token))
+    if (!peek(target, *token, file))
     {
         program_error(file, 2, 4, *token);
     }
