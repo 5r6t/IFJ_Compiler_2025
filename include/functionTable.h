@@ -44,6 +44,7 @@ typedef struct {
 void funcTableInit(FuncTable *table);
 void funcTableResize(FuncTable *table);
 FuncInfo *funcTableGet(FuncTable *table, const char *name, const int paramCount);
+FuncInfo *funcTableGetSetter(FuncTable *table, const char *name);
 bool funcTableAdd(FuncTable *table, FuncInfo func);
 void funcTableFree(FuncTable *table);
 

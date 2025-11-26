@@ -42,7 +42,7 @@ void funcTableResize(FuncTable *table){
 FuncInfo *funcTableGet(FuncTable *table, const char *name, const int paramCount){
     if(paramCount == -1){ // search without parameters
         for(int i = 0; i < table->funcCount; i++){
-            if(strcmp(table->functions[i].name, name)){
+            if(strcmp(table->functions[i].name, name) == 0){
                 return &table->functions[i];
             }
         }
@@ -52,6 +52,22 @@ FuncInfo *funcTableGet(FuncTable *table, const char *name, const int paramCount)
                 return &table->functions[i];
             }
     }
+    }
+    return NULL;
+}
+
+/**
+ * @brief retrieves a setter function from the function table by name
+ * 
+ * @param table pointer to the function table
+ * @param name name of the function
+ * @return FuncInfo* pointer to the function info if found, NULL otherwise
+ */
+FuncInfo *funcTableGetSetter(FuncTable *table, const char *name){
+    for(int i = 0; i < table->funcCount; i++){
+        if(strcmp(table->functions[i].name, name) == 0 && table->functions[i].kind == FUNC_SETTER){
+            return &table->functions[i];
+        }
     }
     return NULL;
 }
