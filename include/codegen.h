@@ -255,4 +255,5 @@ void gen_return_stmt(ASTptr node, int scopeDepth);
 void gen_assign_stmt(ASTptr node);
 void gen_stmt(ASTptr node);
 char *gen_expr(ASTptr node);
+void print_tac();
 #endif // CODEGEN_H

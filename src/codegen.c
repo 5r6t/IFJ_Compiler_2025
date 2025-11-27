@@ -414,28 +414,33 @@ void gen_func_def(ASTptr node)
     }
     tac_append(PUSHFRAME, NULL, NULL, NULL);
 
-    // create a dedicated entry label for the generated function body
-    char *body_entry_label = new_label("$body$");
-    tac_append(LABEL, body_entry_label, NULL, NULL);
+    if (is_main == false) {
+        tac_append(DEFVAR, "LF@%retval1", NULL, NULL);
+        tac_append(MOVE,   "LF@%retval1", "nil@nil", NULL);
+    
+        // handle parameters
+        for (int i = 0; i < node->func.paramCount; i++)
+        {
+            // ASTptr argNode = node->call.args[i]; forgot what i wanted
+            char *local_param = var_lf(node->func.paramNames[i]);
+            tac_append(DEFVAR, local_param, NULL, NULL);
 
-    // handle parameters
-    for (int i = 0; i < node->func.paramCount; i++)
-    {
-        // ASTptr argNode = node->call.args[i]; forgot what i wanted
-        char *local_param = var_lf(node->func.paramNames[i]);
+            char srcbuf[32];
+            snprintf(srcbuf, sizeof(srcbuf), "LF@%%%d", i+1);
 
-        tac_append(DEFVAR, local_param, NULL, NULL);
-        char *local_var = var_lf(node->func.paramNames[i]); // var_lf expects a name string
-
-        tac_append(MOVE, local_param, local_var, NULL);
+            tac_append(MOVE, local_param, my_strdup(srcbuf),NULL);
+        }
     }
 
+    // create a dedicated entry label for the generated function body
+    char *body_entry_label = new_label("$_____body_____$");
+    tac_append(LABEL, body_entry_label, NULL, NULL);
     // TODO: handle body
     gen_block(node->func.body);
 
-    tac_append(POPFRAME, NULL, NULL, NULL);
     if (is_main == false)
     {
+        tac_append(POPFRAME, NULL, NULL, NULL);
         tac_append(RETURN, NULL, NULL, NULL);
     }
 }
@@ -449,9 +454,9 @@ void gen_func_call(ASTptr node)
     // for every function argument
     for (int i = 0; i < node->call.argCount; i++)
     {
-        int REPLACE_LATER = 0;
-        char *temp_frame = new_tf(REPLACE_LATER);
-        tac_append(DEFVAR, temp_frame, NULL, NULL);
+        char srcbuf[32];
+        snprintf(srcbuf, sizeof(srcbuf), "TF@%%%d", i+1);
+        tac_append(DEFVAR, srcbuf, NULL, NULL);
 
         ASTptr argNode = node->call.args[i];
         char *fnc_param;
@@ -466,7 +471,7 @@ void gen_func_call(ASTptr node)
             fnc_param = gen_literal(argNode);
         }
 
-        tac_append(MOVE, temp_frame, fnc_param, NULL);
+        tac_append(MOVE, srcbuf, fnc_param, NULL);
     }
     char *name = fnc_name(node->call.funcName);
     tac_append(CALL, name, NULL, NULL);
@@ -522,10 +527,28 @@ void gen_return_stmt(ASTptr node, int scopeDepth)
     return;
 }
 
-char *gen_binop_add(char *res, char *l, char *r)
+char *gen_binop_add(char *result, char *left, char *right)
 {
-    tac_append(ADD, res, l, r);
-    return res;
+    // assuming we have LF, GF variable <var>
+
+    // CREATEFRAME, hence (TF)
+
+    // TYPE check on left operand should be enough? either num/string
+
+    // JUMPIFEQ if lit is num@num to LABEL arith
+
+    // LABEL concat
+    //      CONCAT <var> <left> <right>
+    //      JUMP to binop_end label
+
+    // LABEL arith
+    //     ADD <var> <left> <right>
+
+    // LABEL binop_end
+
+    // temporary code
+    tac_append(ADD, result, left, right);
+    return result;
 }
 
 char *gen_binop_sub(char *res, char *l, char *r)
@@ -585,16 +608,18 @@ char *gen_literal(ASTptr node)
 {
     switch (node->literal.liType)
     {
-        char *r;
+    char *r;
+
     case LIT_NULL:
         r = lit_nil();
         return r;
 
-        /* case LIT_BOOL:
-            bool b = node->literal.bool;
-            char *r = lit_bool(b);
-            return r;
-        */
+    /* Extension not implemented 
+    case LIT_BOOL:
+        bool b = node->literal.bool;
+        char *r = lit_bool(b);
+        return r;
+    */
 
     case LIT_NUMBER:
     {
@@ -659,8 +684,7 @@ char *gen_func_call_expr(ASTptr node)
     return tmp;
 }
 
-
-/// @brief
+/// @brief 
 /// @param node
 char *gen_binop(ASTptr node)
 {
@@ -669,12 +693,12 @@ char *gen_binop(ASTptr node)
 
     char *res = new_tmp();
     tac_append(DEFVAR, res, NULL, NULL);
-    
+    //char*possible_lit_left=gen_literal() 
     ;
     switch (node->binop.opType)
     {
     case BINOP_ADD:
-        //return gen_binop_add(res,left,right);
+        return gen_binop_add(res,left,right);
     case BINOP_SUB:
         //return gen_binop_sub(res,left,right);
     case BINOP_MUL:
@@ -694,7 +718,9 @@ char *gen_binop(ASTptr node)
     
     case BINOP_IS:
         //return gen_binop_is(res,left,right,node->binop.opType);
-        fprintf(stderr, "RelOps and more not implemented yet\nLEFT:%s\nRIGHT:%s", left, right);
+        fprintf(stderr, "RelOps and more not implemented yet\nLEFT:%s\nRIGHT:%s\n\n", left, right);
+        print_tac(); // REMOVE DEBUGG ONLY
+
         exit(ERR_INTERNAL);
     default:
         break;
@@ -774,7 +800,8 @@ char *gen_expr(ASTptr node)
             return gen_func_call_expr(node);
 
         default:
-            fprintf(stderr, "gen_expr: unsupported AST node -> type %d\n", node->type);
+            fprintf(stderr, "gen_expr: unsupported AST node -> type %d\n", node->type); 
+            print_tac(); // REMOVE DEBUG ONLy
             exit(ERR_INTERNAL);
     }
 }
@@ -800,7 +827,10 @@ void print_tac(void)
 /// @param tree
 void generate(ASTptr tree)
 {
-    if (!tree) exit(ERR_INTERNAL);
+    if (!tree) {
+        fprintf(stderr,"Deforestation in progress...");
+        exit(ERR_INTERNAL);
+    }
 
     tac_list_init(&tac);
 

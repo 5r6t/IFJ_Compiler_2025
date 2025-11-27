@@ -424,6 +424,7 @@ int no_comment(FILE *file)
 /**
  * @brief FSM to create cmp operators and assign tokens
  * @return 0 on fail, otherwise 1
+ * TODO: make less strict -- "zravy spobsob", e.g. =>
  */
 int get_cmp_op(TokenPtr token, int c, FILE *file)
 {

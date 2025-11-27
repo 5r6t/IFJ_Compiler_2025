@@ -14,7 +14,7 @@ DEFVAR LF@param2
 MOVE LF@param2  LF@%2
 # code of function foo
 WRITE LF@param2
-WRITE LF@param1
+WRITE LF@string_param1
 MOVE LF@%retval1 float@0x0p+0
 POPFRAME
 # callee restores
@@ -22,8 +22,8 @@ RETURN
 
 LABEL $$main # main body
 
-CREATEFRAME  # no main-body vars
-PUSHFRAME
+ CREATEFRAME  # no main-body vars
+ PUSHFRAME
 
 DEFVAR LF@y
 
