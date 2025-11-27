@@ -22,6 +22,7 @@
  - create rules for PSA
  - implement AST node creation
  - implement PSA
+ - should take null too
 */
 
 /**
@@ -58,7 +59,7 @@
     {'<', '<', '<', '<', '<', '<', '<', '<', '<', '<', '<', '=', '<', '<', ' '}, // (
     {'>', '>', '>', '>', '>', '>', '>', '>', '>', '>', ' ', '>', ' ', '>', '>'}, // )
     {'>', '>', '>', '>', '>', '>', '>', '>', '>', '>', ' ', '>', ' ', '>', '>'}, // id
-    {' ', ' ', ' ', ' ', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '<', ' ', '>'}, // is
+    {' ', ' ', ' ', ' ', '>', '>', ' ', ' ', ' ', ' ', ' ', ' ', '=', ' ', '>'}, // is
     {'<', '<', '<', '<', '<', '<', '<', '<', '<', '<', '<', ' ', '<', '<', '$'}  // $
 };*/
 
@@ -77,13 +78,14 @@ PrecedentTableRel precedence_table[15][15] = {
     {PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_EQUAL, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_NULL},                                       // (
     {PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_NULL, PRE_TAB_GREATER, PRE_TAB_NULL, PRE_TAB_GREATER, PRE_TAB_GREATER}, // )
     {PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_NULL, PRE_TAB_GREATER, PRE_TAB_NULL, PRE_TAB_GREATER, PRE_TAB_GREATER}, // id
-    {PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_LESS, PRE_TAB_NULL, PRE_TAB_GREATER},                               // is
+    {PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_GREATER, PRE_TAB_GREATER, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_NULL, PRE_TAB_EQUAL, PRE_TAB_NULL, PRE_TAB_GREATER},                              // is
     {PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_NULL, PRE_TAB_LESS, PRE_TAB_LESS, PRE_TAB_NULL}                                         // $
 };
 
 static struct Token endOfStackSymbol = {DOLLAR, "$", NULL};
 static struct Token shift = {SHIFT, "<", NULL};
 static struct Token TOKEN_E = {E, "E", NULL};
+// static struct Token TOKEN_TYPE = {TYPE, "TYPE", NULL};
 
 int stack_token_top_terminal(stack_token *stack)
 {
@@ -151,13 +153,13 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
         TokenPtr a = stack.items[a_index].token;
 
         int ia = converter(&a, file);
-        // printf("converter vratil %d\n", ia);
-        /*printf("token: type=%d, id=%s, data=%s\n",
+        printf("converter vratil %d\n", ia);
+        printf("token: type=%d, id=%s, data=%s\n",
                b->type,
                b->id ? b->id : "NULL",
-               b->data ? b->data : "NULL");*/
+               b->data ? b->data : "NULL");
         int ib = converter(&b, file);
-        // printf("converter vratil %d\n", ib);
+        printf("converter vratil %d\n", ib);
         if (ia < 0 || ia >= PRECEDENCE_ROWS || ib < 0 || ib >= PRECEDENCE_COLS)
         {
             // printf("som v chybe convertera\n");
@@ -168,13 +170,13 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
         switch (precedence_table[ia][ib])
         {
         case PRE_TAB_EQUAL:
-            // printf("=\n");
+            printf("=\n");
             stack_token_push(&stack, b, NULL);
             b = getToken(file);
             break;
         case PRE_TAB_LESS:
         {
-            // printf("<\n");
+            printf("<\n");
             int a_index = stack_token_top_terminal(&stack);
             if (a_index < 0)
             {
@@ -187,11 +189,11 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
             break;
         }
         case PRE_TAB_GREATER:
-            // printf(">\n");
+            printf(">\n");
             reduce(file, &stack);
             break;
         case PRE_TAB_NULL:
-            // printf("NULL\n");
+            printf("NULL\n");
             program_error(file, 2, 4, b);
             break;
         default:
@@ -299,6 +301,10 @@ int converter(TokenPtr *tokenToConvert, FILE *file)
     {
         return IS;
     }
+    else if (token->type == KW_NULL)
+    {
+        return ID;
+    }
     // printf("nesedimi to\n");
     program_error(file, 2, 4, token);
     return -1;
@@ -340,7 +346,8 @@ ASTptr reduce(FILE *file, stack_token *stack)
 ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
 {
     TokenPtr token = stack->items[index_shift + 1].token;
-    // printf("som v checkForI");
+    // TypeName resType;
+    printf("som v checkForI");
     ASTptr node = NULL;
     if (token->type == NUMERICAL)
     {
@@ -357,6 +364,12 @@ ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
         node->type = AST_LITERAL;
         node->literal.liType = LIT_STRING;
         node->literal.str = my_strdup(token->data);
+    }
+    else if (token->type == KW_NULL)
+    {
+        node = malloc(sizeof(ASTnode));
+        node->type = AST_LITERAL;
+        node->literal.liType = LIT_NULL;
     }
     else if (token->type == IDENTIFIER)
     {

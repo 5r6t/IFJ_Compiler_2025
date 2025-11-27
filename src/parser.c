@@ -26,6 +26,7 @@ bool pending = false;
    ├─ shouldn't it create an AST during analysis, i.e., when it recognizes the structure, it creates a suitable AST node? -> A: yes, it will be call at the end of function
    └─ maybe change funciton types from int to ASTptr so we can assemble the tree -> A: yes but first i want to finish LL rules
    - problem with arg_name using peek function check if there is valid token type if yes token will be processed (token will be used to created AST node ), must thing of way how to processed all arg at once or not
+   - PROBLEM WITH '(' in assign -> should call expression_parse
 */
 
 /* LL1:
@@ -695,9 +696,16 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
         for_function(END_SEQ, file, nextToken, END_SEQ_LEN);
         return inbuildCallNode;
     }
-    else if ((*nextToken)->type == NUMERICAL || (*nextToken)->type == STRING) // if num = expression parsing
+    else if ((*nextToken)->type == NUMERICAL || (*nextToken)->type == STRING || (*nextToken)->type == KW_NULL) // if num = expression parsing
     {
         printf("numbers maison, what does they mean\n");
+        ASTptr expresNode = parse_expression(nextToken, file, &END_TARGET);
+        advance(&END_TARGET, nextToken, file);
+        return expresNode;
+    }
+    else if (peek(&PARAN_INBUILD, *nextToken, file))
+    {
+        printf("parantesis maison, what does they mean\n");
         ASTptr expresNode = parse_expression(nextToken, file, &END_TARGET);
         advance(&END_TARGET, nextToken, file);
         return expresNode;
