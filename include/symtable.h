@@ -66,6 +66,7 @@ bool scopeStack_isFull(const Scopes *stack);
 void scopeStack_push(Scopes *stack, SymTableNode *scope);
 SymTableNode *scopeStack_pop(Scopes *stack);
 SymTableNode *scopeStack_top(Scopes *stack);
+void scopeStack_replaceTop(Scopes *stack, SymTableNode *newTop);
 
 int symTable_searchInScopes(Scopes *stack, char id[]);
 
