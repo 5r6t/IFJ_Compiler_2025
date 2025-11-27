@@ -241,17 +241,18 @@ void tac_list_clear(TAClist *list);
 void tac_print_list_state(const char *label, const TAClist *list);
 void tac_print_node(const char *label, const TACnode *node);
 
-void generate(ASTptr tree);
-void gen_program(ASTptr node);
-
 char* gen_identifier(ASTptr node);
 char* gen_literal(ASTptr node);
 char* fnc_name(const char* name);
 
+void generate(ASTptr tree);
+void gen_program(ASTptr node);
+void gen_func_def(ASTptr node);
+void gen_func_call(ASTptr node);
 void gen_block(ASTptr node);
 void gen_if_stmt(ASTptr node, int scopeDepth);
 void gen_return_stmt(ASTptr node, int scopeDepth);
-char* gen_identifier(ASTptr node);
-char* gen_literal(ASTptr node);
-#endif // CODEGEN_H
 void gen_assign_stmt(ASTptr node);
+void gen_stmt(ASTptr node);
+char *gen_expr(ASTptr node);
+#endif // CODEGEN_H

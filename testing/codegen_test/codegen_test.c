@@ -115,7 +115,12 @@ int main (int argc, char** argv) {
     ASTptr funcs_arr[] = { make_function("main", NULL, 0, body) };
     test = make_program(funcs_arr, 1);
 
+
+    fprintf(stderr, "_________________AST PRINTED___________________\n");
+    astPrint(test,0);    
+
+    fprintf(stderr, "__________________CODEGEN RESULT______________________\n");
     generate(test);
-    
+
     return 0;
 }

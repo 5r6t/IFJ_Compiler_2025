@@ -353,6 +353,7 @@ int numerizer(TokenPtr token, int c, FILE *file)
 			}
 			else
 			{
+
 				FINALIZE_TOK_DATA(NUMERICAL);
 				return 1;
 			}
@@ -618,10 +619,12 @@ int get_string(TokenPtr token, int c, FILE *file)
 				token_update(token, NULL, buffer, STRING);
 				return 1;
 			}
-			else if (c == '\n')
+			else if (c == '\n') {
 				LEX_INVAL_TOK_ERR();
-			else
+			}else {
+				if(iscntrl(c)) LEX_INVAL_TOK_ERR(); // unescaped control char
 				APPEND_TO_BUFFER(c); // continue building
+			}
 			break;
 		} // end STR_SINGLE
 		case STR_special:
@@ -646,6 +649,9 @@ int get_string(TokenPtr token, int c, FILE *file)
 			if (!isxdigit(hex[0]) || !isxdigit(hex[1]))
 				LEX_INVAL_TOK_ERR();
 			unsigned char val = (unsigned char)strtol(hex, NULL, 16);
+
+			if (val > 0x7F) LEX_INVAL_TOK_ERR();
+
 			APPEND_TO_BUFFER(val);
 			state = STR_single;
 			break;

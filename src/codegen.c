@@ -361,40 +361,62 @@ char *var_gf_or_lf(char *name, int scope_depth)
 }
 
 ///////////////////////////////////
+// ---- Temporary variables
+///////////////////////////////////
+
+static int tmp_counter = 0;
+static int label_counter = 0;
+
+/// @brief Create string in format: TF@x, where x is a number
+/// @return 
+static char *new_tmp()
+{
+    char buf[64];
+    snprintf(buf, sizeof(buf), "TF@%%%d", tmp_counter++);
+    return my_strdup(buf);
+}
+
+/// @brief Create labels in style: <prefix>x, where x is a counter
+static char *new_label(const char *prefix)
+{
+    char buf[128];
+    snprintf(buf, sizeof(buf), "%s%d", prefix, label_counter++);
+    return my_strdup(buf);
+}
+
+///////////////////////////////////
 // ---- AST Nodes Codegen ----
 ///////////////////////////////////
 
-/// @brief function that appends the prolog of a program to a list
-/// @param node
-void gen_program(ASTptr node)
+/// @brief 
+/// @param node 
+void gen_block(ASTptr node)
 {
-    (void)node;
-    printf(".IFJcode25\n");
-    tac_append(JUMP, "$$main", NULL, NULL);
-    return;
+    for (int i = 0; i < node->block.stmtCount; i++) {
+        gen_stmt(node->block.stmt[i]);
+    }
 }
 
 /// @brief function that appends instructions for a definition of a function to a list
 /// @param node
 void gen_func_def(ASTptr node)
 {
-    bool is_main = false;
-    char *label;
-    if (strcmp(node->func.name, "main") == 0)
-    {
-        label = "$$main";
-        is_main = true;
-    }
-    else
-    {
-        label = fnc_label(node->func.name);
-    }
+    // check if functions is main
+    bool is_main = strcmp(node->func.name, "main") == 0;
+    // label is either $$main or $func_name
+    char *label = is_main ? my_strdup("$$main") : fnc_label(node->func.name);
     tac_append(LABEL, label, NULL, NULL);
+    
+    
     if (is_main == true)
     {
         tac_append(CREATEFRAME, NULL, NULL, NULL);
     }
     tac_append(PUSHFRAME, NULL, NULL, NULL);
+
+    // create a dedicated entry label for the generated function body
+    char *body_entry_label = new_label("$body$");
+    tac_append(LABEL, body_entry_label, NULL, NULL);
 
     // handle parameters
     for (int i = 0; i < node->func.paramCount; i++)
@@ -409,10 +431,11 @@ void gen_func_def(ASTptr node)
     }
 
     // TODO: handle body
+    gen_block(node->func.body);
 
+    tac_append(POPFRAME, NULL, NULL, NULL);
     if (is_main == false)
     {
-        tac_append(POPFRAME, NULL, NULL, NULL);
         tac_append(RETURN, NULL, NULL, NULL);
     }
 }
@@ -462,24 +485,97 @@ void gen_var_decl(ASTptr node, int scope_depth)
 /// @param node
 void gen_assign_stmt(ASTptr node)
 {
-    (void)node;
+    char *target;
+
+    if(node->assign_stmt.asType == TARGET_GLOBAL) {
+        target = var_gf(node->assign_stmt.targetName);
+    } else {
+        target = var_lf(node->assign_stmt.targetName);
+    }
+
+    char *expr = gen_expr(node->assign_stmt.expr);
+    tac_append(MOVE, target, expr, NULL);
     return;
 }
 
 /// @brief
 /// @param node
 /// @param scopeDepth
-void gen_while_stmt(ASTptr node, int scopeDepth);
+void gen_while_stmt(ASTptr node, int scopeDepth) 
+{
+    (void)node;
+    (void)scopeDepth;
+    return;
+}
+
+void gen_if_stmt(ASTptr node, int scopeDepth) 
+{   
+    (void)node;
+    (void)scopeDepth;
+    return;
+}
+
+void gen_return_stmt(ASTptr node, int scopeDepth) 
+{
+    (void)node;
+    (void)scopeDepth;
+    return;
+}
+
+char *gen_binop_add(char *res, char *l, char *r)
+{
+    tac_append(ADD, res, l, r);
+    return res;
+}
+
+char *gen_binop_sub(char *res, char *l, char *r)
+{
+    tac_append(SUB, res, l, r);
+    return res;
+}
+
+char *gen_binop_mul(char *res, char *l, char *r)
+{
+    tac_append(MUL, res, l, r);
+    return res;
+}
+
+char *gen_binop_div(char *res, char *l, char *r)
+{
+    tac_append(DIV, res, l, r);
+    return res;
+}
 
 /// @brief function that converts identifiers to a desired format
 /// @param node
 /// @return
 char *gen_identifier(ASTptr node)
 {
-    // if global:
+    // global
+    if (node->identifier.idType == ID_GLOBAL) {
+        return var_gf(node->identifier.name); // GF@__blabla
+    }
+    // local
+    if (node->identifier.idType == ID_LOCAL) {
+        return var_lf(node->identifier.name); // LF@bla
+    }
 
-    // if local:
-    return var_lf(node->identifier.name);
+    // getter
+    if (node->identifier.idType == ID_GETTER) {
+        char *tmp = new_tmp();
+        tac_append(DEFVAR, tmp, NULL, NULL);
+
+        // Call getter function
+        char *fn = fnc_name(node->identifier.name);
+        tac_append(CALL, fn, NULL, NULL);
+
+        // TODO probably? adjust later
+        // current idea -- assuming getter is accessible directly
+        tac_append(MOVE, tmp, "TF@%0", NULL);
+        return tmp;
+    }
+    fprintf(stderr, "CODEGEN -> Error: in gen_identifier");
+    exit(1);
 }
 
 /// @brief function that converts literals to a desired format
@@ -521,93 +617,166 @@ char *gen_literal(ASTptr node)
         r = lit_string(node->literal.str);
         return r;
 
+    case LIT_LOCAL_ID:
+        return var_lf(node->literal.str);
+    case LIT_GLOBAL_ID:
+        return var_gf(node->literal.str);
+
     default:
         return NULL;
     }
 }
 
+/// @brief 
+/// @param node 
+/// @return 
+char *gen_func_call_expr(ASTptr node)
+{
+    // Create temp for return value
+    char *tmp = new_tmp();
+    tac_append(DEFVAR, tmp, NULL, NULL);
+
+    // Prepare call frame
+    tac_append(CREATEFRAME, NULL, NULL, NULL);
+
+    // For each argument
+    for (int i = 0; i < node->call.argCount; i++)
+    {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "TF@%%%d", i);
+        tac_append(DEFVAR, my_strdup(buf), NULL, NULL);
+
+        char *arg = gen_expr(node->call.args[i]);
+        tac_append(MOVE, my_strdup(buf), arg, NULL);
+    }
+
+    char *name = fnc_name(node->call.funcName);
+    tac_append(CALL, name, NULL, NULL);
+
+    // copy TF@%0 into our local temp
+    tac_append(MOVE, tmp, "TF@%0", NULL);
+
+    return tmp;
+}
+
+
 /// @brief
 /// @param node
-void gen_binop(ASTptr node)
+char *gen_binop(ASTptr node)
 {
+    char *left = gen_expr(node->binop.left);
+    char *right = gen_expr(node->binop.right);
+
+    char *res = new_tmp();
+    tac_append(DEFVAR, res, NULL, NULL);
+    
+    ;
     switch (node->binop.opType)
     {
     case BINOP_ADD:
-        break;
+        //return gen_binop_add(res,left,right);
     case BINOP_SUB:
-        break;
+        //return gen_binop_sub(res,left,right);
     case BINOP_MUL:
-        break;
+        //return gen_binop_mul(res,left,right);
     case BINOP_DIV:
-        break;
+        //return gen_binop_div(res,left,right);
+
     case BINOP_LT:
-        break;
     case BINOP_GT:
-        break;
-    case BINOP_EQ:
-        break;
-    case BINOP_NEQ:
-        break;
     case BINOP_LTE:
-        break;
     case BINOP_GTE:
-        break;
-    case BINOP_AND:
-        break;
-    case BINOP_OR:
-        break;
+        //return gen_binop_rel(res, left, right, node->binop.opType);
+
+    case BINOP_EQ:
+    case BINOP_NEQ:
+        //return gen_binop_eq(res, left, right, node->binop.opType);
+    
     case BINOP_IS:
-        break;
+        //return gen_binop_is(res,left,right,node->binop.opType);
+        fprintf(stderr, "RelOps and more not implemented yet\nLEFT:%s\nRIGHT:%s", left, right);
+        exit(ERR_INTERNAL);
     default:
         break;
     }
+    fprintf(stderr, "generate binary operand failed");
+    exit(0);
+}
+
+/// @brief 
+/// @param node 
+void gen_stmt(ASTptr node) {
+    switch (node->type)
+    {
+    case AST_VAR_DECL:
+        gen_var_decl(node, 1);
+        break;
+    case AST_ASSIGN_STMT:
+        gen_assign_stmt(node);
+        break;
+    case AST_RETURN_STMT:
+        // scope depth 1 for now
+        gen_return_stmt(node, 1);
+        break;
+    case AST_IF_STMT:
+        // scope depth 1 for now
+        gen_if_stmt(node, 1);
+        break;
+    case AST_WHILE_STMT:
+        gen_while_stmt(node, 1);
+        break;
+    case AST_FUNC_CALL:
+        gen_func_call(node);
+        break;
+    
+    default:
+        DEBUG_PRINT("Unhandled Statement Type %d\n", node->type);
+        break;
+    }
+}
+
+/// @brief appends prolog of a program to a list, iterates over gen_func_def
+/// @param node
+void gen_program(ASTptr node)
+{
+    // header
+    printf(".IFJcode25\n");
+    tac_append(JUMP, "$$main", NULL, NULL);
+
+    for (int i = 0; i < node->program.funcsCount; i++) {
+        gen_func_def(node->program.funcs[i]);
+    }
+
+    return;
 }
 
 ///////////////////////////////////
 // ---- Traversal and Output
 ///////////////////////////////////
 
-/// @brief
-/// @param node
-/// @return
-bool handle_node(ASTptr node)
+/// @brief 
+/// @param node 
+/// @return 
+char *gen_expr(ASTptr node)
 {
     switch (node->type)
     {
-    case AST_PROGRAM:
-        gen_program(node);
-        break; // return int function(); // int being fail/success
-    case AST_FUNC_DEF:
-        gen_func_def(node);
-        break;
-    case AST_FUNC_CALL:
-        break;
-    case AST_BLOCK:
-        break;
-    case AST_IF_STMT:
-        break;
-    case AST_RETURN_STMT:
-        break;
-    // assumes global for now
-    case AST_VAR_DECL:
-        gen_var_decl(node, 0);
-        break;
-    case AST_ASSIGN_STMT:
-        break;
-    case AST_WHILE_STMT:
-        break;
-    case AST_IDENTIFIER:
-        break;
-    case AST_LITERAL:
-        break;
-    case AST_BINOP:
-        break;
-    default:
-        /* invalid node? */
-        DEBUG_PRINT("Invalid node encountered");
-        break;
+        case AST_LITERAL:
+            return gen_literal(node);
+
+        case AST_IDENTIFIER:
+            return gen_identifier(node);
+
+        case AST_BINOP:
+            return gen_binop(node);
+
+        case AST_FUNC_CALL:
+            return gen_func_call_expr(node);
+
+        default:
+            fprintf(stderr, "gen_expr: unsupported AST node -> type %d\n", node->type);
+            exit(ERR_INTERNAL);
     }
-    return true;
 }
 
 /// @brief prints the entire list to standard output
@@ -631,7 +800,10 @@ void print_tac(void)
 /// @param tree
 void generate(ASTptr tree)
 {
-    // if (!tree) exit(ERR_INTERNAL);
+    if (!tree) exit(ERR_INTERNAL);
+
+    tac_list_init(&tac);
+
     gen_program(tree);
 
     /* OUTPUT -- no optimalizations */

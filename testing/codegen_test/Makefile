@@ -25,6 +25,7 @@ TARGET         := $(BUILD_DIR)/test_codegen
 SRC            := $(TEST_SRC_DIR)/codegen_test.c \
 					$(SRC_DIR)/codegen.c \
 					$(SRC_DIR)/common.c \
+					$(SRC_DIR)/ast_debug.c \
 
 # ---- default ----
 all: run
