@@ -424,7 +424,6 @@ int no_comment(FILE *file)
 /**
  * @brief FSM to create cmp operators and assign tokens
  * @return 0 on fail, otherwise 1
- * TODO: make less strict -- "zravy spobsob", e.g. =>
  */
 int get_cmp_op(TokenPtr token, int c, FILE *file)
 {
@@ -449,6 +448,7 @@ int get_cmp_op(TokenPtr token, int c, FILE *file)
 			APPEND_TO_BUFFER(c); // append <>!=
 			break;
 		} // end CMP_start
+
 		case CMP_assign:
 		{
 			c = fgetc(file);
@@ -456,14 +456,12 @@ int get_cmp_op(TokenPtr token, int c, FILE *file)
 			{ // ==
 				state = CMP_end_w_eq;
 			}
-			else if (!strchr("<>!", c))
+			else
 			{ // single equals
 				ungetc(c, file);
 				token_update(token, buffer, NULL, SPECIAL);
 				return 1;
-			}
-			else
-				LEX_INVAL_TOK_ERR();
+			} 
 			break;
 		} // end CMP_equal_s
 		case CMP_gl:
@@ -472,8 +470,6 @@ int get_cmp_op(TokenPtr token, int c, FILE *file)
 			// <= or >=
 			if (c == '=')
 				state = CMP_end_w_eq;
-			else if (strchr("<>", c))
-				LEX_INVAL_TOK_ERR();
 			else
 			{ // single < or >
 				FINALIZE_TOK_ID(CMP_OPERATOR);
@@ -481,14 +477,15 @@ int get_cmp_op(TokenPtr token, int c, FILE *file)
 			}
 			break;
 		} // end CMP_gl
+
 		case CMP_neq:
 		{
 			c = fgetc(file);
-			if (c != '=')
-				LEX_INVAL_TOK_ERR();
+			if (c != '=') LEX_INVAL_TOK_ERR();
 			state = CMP_end_w_eq;
 			break;
 		} // end CMP_neq
+
 		case CMP_end_w_eq:
 		{
 			APPEND_TO_BUFFER(c); // append '='
@@ -620,11 +617,15 @@ int get_string(TokenPtr token, int c, FILE *file)
 				token_update(token, NULL, buffer, STRING);
 				return 1;
 			}
-			else if (c == '\n') {
+			else if (c == '\n')
+			{
 				LEX_INVAL_TOK_ERR();
-			}else {
-				if(iscntrl(c)) LEX_INVAL_TOK_ERR(); // unescaped control char
-				APPEND_TO_BUFFER(c); // continue building
+			}
+			else
+			{
+				if (iscntrl(c))
+					LEX_INVAL_TOK_ERR(); // unescaped control char
+				APPEND_TO_BUFFER(c);	 // continue building
 			}
 			break;
 		} // end STR_SINGLE
@@ -651,7 +652,8 @@ int get_string(TokenPtr token, int c, FILE *file)
 				LEX_INVAL_TOK_ERR();
 			unsigned char val = (unsigned char)strtol(hex, NULL, 16);
 
-			if (val > 0x7F) LEX_INVAL_TOK_ERR();
+			if (val > 0x7F)
+				LEX_INVAL_TOK_ERR();
 
 			APPEND_TO_BUFFER(val);
 			state = STR_single;
@@ -702,8 +704,8 @@ TokenPtr lexer(FILE *file)
 				c = fgetc(file);
 				continue;
 			}
-			else if (strchr("(){},.", c))
-			{ // for ternary operator,  add '?', ':'
+			else if (strchr("(){},.?:", c))
+			{
 				state = SPECIAL;
 			}
 			else if (strchr("!<=>", c))
@@ -856,16 +858,6 @@ TokenPtr lexer(FILE *file)
 		{
 			APPEND_TO_BUFFER(c);
 			token_update(token, buffer, NULL, SPECIAL);
-			// bad float check, e.g. ".123"
-			if (c == '.')
-			{
-				c = fgetc(file);
-				if (isdigit(c))
-				{
-					LEX_INVAL_TOK_ERR();
-				}
-				ungetc(c, file);
-			}
 			return token;
 		} // end SPECIAL
 
