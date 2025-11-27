@@ -4,8 +4,6 @@
 // Authors:						  			//
 // * Jaroslav Mervart (xmervaj00) / 5r6t 	//
 // * Veronika Kubova (xkubovv00) / Veradko  //
-// * Jozef Matus (xmatusj00) / karfisk 	    //
-// * Jan Hajek (xhajekj00) / Wekk 	        //
 //////////////////////////////////////////////
 
 #include "common.h"
