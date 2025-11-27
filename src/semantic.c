@@ -24,6 +24,7 @@ Scopes scopeStack;
 void semantic(ASTptr root)
 {
     funcTableInit(&globalFunc);   // initialize function table
+    funcTableFill(&globalFunc); // fill with inbuilt functions
     scopeStack_init(&scopeStack); // initialize scope stack
     registerFunctions(root);      // register functions
 
@@ -90,7 +91,7 @@ void semanticNode(ASTptr root)
 void registerFunctions(ASTptr programNode)
 {
     for (int i = 0; i < programNode->program.funcsCount; i++)
-    {
+    {     
         ASTptr func = programNode->program.funcs[i];
 
         FuncInfo sym;
@@ -133,6 +134,7 @@ void registerFunctions(ASTptr programNode)
 void sem_funcDef(ASTptr node)
 {
     SymTableNode *scope = NULL;
+
     scopeStack_push(&scopeStack, scope);
 
     SymTableNode *currentScope = scopeStack_top(&scopeStack);
@@ -156,9 +158,15 @@ void sem_funcDef(ASTptr node)
         currentScope = bst_insert(currentScope, paramName);
     }
 
+    //scopeStack_replaceTop(&scopeStack, currentScope);
     scopeStack_pop(&scopeStack);
     scopeStack_push(&scopeStack, currentScope);
-    semanticNode(node->func.body);
+
+    ASTptr body = node->func.body;  // manually traverse through body because of scope
+    for(int i = 0; i < body->block.stmtCount; i++){
+        semanticNode(body->block.stmt[i]);
+    }
+
     scopeStack_pop(&scopeStack);
 }
 
@@ -252,22 +260,26 @@ void sem_funcCall(ASTptr node)
     FuncInfo *cand = funcTableGet(&globalFunc, funcName, -1); // search only for a function name, without arity
     if (!cand)
     { // function does not exist
+        fprintf(stderr, "Error: unknown function\n");
         exit(3);
     }
 
     FuncInfo *func = funcTableGet(&globalFunc, funcName, argc);
     if (func == NULL)
     { // function does not exist with same arity
+        fprintf(stderr, "Error: function called with wrong number of arguments\n");
         exit(5);
     }
 
     if (func->kind == FUNC_GETTER && argc != 0)
     { // function is getter but called with arguments
+        fprintf(stderr, "Error: getter function called with arguments\n");
         exit(5);
     }
 
     if (func->kind == FUNC_SETTER)
     { // function is setter but called with wrong number of arguments
+        fprintf(stderr, "Error: function is setter and it is called with wrong number of argumemts\n");
         exit(3);
     }
 

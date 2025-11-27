@@ -312,6 +312,20 @@ SymTableNode *scopeStack_top(Scopes *stack)
 }
 
 /**
+ * @brief replaces the top scope in stack with a new scope
+ *
+ * @param stack pointer to the scope stack
+ * @param newTop pointer to the new top scope
+ */
+void scopeStack_replaceTop(Scopes *stack, SymTableNode *newTop)
+{
+    if (stack->topIndex < 0){
+        return;
+    }
+    stack->array[stack->topIndex] = newTop;
+}
+
+/**
  * @brief finds an identifier in all scopes in the stack
  *
  * @param stack pointer to the scope stack

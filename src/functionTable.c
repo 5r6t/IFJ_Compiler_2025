@@ -17,8 +17,27 @@
  */
 void funcTableInit(FuncTable *table){
     table->funcCount = 0;
-    table->funcCap = MAX_FUNCTIONS;
-    table->functions = malloc(table->funcCap * sizeof(FuncInfo));
+    table->funcCap = MAX_FUNCTIONS+INBUILD_FUNCTIONS;
+    table->functions = malloc((table->funcCap) * sizeof(FuncInfo));
+}
+
+/**
+ * @brief fills the function table with inbuilt functions
+ * 
+ * @param table pointer to the function table
+ */
+void funcTableFill(FuncTable *table){
+    char names[][16] = {"read_str", "read_num", "write", "floor", "str", "length", "substring", "strcmp", "ord", "chr"};
+    int paramCounts[] = {0, 0, 1, 1, 1, 1, 3, 2, 2, 1};
+
+    for(int i = 0; i < INBUILD_FUNCTIONS; i++){
+        FuncInfo func;
+        func.name = myStrdup(names[i]);
+        func.paramCount = paramCounts[i];
+        func.kind = FUNC_BUILTIN;
+        func.funcNode = NULL;
+        funcTableAdd(table, func);
+    }
 }
 
 /**
@@ -48,10 +67,13 @@ FuncInfo *funcTableGet(FuncTable *table, const char *name, const int paramCount)
         }
     }else{
         for(int i = 0; i < table->funcCount; i++){
+            if(table->functions[i].kind == FUNC_GETTER || table->functions[i].kind == FUNC_SETTER){
+                continue; // skip getters and setters
+            }
             if(strcmp(table->functions[i].name, name) == 0 && table->functions[i].paramCount == paramCount){
                 return &table->functions[i];
             }
-    }
+        }
     }
     return NULL;
 }
@@ -73,6 +95,22 @@ FuncInfo *funcTableGetSetter(FuncTable *table, const char *name){
 }
 
 /**
+ * @brief retrieves a getter function from the function table by name
+ * 
+ * @param table pointer to the function table
+ * @param name name of the function
+ * @return FuncInfo* pointer to the function info if found, NULL otherwise
+ */
+FuncInfo *funcTableGetGetter(FuncTable *table, const char *name){
+    for(int i = 0; i < table->funcCount; i++){
+        if(strcmp(table->functions[i].name, name) == 0 && table->functions[i].kind == FUNC_GETTER){
+            return &table->functions[i];
+        }
+    }
+    return NULL;
+}
+
+/**
  * @brief adds a function to the function table
  * 
  * @param table pointer to the function table
@@ -84,8 +122,19 @@ bool funcTableAdd(FuncTable *table, FuncInfo func){
     if(table->funcCount >= table->funcCap){
         funcTableResize(table);
     }
-    if(funcTableGet(table, func.name, func.paramCount) != NULL){
-        return false; // function already exists
+    printf("Adding function: %s with %d parameters and kind %d\n", func.name, func.paramCount, func.kind);
+    if(func.kind == FUNC_GETTER){
+        if(funcTableGetGetter(table, func.name) != NULL){
+            return false; // getter already exists
+        }
+    }else if(func.kind == FUNC_SETTER){
+        if(funcTableGetSetter(table, func.name) != NULL){
+            return false; // setter already exists
+        }
+    }else{
+        if(funcTableGet(table, func.name, func.paramCount) != NULL){
+            return false; // function already exists
+        }
     }
     table->functions[table->funcCount++] = func;
     return true;
@@ -101,4 +150,20 @@ void funcTableFree(FuncTable *table){
     table->functions = NULL;
     table->funcCount = 0;
     table->funcCap = 0;
+}
+
+/**
+ * @brief duplicates a string by allocating memory and copying the content
+ * 
+ * @param s input string to duplicate
+ * @return pointer to the new string
+ */
+char *myStrdup(char *str){
+    size_t len = strlen(str) + 1;
+    char *new = malloc(len);
+    if(new == NULL){
+        return NULL;
+    } 
+    memcpy(new, str, len);
+    return new;
 }

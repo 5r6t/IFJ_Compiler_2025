@@ -12,6 +12,7 @@
 #define FUNC_TABLE
 
 #define MAX_FUNCTIONS 10
+#define INBUILD_FUNCTIONS 10
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,7 +26,8 @@ typedef struct ASTnode *ASTptr;
 typedef enum {
     FUNC_NORMAL,
     FUNC_GETTER,
-    FUNC_SETTER
+    FUNC_SETTER,
+    FUNC_BUILTIN
 } FuncKind;
 
 typedef struct FuncInfo {
@@ -42,10 +44,13 @@ typedef struct {
 } FuncTable;
 
 void funcTableInit(FuncTable *table);
+void funcTableFill(FuncTable *table);
 void funcTableResize(FuncTable *table);
 FuncInfo *funcTableGet(FuncTable *table, const char *name, const int paramCount);
 FuncInfo *funcTableGetSetter(FuncTable *table, const char *name);
 bool funcTableAdd(FuncTable *table, FuncInfo func);
 void funcTableFree(FuncTable *table);
+
+char *myStrdup(char *str);
 
 #endif // FUNC_TABLE
