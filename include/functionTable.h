@@ -30,9 +30,17 @@ typedef enum {
     FUNC_BUILTIN
 } FuncKind;
 
+typedef enum {
+    PARAM_TYPE_NUMBER,
+    PARAM_TYPE_STRING,
+    PARAM_TYPE_ANY,
+    PARAM_TYPE_NONE
+} FuncParamType;
+
 typedef struct FuncInfo {
     char *name;
     int paramCount;
+    FuncParamType *paramTypes; // array of parameter types
     FuncKind kind;
     ASTptr funcNode;
 } FuncInfo;

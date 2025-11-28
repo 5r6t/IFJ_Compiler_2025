@@ -199,24 +199,4 @@ ASTptr ast_program();
 ASTptr ast_function(char *name, char **paramNames);
 void astPrint(ASTptr node, int depth); // debug function -> generate with AI deleted before sending to zbynek !!!!!!
 
-/*
-// add this to parser.c when discussed with team
-// #NEXT_MEETING
-ASTptr ast_program(){
-    ASTptr program_node = (ASTptr)malloc(sizeof(struct ASTnode));
-    program_node->type = AST_PROGRAM;
-    program_node->program.stms = NULL;
-    program_node->program.stmtCount = 0;
-    return program_node;
-}
-
-ASTptr ast_function(char *name, char **paramNames){
-    ASTptr func_node = (ASTptr)malloc(sizeof(struct ASTnode));
-    func_node->type = AST_FUNC_DEF;
-    func_node->func.name = name;
-    func_node->func.paramNames = paramNames;
-    return func_node;
-}
-*/
-
 #endif // AST_H

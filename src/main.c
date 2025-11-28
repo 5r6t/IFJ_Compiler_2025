@@ -39,6 +39,7 @@ int main(int argc, char **argv)
     }
 
     semantic(root);
+    fprintf(stderr, "===== SEMANTIC ANALYSIS COMPLETED =====\n");
     generate(root);
 
     return 0;

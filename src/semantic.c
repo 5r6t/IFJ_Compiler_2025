@@ -283,6 +283,26 @@ void sem_funcCall(ASTptr node)
         exit(3);
     }
 
+    if(func->kind == FUNC_BUILTIN)
+    {
+        // TODO check argument types for built-in functions
+        for(int i = 0; i < node->call.argCount; i++)
+        {
+            if(node->call.args[i]->type == AST_LITERAL) // argument is literal
+            {
+                LiteralType argType = node->call.args[i]->literal.liType;
+                FuncParamType expectedType = func->paramTypes[i];
+                if((expectedType == PARAM_TYPE_NUMBER && argType != LIT_NUMBER) ||
+                   (expectedType == PARAM_TYPE_STRING && argType != LIT_STRING) )
+                {
+                    fprintf(stderr, "Error: function called with wrong argument types\n");
+                    exit(6);
+                }
+
+            } // argument is not literal, check for identifier
+        }
+    }
+
     node->call.callInfo = func; // linking function info to the call node
 
     for (int i = 0; i < argc; i++)

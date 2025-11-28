@@ -29,11 +29,27 @@ void funcTableInit(FuncTable *table){
 void funcTableFill(FuncTable *table){
     char names[][16] = {"read_str", "read_num", "write", "floor", "str", "length", "substring", "strcmp", "ord", "chr"};
     int paramCounts[] = {0, 0, 1, 1, 1, 1, 3, 2, 2, 1};
+    FuncParamType paramTypes[][3] = {
+        {PARAM_TYPE_NONE}, // read_str
+        {PARAM_TYPE_NONE}, // read_num
+        {PARAM_TYPE_ANY}, // write
+        {PARAM_TYPE_NUMBER}, // floor
+        {PARAM_TYPE_ANY}, // str
+        {PARAM_TYPE_STRING}, // length
+        {PARAM_TYPE_STRING, PARAM_TYPE_NUMBER, PARAM_TYPE_NUMBER}, // substring
+        {PARAM_TYPE_STRING, PARAM_TYPE_STRING}, // strcmp
+        {PARAM_TYPE_STRING, PARAM_TYPE_NUMBER}, // ord
+        {PARAM_TYPE_NUMBER}  // chr
+    };
 
     for(int i = 0; i < INBUILD_FUNCTIONS; i++){
         FuncInfo func;
         func.name = myStrdup(names[i]);
         func.paramCount = paramCounts[i];
+        func.paramTypes = malloc(func.paramCount * sizeof(FuncParamType));
+        for(int j = 0; j < func.paramCount; j++){
+            func.paramTypes[j] = paramTypes[i][j];
+        }
         func.kind = FUNC_BUILTIN;
         func.funcNode = NULL;
         funcTableAdd(table, func);
