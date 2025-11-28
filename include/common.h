@@ -46,6 +46,9 @@
 #define ERR_RUNTIME_ARG 25  // Runtime: invalid builtin parameter type
 #define ERR_RUNTIME_TYPE 26 // Runtime: type mismatch in expr at runtime
 
+// ---- Codegen Errors ----
+#define ERR_CDGN_NOT_IMPLEMENTED 34
+
 // --- ERROR MESSAGE NUMBERS FOR program_error()
 #define ERR_MSG_INTERNAL 0
 #define ERR_MSG_INVALID_TOK 1
