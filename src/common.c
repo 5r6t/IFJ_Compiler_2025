@@ -222,7 +222,7 @@ void program_error(FILE *file, int err_type, int err_out, TokenPtr bad_token)
     if (bad_token != NULL)
     {
         token_print(bad_token);
-        token_free(bad_token);
+        // token_free(bad_token);
     }
     fclose(file);
     exit(err_type);

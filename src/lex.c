@@ -874,7 +874,7 @@ TokenPtr lexer(FILE *file)
 		}
 
 		default:
-			program_error(file, ERR_MSG_NOT_IMPLEMENTED, ERR_LEX, token); // unknown token
+			program_error(file, ERR_LEX, ERR_MSG_NOT_IMPLEMENTED, token); // unknown token
 		}
 	} // while(!EOF)
 

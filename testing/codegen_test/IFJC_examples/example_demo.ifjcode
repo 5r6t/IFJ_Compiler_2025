@@ -22,8 +22,8 @@ RETURN
 
 LABEL $$main # main body
 
- CREATEFRAME  # no main-body vars
- PUSHFRAME
+CREATEFRAME  # no main-body vars
+PUSHFRAME
 
 DEFVAR LF@y
 

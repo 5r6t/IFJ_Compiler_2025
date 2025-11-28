@@ -652,11 +652,6 @@ char *gen_literal(ASTptr node)
         r = lit_string(node->literal.str);
         return r;
 
-    case LIT_LOCAL_ID:
-        return var_lf(node->literal.str);
-    case LIT_GLOBAL_ID:
-        return var_gf(node->literal.str);
-
     default:
         return NULL;
     }
