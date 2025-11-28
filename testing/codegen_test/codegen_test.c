@@ -66,7 +66,6 @@ static ASTptr make_func_call(const char *name, ASTptr *args, int count) {
     for (int i = 0; i < count; ++i)
         n->call.args[i] = args[i];
 
-    n->call.funcType = FUNC_INBUILD; // optional
     return n;
 }
 
