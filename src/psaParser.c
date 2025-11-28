@@ -22,7 +22,7 @@
  - create rules for PSA
  - implement AST node creation
  - implement PSA
- - should take null too
+ - should add support for global id
 */
 
 /**
@@ -285,6 +285,10 @@ int converter(TokenPtr *tokenToConvert, FILE *file)
     {
         return ID;
     }
+    else if (token->type && token->type == ID_GLOBAL_VAR)
+    {
+        return ID;
+    }
     else if (token->type == KW_NULL_TYPE)
     {
         return ID;
@@ -312,13 +316,18 @@ int converter(TokenPtr *tokenToConvert, FILE *file)
 
 ASTptr reduce(FILE *file, stack_token *stack)
 {
-    // printf("som v reduce");
+    printf("som v reduce\n");
     int index = stack->top;
     int steps = 0;
     TokenPtr token = stack->items[index].token;
 
     while (token->type != SHIFT)
     {
+        printf("redukujem\n");
+        printf("token: type=%d, id=%s, data=%s\n",
+               token->type,
+               token->id ? token->id : "NULL",
+               token->data ? token->data : "NULL");
         if (token->type == DOLLAR)
         {
             program_error(file, 2, 4, token);
@@ -330,7 +339,7 @@ ASTptr reduce(FILE *file, stack_token *stack)
 
     int index_shift = index;
     int reduce_len = steps;
-    // printf("v reduce_len je  %d\n", reduce_len);
+    printf("v reduce_len je  %d\n", reduce_len);
     if (reduce_len == 1)
         checkForI(index_shift, stack, file);
     else if (reduce_len == 3)
@@ -376,6 +385,13 @@ ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
         node = malloc(sizeof(ASTnode));
         node->type = AST_IDENTIFIER;
         node->identifier.idType = ID_LOCAL;
+        node->identifier.name = my_strdup(token->id);
+    }
+    else if (token->type == ID_GLOBAL_VAR)
+    {
+        node = malloc(sizeof(ASTnode));
+        node->type = AST_IDENTIFIER;
+        node->identifier.idType = ID_GLOBAL;
         node->identifier.name = my_strdup(token->id);
     }
     else

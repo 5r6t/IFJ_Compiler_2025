@@ -57,15 +57,7 @@ typedef enum
 
 typedef enum
 {
-    FUNC_USER,
-    FUNC_INBUILD
-} FuncType;
-
-typedef enum
-{
     LIT_NULL,
-    LIT_LOCAL_ID,
-    LIT_GLOBAL_ID,
     LIT_NUMBER,
     LIT_STRING
 } LiteralType;
@@ -122,7 +114,6 @@ typedef struct ASTnode
 
         struct
         {
-            FuncType funcType;
             char *funcName;
             struct ASTnode **args; // array of argument expressions
             int argCount;

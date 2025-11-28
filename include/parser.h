@@ -45,8 +45,8 @@ ASTptr parser(FILE *file);
 ASTptr PROGRAM(TokenPtr *nextToken, FILE *file);
 void PROLOG(TokenPtr *nextToken, FILE *file);
 ASTptr CLASS(TokenPtr *nextToken, FILE *file);
-ASTptr PAR(TokenPtr *nextToken, FILE *file, parArr *pA);
-ASTptr NEXT_PAR(TokenPtr *nextToken, FILE *file, parArr *pA);
+void PAR(TokenPtr *nextToken, FILE *file, parArr *pA);
+void NEXT_PAR(TokenPtr *nextToken, FILE *file, parArr *pA);
 ASTptr FUNCTIONS(TokenPtr *nextToken, FILE *file, ASTptr programNode);
 int FUNC_NAME(TokenPtr *nextToken, FILE *file);
 ASTptr FUNC_GET_SET_DEF(TokenPtr *nextToken, FILE *file, ASTptr functioNode);
@@ -57,6 +57,7 @@ void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr);
 ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode);
 ASTptr RSA(TokenPtr *nextToken, FILE *file);
 void FUNC_TYPE(TokenPtr *nextToken, FILE *file, ArgArr *argArr);
+void ASSIGN_OR_CALL(TokenPtr *nextToken, FILE *file, ASTptr blockNode, char *varName);
 
 int nameHelperFunc(TokenPtr *nextToken, const target *target, size_t target_len, FILE *file);
 int peek(const target *target, TokenPtr token, FILE *file);

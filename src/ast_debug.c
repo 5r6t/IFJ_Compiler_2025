@@ -66,29 +66,12 @@ static const char *idTypeToString(IdType t)
     }
 }
 
-static const char *funcTypeToString(FuncType t)
-{
-    switch (t)
-    {
-    case FUNC_USER:
-        return "USER";
-    case FUNC_INBUILD:
-        return "INBUILD";
-    default:
-        return "UNKNOWN";
-    }
-}
-
 static const char *literalTypeToString(LiteralType t)
 {
     switch (t)
     {
     case LIT_NULL:
         return "NULL";
-    case LIT_LOCAL_ID:
-        return "LOCAL_ID";
-    case LIT_GLOBAL_ID:
-        return "GLOBAL_ID";
     case LIT_NUMBER:
         return "NUMBER";
     case LIT_STRING:
@@ -168,7 +151,7 @@ void astPrint(ASTptr node, int depth)
     astIndent(depth);
     fprintf(stderr, "%s", astTypeToString(node->type));
 
-    /* základný riadok – doplnkové info */
+    // základný riadok – doplnkové info
     switch (node->type)
     {
     case AST_PROGRAM:
@@ -186,8 +169,7 @@ void astPrint(ASTptr node, int depth)
         break;
 
     case AST_FUNC_CALL:
-        fprintf(stderr, " %s func=%s args=%d",
-                funcTypeToString(node->call.funcType),
+        fprintf(stderr, " func=%s args=%d",
                 node->call.funcName ? node->call.funcName : "<null>",
                 node->call.argCount);
         break;
@@ -253,7 +235,7 @@ void astPrint(ASTptr node, int depth)
 
     fputc('\n', stderr);
 
-    /* rekurzívne deti podľa typu */
+    // rekurzívne deti podľa typu
     switch (node->type)
     {
     case AST_PROGRAM:
@@ -285,21 +267,21 @@ void astPrint(ASTptr node, int depth)
         break;
 
     case AST_IF_STMT:
-        /* cond */
+        // cond
         if (node->ifstmt.cond)
         {
             astIndent(depth + 1);
             fprintf(stderr, "[cond]\n");
             astPrint(node->ifstmt.cond, depth + 2);
         }
-        /* then */
+        // then
         if (node->ifstmt.then)
         {
             astIndent(depth + 1);
             fprintf(stderr, "[then]\n");
             astPrint(node->ifstmt.then, depth + 2);
         }
-        /* else */
+        // else
         if (node->ifstmt.elsestmt)
         {
             astIndent(depth + 1);
@@ -350,7 +332,7 @@ void astPrint(ASTptr node, int depth)
 
     case AST_IDENTIFIER:
     case AST_LITERAL:
-        /* listové uzly – nemajú deti */
+        // listové uzly – nemajú deti
         break;
 
     default:
