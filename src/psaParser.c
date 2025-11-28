@@ -1,11 +1,9 @@
 //////////////////////////////////////////////
-// filename: parser.c                  	    //
+// filename: psaParser.c                  	//
 // IFJ_prekladac	varianta - vv-BVS   	//
 // Authors:						  			//
-//  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
 //  * Veronika Kubová (xkubovv00) / Veradko //
 //  * Jozef Matus (xmatusj00) / karfisk 	//
-//  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
 #include "parser.h"
@@ -16,14 +14,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-/*TODO:
- - create stack
- - create rules for PSA
- - implement AST node creation
- - implement PSA
- - should add support for global id
-*/
 
 /**
  * @brief binary

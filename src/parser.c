@@ -2,10 +2,7 @@
 // filename: parser.c                  	    //
 // IFJ_prekladac	varianta - vv-BVS   	//
 // Authors:						  			//
-//  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
-//  * Veronika Kubová (xkubovv00) / Veradko //
 //  * Jozef Matus (xmatusj00) / karfisk 	//
-//  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
 #include "common.h"
@@ -640,7 +637,7 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
         printf("INBUILD\n");
         (*nextToken) = getToken(file);
         advance(&DOT_INBUILD, nextToken, file);
-        const char *prefix = "ifj.";
+        const char *prefix = "Ifj.";
         char *varName = (*nextToken)->id;
         advance(&ID_INBUILD, nextToken, file);
 
@@ -697,7 +694,6 @@ void ASSIGN_OR_CALL(TokenPtr *nextToken, FILE *file, ASTptr blockNode, char *var
     {
         printf("priradenie\n");
 
-        char *varName = (*nextToken)->id;
         ASTptr assignNode = (ASTptr)malloc(sizeof(ASTnode));
         assignNode->type = AST_ASSIGN_STMT;
         assignNode->assign_stmt.targetName = my_strdup(varName);
@@ -777,7 +773,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
         printf("INBUILD\n");
         (*nextToken) = getToken(file);
         advance(&DOT_INBUILD, nextToken, file);
-        const char *prefix = "ifj.";
+        const char *prefix = "Ifj.";
         char *varName = (*nextToken)->id;
         advance(&ID_INBUILD, nextToken, file);
 
