@@ -27,7 +27,7 @@ void funcTableInit(FuncTable *table){
  * @param table pointer to the function table
  */
 void funcTableFill(FuncTable *table){
-    char names[][16] = {"read_str", "read_num", "write", "floor", "str", "length", "substring", "strcmp", "ord", "chr"};
+    char names[][16] = {"Ifj.read_str", "Ifj.read_num", "Ifj.write", "Ifj.floor", "Ifj.str", "Ifj.length", "Ifj.substring", "Ifj.strcmp", "Ifj.ord", "Ifj.chr"};
     int paramCounts[] = {0, 0, 1, 1, 1, 1, 3, 2, 2, 1};
     FuncParamType paramTypes[][3] = {
         {PARAM_TYPE_NONE}, // read_str

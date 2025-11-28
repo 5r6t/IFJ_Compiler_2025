@@ -223,6 +223,7 @@ void sem_varDecl(ASTptr node)
 void sem_assignStmt(ASTptr node)
 {
     char *name = node->assign_stmt.targetName;
+    printf("Target name %s, target type %d\n", name, node->assign_stmt.asType);
 
     semanticNode(node->assign_stmt.expr);
 
@@ -232,6 +233,7 @@ void sem_assignStmt(ASTptr node)
     }
 
     int scopeIdx = symTable_searchInScopes(&scopeStack, name); // if the left side is local variable
+    printf("Scope index of '%s': %d\n", name, scopeIdx);
     if (scopeIdx != -1)
     { // found local
         return;
@@ -285,6 +287,7 @@ void sem_funcCall(ASTptr node)
 
     if(func->kind == FUNC_BUILTIN)
     {
+        printf("Checking argument types for built-in function %s\n", funcName);
         // TODO check argument types for built-in functions
         for(int i = 0; i < node->call.argCount; i++)
         {
@@ -296,7 +299,7 @@ void sem_funcCall(ASTptr node)
                    (expectedType == PARAM_TYPE_STRING && argType != LIT_STRING) )
                 {
                     fprintf(stderr, "Error: function called with wrong argument types\n");
-                    exit(6);
+                    exit(5);
                 }
 
             } // argument is not literal, check for identifier
@@ -367,19 +370,20 @@ void sem_returnStmt(ASTptr node)
 void sem_identifier(ASTptr node)
 {
     char *idName = node->identifier.name;
+    printf("Identifier name: %s, type: %d\n", idName, node->identifier.idType);
+    
 
     switch (node->identifier.idType)
     {
     case ID_GETTER:
     {
-        FuncInfo *func = funcTableGet(&globalFunc, idName, -1);
+        FuncInfo *func = funcTableGetGetter(&globalFunc, idName);
         if (func == NULL || func->kind != FUNC_GETTER)
         {
             fprintf(stderr, "Error: unknown getter function\n");
             exit(3);
         }
-        node->identifier.idType = ID_GETTER;
-        break;
+        return;
     }
     case ID_LOCAL:
         if (symTable_searchInScopes(&scopeStack, idName) == -1)
@@ -388,7 +392,7 @@ void sem_identifier(ASTptr node)
             exit(3);
         }
         break;
-    case ID_GLOBAL:
+    case ID_GLOBAL: // TODO maybe
         return;
     }
 
