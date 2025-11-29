@@ -6,17 +6,6 @@
 //  * Veronika Kubová (xkubovv00) / Veradko //
 //////////////////////////////////////////////
 
-#include "codegen.h"
-#include "common.h"
-#include "ast.h"
-#include <stdbool.h>
-
-#define NAME_BUF 256
-TAClist tac = {NULL, NULL};
-
-// track whether handled function should return a value
-static bool has_explicit_ret = false;
-
 /**
 ==== TO-DO ====
  * scopedepth ~~ we'll see
@@ -39,6 +28,30 @@ static bool has_explicit_ret = false;
 - Type checking - presentation 50/56
 
 */
+
+#include "codegen.h"
+#include "common.h"
+#include "ast.h"
+#include <stdbool.h>
+
+#define NAME_BUF 256
+TAClist tac = {NULL, NULL};
+
+// track whether handled function should return a value
+static bool __has_explicit_ret = false;
+// track whether main function is being handled
+static bool __is_main = false;
+// track globals to avoid reinitializing
+static const char *def_globs[256];
+static int def_glob_cnt = 0;
+static bool is_def_glob(const char *name) {
+    for (int i = 0; i < def_glob_cnt; i++) {
+        if (strcmp(def_globs[i], name) == 0 )
+            return true;
+    }
+    def_globs[def_glob_cnt++] = my_strdup(name);
+    return false;
+}
 
 // used for printing NAMES of operands, see codegen.h
 static const char *tac_opcode_name(OpCode op)
@@ -264,7 +277,6 @@ TACnode *tac_append(OpCode instr, char *a1, char *a2, char *a3)
 
 /// @brief Creates string in "$x" format, x is a string for functions
 /// @param name
-/// @return
 char *fnc_label(char *name)
 {
     char buf[NAME_BUF];
@@ -340,7 +352,6 @@ char *lit_string(const char *x)
     while (*x)
     {
         unsigned char c = (unsigned char)*x++;
-
         // catch escape characters 0-32, 35 (#) and 92 (\)
         if (c <= 32 || c == '#' || c == '\\')
         {
@@ -363,12 +374,9 @@ char *lit_nil()
 }
 
 /// @brief function that determines if a variable is global or local
-/// @param name
-/// @param scope_depth
-/// @return
 char *var_gf_or_lf(char *name, int scope_depth)
 {
-    char buf[64];
+    char buf[NAME_BUF];
 
     if (scope_depth == 0)
     {
@@ -392,7 +400,7 @@ static int label_counter = 0;
 /// @return
 static char *new_tmp()
 {
-    char buf[64];
+    char buf[NAME_BUF];
     snprintf(buf, sizeof(buf), "LF@%%%d", tmp_counter++);
     return my_strdup(buf);
 }
@@ -410,6 +418,7 @@ static char *new_label(const char *prefix)
 ///////////////////////////////////
 
 // FUCK YOU FOR ADDING THIS, SERIOUSLY, FUUUUUUUUUUUCK YOU FUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUCK YOU ALL
+// buggy === same labels
 static void gen_builtin_substring(ASTptr call, char *result_tmp)
 {
     char *s = gen_expr(call->call.args[0]);
@@ -508,6 +517,7 @@ static void gen_builtin_substring(ASTptr call, char *result_tmp)
 
     tac_append(LABEL, LBL_end, NULL, NULL);
 }
+
 static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
 {
     char *s1 = gen_expr(call->call.args[0]);
@@ -711,7 +721,6 @@ static void gen_builtin_chr(ASTptr call, char *result_tmp)
 
     tac_append(LABEL, LBL_end, NULL, NULL);
 }
-
 /// TODO implement builtin checker/helper
 static bool is_builtin(const char *func_name)
 {
@@ -745,21 +754,17 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
 {
     const char *name = call->call.funcName;
 
-    //  if (strcmp(name, "Ifj.write") == 0) {};
-    if (strcmp(name, "Ifj.read_str") == 0)
-    {
-        tac_append(READ, result_tmp, "string", NULL);
+    if (strcmp(name, "Ifj.read_str") == 0) {
+        tac_append(READ, result_tmp, "string", NULL); // "string" ?? idk
         return;
     }
 
-    if (strcmp(name, "Ifj.read_num") == 0)
-    {
+    if (strcmp(name, "Ifj.read_num") == 0) {
         tac_append(READ, result_tmp, "float", NULL);
         return;
     }
 
-    if (strcmp(name, "Ifj.write") == 0)
-    {
+    if (strcmp(name, "Ifj.write") == 0) {
         // arity 1 expected
         char *arg = gen_expr(call->call.args[0]);
         tac_append(WRITE, arg, NULL, NULL);
@@ -769,8 +774,7 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
         return;
     }
 
-    if (strcmp(name, "Ifj.floor") == 0)
-    {
+    if (strcmp(name, "Ifj.floor") == 0) {
         char *arg = gen_expr(call->call.args[0]);
         char *tmp = new_tmp();
         tac_append(DEFVAR, tmp, NULL, NULL);
@@ -783,36 +787,31 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
         return;
     }
 
-    if (strcmp(name, "Ifj.str") == 0) // REDO
+    if (strcmp(name, "Ifj.str") == 0) // REDO 
     {
         gen_builtin_str(call, result_tmp);
         return;
     }
 
-    if (strcmp(name, "Ifj.length") == 0)
-    {
+    if (strcmp(name, "Ifj.length") == 0) {
         char *arg = gen_expr(call->call.args[0]);
         tac_append(STRLEN, result_tmp, arg, NULL);
         return;
     }
-    if (strcmp(name, "Ifj.substring") == 0)
-    {
+    if (strcmp(name, "Ifj.substring") == 0) {
         gen_builtin_substring(call, result_tmp);
         return;
     }
-    if (strcmp(name, "Ifj.strcmp") == 0)
-    {
+    if (strcmp(name, "Ifj.strcmp") == 0) {
         gen_builtin_strcmp(call, result_tmp);
         return;
     }
-    if (strcmp(name, "Ifj.ord") == 0)
-    {
+    if (strcmp(name, "Ifj.ord") == 0) {
         gen_builtin_ord(call, result_tmp);
         return;
     }
 
-    if (strcmp(name, "Ifj.chr") == 0)
-    {
+    if (strcmp(name, "Ifj.chr") == 0) {
         gen_builtin_chr(call, result_tmp);
         return;
     }
@@ -822,7 +821,6 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
 ///////////////////////////////////
 
 /// @brief
-/// @param node
 void gen_block(ASTptr node)
 {
     for (int i = 0; i < node->block.stmtCount; i++)
@@ -832,18 +830,17 @@ void gen_block(ASTptr node)
 }
 
 /// @brief function that appends instructions for a definition of a function to a list
-/// @param node
 void gen_func_def(ASTptr node)
 {
-    // check if functions is main
-    bool is_main = (strcmp(node->func.name, "main") == 0) &&
+    // check if functions is main -- stored in global variable
+    __is_main = (strcmp(node->func.name, "main") == 0) &&
                    (node->func.paramCount == 0);
 
     // label is either $$main or $func_name
-    char *label = is_main ? my_strdup("$$main") : fnc_label(node->func.name);
+    char *label = __is_main ? my_strdup("$$main") : fnc_label(node->func.name);
     tac_append(LABEL, label, NULL, NULL);
 
-    if (is_main == true)
+    if (__is_main == true)
     {
         tac_append(CREATEFRAME, NULL, NULL, NULL);
     }
@@ -853,7 +850,7 @@ void gen_func_def(ASTptr node)
     tac_append(DEFVAR, retval, NULL, NULL);
     tac_append(MOVE, retval, "nil@nil", NULL);
 
-    if (is_main == false)
+    if (__is_main == false)
     {
         // handle parameters
         for (int i = 0; i < node->func.paramCount; i++)
@@ -862,7 +859,7 @@ void gen_func_def(ASTptr node)
             char *local_param = var_lf(node->func.paramNames[i]);
             tac_append(DEFVAR, local_param, NULL, NULL);
 
-            char srcbuf[32];
+            char srcbuf[NAME_BUF];
             snprintf(srcbuf, sizeof(srcbuf), "LF@%%%d", i + 1); // start with 1
 
             tac_append(MOVE, local_param, my_strdup(srcbuf), NULL);
@@ -874,14 +871,14 @@ void gen_func_def(ASTptr node)
     tac_append(LABEL, body_entry_label, NULL, NULL);
 
     // Generate function body
-    has_explicit_ret = false;
+    __has_explicit_ret = false;
     gen_block(node->func.body);
 
     // function epilogue
-    if (!has_explicit_ret)
+    if (!__has_explicit_ret)
     {
         tac_append(POPFRAME, NULL, NULL, NULL);
-        if (!is_main) // do not return on empty stack
+        if (!__is_main) // do not return on empty stack
         {
             tac_append(RETURN, NULL, NULL, NULL);
         }
@@ -892,46 +889,30 @@ void gen_func_def(ASTptr node)
 void gen_func_call(ASTptr node)
 {
     char *fname = node->call.funcName;
-
-    if (!is_builtin(fname))
-    {
-        tac_append(CREATEFRAME, NULL, NULL, NULL);
-        // for every function argument
-        for (int i = 0; i < node->call.argCount; i++)
-        {
-            char srcbuf[32];
-            snprintf(srcbuf, sizeof(srcbuf), "TF@%%%d", i + 1);
-            tac_append(DEFVAR, srcbuf, NULL, NULL);
-
-            ASTptr argNode = node->call.args[i];
-            char *fnc_param;
-            // argument is a variable
-            if (argNode->type == AST_IDENTIFIER)
-            {
-                fnc_param = gen_identifier(argNode);
-            }
-            // argument is a literal
-            else if (argNode->type == AST_LITERAL)
-            {
-                fnc_param = gen_literal(argNode);
-            }
-
-            tac_append(MOVE, srcbuf, fnc_param, NULL);
-        }
-    }
-    
+    // --- BUILTIN CALL ---
     if (is_builtin(fname))
     {
         char *tmp = new_tmp();
         tac_append(DEFVAR, tmp, NULL, NULL);
         gen_builtin_call(node, tmp);
-        // tac_append(NULL, NULL, NULL, NULL);
+        return;
     }
-    else
+
+    // --- USER-DEFINED FUNCTION CALL ---
+    tac_append(CREATEFRAME, NULL, NULL, NULL);
+
+    for (int i = 0; i < node->call.argCount; i++)
     {
-        char *func_label = fnc_label(node->call.funcName);
-        tac_append(CALL, func_label, NULL, NULL);
+        char buf[NAME_BUF];
+        snprintf(buf, sizeof(buf), "TF@%%%d", i + 1);
+        tac_append(DEFVAR, buf, NULL, NULL);
+
+        char *arg = gen_expr(node->call.args[i]);
+        tac_append(MOVE, buf, arg, NULL);
     }
+
+    char *func_label = fnc_label(fname);
+    tac_append(CALL, func_label, NULL, NULL);
 }
 
 /// @brief declaration of a variable
@@ -949,6 +930,9 @@ void gen_assign_stmt(ASTptr node)
     if (node->assign_stmt.asType == TARGET_GLOBAL)
     {
         target = var_gf(node->assign_stmt.targetName);
+        if (!is_def_glob(target)) {
+            tac_append(DEFVAR, target, NULL, NULL);
+        }
     }
     else
     {
@@ -979,10 +963,15 @@ void gen_return_stmt(ASTptr node, int scopeDepth)
 {
     (void)scopeDepth;
 
-    has_explicit_ret = true;
+    __has_explicit_ret = true;
 
     char *expr = gen_expr(node->return_stmt.expr);
     tac_append(MOVE, "LF@%retval1", expr, NULL);
+
+    if (__is_main)
+    {
+        return; 
+    }
 
     tac_append(POPFRAME, NULL, NULL, NULL);
     tac_append(RETURN, NULL, NULL, NULL);
@@ -1038,8 +1027,6 @@ char *gen_binop_div(char *res, char *l, char *r)
 }
 
 /// @brief function that converts identifiers to a desired format
-/// @param node
-/// @return
 char *gen_identifier(ASTptr node)
 {
     // global
@@ -1073,24 +1060,21 @@ char *gen_identifier(ASTptr node)
 }
 
 /// @brief function that converts literals to a desired format
-/// @param node
-/// @return
 char *gen_literal(ASTptr node)
 {
+    char *r;
     switch (node->literal.liType)
     {
-        char *r;
-
     case LIT_NULL:
         r = lit_nil();
         return r;
 
-        /* Extension not implemented
-        case LIT_BOOL:
-            bool b = node->literal.bool;
-            char *r = lit_bool(b);
-            return r;
-        */
+    /* Extension not implemented
+    case LIT_BOOL:
+        bool b = node->literal.bool;
+        char *r = lit_bool(b);
+        return r;
+    */
 
     case LIT_NUMBER:
     {
@@ -1164,7 +1148,6 @@ char *gen_binop(ASTptr node)
 }
 
 /// @brief
-/// @param node
 void gen_stmt(ASTptr node)
 {
     switch (node->type)
@@ -1197,8 +1180,6 @@ void gen_stmt(ASTptr node)
 }
 
 /// @brief
-/// @param node
-/// @return
 char *gen_func_call_expr(ASTptr node)
 {
     char *fname = node->call.funcName;
@@ -1210,35 +1191,22 @@ char *gen_func_call_expr(ASTptr node)
     if (!is_builtin(fname))
     {
         tac_append(CREATEFRAME, NULL, NULL, NULL);
-    }
-    // For each argument
-    for (int i = 0; i < node->call.argCount; i++)
-    {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "TF@%%%d", i);
-        tac_append(DEFVAR, my_strdup(buf), NULL, NULL);
+        // For each argument
+        for (int i = 0; i < node->call.argCount; i++)
+        {
+            char buf[NAME_BUF];
+            snprintf(buf, sizeof(buf), "TF@%%%d", i);
+            tac_append(DEFVAR, my_strdup(buf), NULL, NULL);
 
-        char *arg = gen_expr(node->call.args[i]);
-        tac_append(MOVE, my_strdup(buf), arg, NULL);
-    }
-
-    if (is_builtin(fname))
-    {
-        char *tmp = new_tmp();
-        tac_append(DEFVAR, tmp, NULL, NULL);
-        gen_builtin_call(node, tmp);
-    }
-    else
-    {
-        char *func_lab = new_label(fname);
+            char *arg = gen_expr(node->call.args[i]);
+            tac_append(MOVE, my_strdup(buf), arg, NULL);
+        }
+        char *func_lab = fnc_label(fname);
         tac_append(CALL, func_lab, NULL, NULL);
+        //tac_append(MOVE, tmp, "TF@%0", NULL);
+        return tmp;
     }
-
-    // copy TF@%0 into our local temp
-    if (!is_builtin(fname))
-    {
-        tac_append(MOVE, tmp, "TF@%0", NULL);
-    }
+    gen_builtin_call(node, tmp);
     return tmp;
 }
 
@@ -1246,8 +1214,7 @@ char *gen_func_call_expr(ASTptr node)
 // ---- Traversal and Output
 ///////////////////////////////////
 
-/// @brief appends prolog of a program to a list, iterates over gen_func_def
-/// @param node
+/// @brief appends prologue of a program to a list, iterates over gen_func_def
 void gen_program(ASTptr node)
 {
     // header
@@ -1258,13 +1225,10 @@ void gen_program(ASTptr node)
     {
         gen_func_def(node->program.funcs[i]);
     }
-
     return;
 }
 
 /// @brief
-/// @param node
-/// @return
 char *gen_expr(ASTptr node)
 {
     switch (node->type)
@@ -1289,7 +1253,6 @@ char *gen_expr(ASTptr node)
 }
 
 /// @brief prints the entire list to standard output
-/// @param
 void print_tac(void)
 {
     for (const TACnode *curr = tac.head; curr; curr = curr->next)
@@ -1306,7 +1269,6 @@ void print_tac(void)
 }
 
 /// @brief Entry Point of the Codegen Part
-/// @param tree
 void generate(ASTptr tree)
 {
     if (!tree)
