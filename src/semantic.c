@@ -2,9 +2,6 @@
 // filename: semantic.c                	    //
 // IFJ_prekladac	varianta - vv-BVS   	//
 // Authors:						  			//
-//  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
-//  * Veronika Kubová (xkubovv00) / Veradko //
-//  * Jozef Matus (xmatusj00) / karfisk 	//
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
@@ -103,7 +100,7 @@ void registerFunctions(ASTptr programNode)
             sym.kind = FUNC_GETTER;
         }
         else if (func->func.isSetter)
-        {
+        {   
             sym.kind = FUNC_SETTER;
         }
         else
@@ -119,7 +116,9 @@ void registerFunctions(ASTptr programNode)
     }
 
     // checks for main function
-    if (funcTableGet(&globalFunc, "main", 0) == NULL)
+    if (funcTableGet(&globalFunc, "main", 0) == NULL 
+    && !funcTableGetGetter(&globalFunc, "main") 
+    && !funcTableGetSetter(&globalFunc, "main"))
     {
         fprintf(stderr, "Error: main function not found\n");
         exit(3);
@@ -229,19 +228,21 @@ void sem_assignStmt(ASTptr node)
 
     if (name[0] == '_' && name[1] == '_')
     { // if the left side is global variable
+        node->assign_stmt.asType = TARGET_GLOBAL;
         return;
     }
 
     int scopeIdx = symTable_searchInScopes(&scopeStack, name); // if the left side is local variable
-    printf("Scope index of '%s': %d\n", name, scopeIdx);
     if (scopeIdx != -1)
     { // found local
+        node->assign_stmt.asType = TARGET_LOCAL;
         return;
     }
 
     FuncInfo *func = funcTableGetSetter(&globalFunc, name);
     if (func != NULL && func->kind == FUNC_SETTER)
     { // found setter
+        node->assign_stmt.asType = TARGET_SETTER;
         return;
     }
 
@@ -371,34 +372,36 @@ void sem_identifier(ASTptr node)
 {
     char *idName = node->identifier.name;
     printf("Identifier name: %s, type: %d\n", idName, node->identifier.idType);
-    
 
-    switch (node->identifier.idType)
-    {
-    case ID_GETTER:
-    {
-        FuncInfo *func = funcTableGetGetter(&globalFunc, idName);
-        if (func == NULL || func->kind != FUNC_GETTER)
-        {
-            fprintf(stderr, "Error: unknown getter function\n");
-            exit(3);
-        }
-        return;
-    }
-    case ID_LOCAL:
-        if (symTable_searchInScopes(&scopeStack, idName) == -1)
-        {
-            fprintf(stderr, "Error: unknown local identifier\n");
-            exit(3);
-        }
-        break;
-    case ID_GLOBAL: // TODO maybe
+    if (symTable_searchInScopes(&scopeStack, idName) != -1) // local variable
+    {   
+        node->identifier.idType = ID_LOCAL;
         return;
     }
 
-    return;
+    if (idName[0] == '_' && idName[1] == '_') // global variable
+    {   
+        node->identifier.idType = ID_GLOBAL;
+        return;
+    }
+
+    FuncInfo *getter = funcTableGetGetter(&globalFunc, idName); // getter function
+    if (getter != NULL && getter->kind == FUNC_GETTER)
+    {
+        node->identifier.idType = ID_GETTER;
+        return;
+    }
+
+    FuncInfo *func = funcTableGet(&globalFunc, idName, -1); // function
+    if (func != NULL && func->kind == FUNC_NORMAL)
+    {
+        fprintf(stderr, "Error: function used without parentheses\n");
+        exit(3);
+    }
+
+    fprintf(stderr, "Error: unknown identifier %s\n", idName);
+    exit(3);
 }
-
 /**
  * @brief semantic analysis for binary operation node
  *
@@ -409,8 +412,13 @@ void sem_binop(ASTptr node)
     ASTptr left = node->binop.left;
     ASTptr right = node->binop.right;
 
+    if(node->binop.opType == BINOP_IS){ // TODO
+        return;
+    }
+
     semanticNode(left);
     semanticNode(right);
+    printf("Left node type: %d, Right node type: %d\n", left->type, right->type);
 
     if (left->type == AST_LITERAL && right->type == AST_LITERAL)
     {
@@ -477,5 +485,29 @@ void sem_binop(ASTptr node)
         default:
             return;
         }
+    }else if(left->type == AST_IDENTIFIER && right->type == AST_LITERAL){
+        if(node->binop.opType == BINOP_MUL){ // string repetition
+            if(right->literal.liType == LIT_NUMBER){
+                return;
+            }
+            fprintf(stderr, "Error: right operand has to be number type for string repetition\n");
+            exit(6);
+        }
+        return;
+    }else if(left->type == AST_LITERAL && right->type == AST_IDENTIFIER){
+        return;
+    }else if(left->type == AST_IDENTIFIER && right->type == AST_IDENTIFIER){
+        return; // assume identifiers are of compatible types for now
+        /*if(node->binop.opType == BINOP_MUL){ // string repetition
+            // TODO maybe do STATICAN extension
+            return;
+        }else if(node->binop.opType == BINOP_ADD){ // string concatenation
+            return;
+        }*/
+    }else if(left->type == AST_BINOP || right->type == AST_BINOP){
+        return; // assume the result of binary operations are of compatible types for now
     }
+    
+    printf("Error: incompatible operand types for binary operation\n");
+    exit(6);
 }

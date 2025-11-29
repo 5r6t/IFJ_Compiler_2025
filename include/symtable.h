@@ -2,9 +2,6 @@
 // filename: symtable.h                	    //
 // IFJ_prekladac	varianta - vv-BVS   	//
 // Authors:						  			//
-//  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
-//  * Veronika Kubová (xkubovv00) / Veradko //
-//  * Jozef Matus (xmatusj00) / karfisk 	//
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
@@ -23,12 +20,11 @@
 #include <stdbool.h>
 
 // TODO unite with lexer's MAX_ID_LENGTH
-// #NEXT_MEETING
 #define MAX_ID_LENGTH 100 // maximum length of an identifier
 #define MAX_SCOPES 100 // maximum number of scopes in the stack
 
 typedef struct STN {
-    int type; // unite with lexer's token types #NEXT_MEETING
+    int type;
     int height;
     char id[MAX_ID_LENGTH];
     struct STN *left;

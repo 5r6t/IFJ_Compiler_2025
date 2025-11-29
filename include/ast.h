@@ -2,9 +2,6 @@
 // filename: ast.h                  	    //
 // IFJ_prekladac	varianta - vv-BVS   	//
 // Authors:						  			//
-//  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
-//  * Veronika Kubová (xkubovv00) / Veradko //
-//  * Jozef Matus (xmatusj00) / karfisk 	//
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
@@ -27,18 +24,18 @@ typedef struct FuncInfo FuncInfo;
 
 typedef enum
 {
-    AST_PROGRAM,
-    AST_FUNC_DEF,
-    AST_FUNC_CALL,
-    AST_BLOCK,
-    AST_IF_STMT,
-    AST_RETURN_STMT,
-    AST_VAR_DECL,
-    AST_ASSIGN_STMT,
-    AST_WHILE_STMT,
-    AST_IDENTIFIER,
-    AST_LITERAL,
-    AST_BINOP
+    AST_PROGRAM, // 0
+    AST_FUNC_DEF, // 1
+    AST_FUNC_CALL, // 2
+    AST_BLOCK, // 3
+    AST_IF_STMT, // 4
+    AST_RETURN_STMT, // 5 
+    AST_VAR_DECL, // 6
+    AST_ASSIGN_STMT, // 7
+    AST_WHILE_STMT, // 8
+    AST_IDENTIFIER, // 9
+    AST_LITERAL, // 10
+    AST_BINOP // 11
 } ASTnodeType;
 
 typedef enum
