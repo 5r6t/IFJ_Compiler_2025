@@ -23,7 +23,7 @@ bool pending = false;
    ├─ shouldn't it create an AST during analysis, i.e., when it recognizes the structure, it creates a suitable AST node? -> A: yes, it will be call at the end of function
    └─ maybe change funciton types from int to ASTptr so we can assemble the tree -> A: yes but first i want to finish LL rules
    - problem with arg_name using peek function check if there is valid token type if yes token will be processed (token will be used to created AST node ), must thing of way how to processed all arg at once or not
-   - FORGET to add block to FUNC_BODY
+   - return must have epsilon condition (next token is newline)
 */
 
 /* LL1:
@@ -85,14 +85,10 @@ RETURN ::= return EXPRESSION /
 
  */
 
-ASTptr
-parser(FILE *file)
+ASTptr parser(FILE *file)
 {
     TokenPtr token = getToken(file); // lookahead -> maybe i shouldn`t declare nextToken here, something to think about
-    while (token->type == NEWLINE)
-    {
-        token = getToken(file);
-    }
+    skip_newline(file, &token);
     ASTptr root = PROGRAM(&token, file);
     token = getToken(file);
     if (token->type != FILE_END)
@@ -117,16 +113,34 @@ ASTptr PROGRAM(TokenPtr *nextToken, FILE *file)
 
 void PROLOG(TokenPtr *nextToken, FILE *file)
 {
-    static const target PROLOG_TARGET[] = {
+    /* static const target PROLOG_TARGET[] = {
         {KW_IMPORT, NULL, "import"},
         {STRING, "ifj25", NULL},
         {KW_FOR, NULL, "for"},
         {KW_IFJ, NULL, "Ifj"},
-        {NEWLINE, NULL, NULL}};
+        {NEWLINE, NULL, NULL}}; */
 
-    static const size_t PROLOG_TARGET_LEN = sizeof(PROLOG_TARGET) / sizeof(PROLOG_TARGET[0]);
+    static const target PROLOG_START = {KW_IMPORT, NULL, "import"};
+    static const target PROLOG_LAN = {STRING, "ifj25", NULL};
+    static const target PROLOG_FOR = {KW_FOR, NULL, "for"};
+    static const target PROLOG_IFJ = {KW_IFJ, NULL, "Ifj"};
+    static const target PROLOG_NEWLINE = {NEWLINE, NULL, NULL};
 
-    for_function(PROLOG_TARGET, file, nextToken, PROLOG_TARGET_LEN);
+    // static const size_t PROLOG_TARGET_LEN = sizeof(PROLOG_TARGET) / sizeof(PROLOG_TARGET[0]);
+
+    // for_function(PROLOG_TARGET, file, nextToken, PROLOG_TARGET_LEN);
+    advance(&PROLOG_START, nextToken, file);
+    skip_newline(file, nextToken);
+
+    advance(&PROLOG_LAN, nextToken, file);
+    skip_newline(file, nextToken);
+
+    advance(&PROLOG_FOR, nextToken, file);
+    skip_newline(file, nextToken);
+
+    advance(&PROLOG_IFJ, nextToken, file);
+
+    advance(&PROLOG_NEWLINE, nextToken, file);
 
     return;
 }
@@ -166,6 +180,8 @@ ASTptr CLASS(TokenPtr *nextToken, FILE *file) // change return type to ASTnode
 ASTptr FUNCTIONS(TokenPtr *nextToken, FILE *file, ASTptr programNode) // change return type to ASTnode
 {
     static const target FUNCTIONS_FOLLOW = {SPECIAL, NULL, "}"};
+
+    skip_newline(file, nextToken);
 
     if ((*nextToken)->type == KW_STATIC)
     {
@@ -499,6 +515,7 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
     size_t END_SEQ_LEN = sizeof(END_SEQ) / sizeof(END_SEQ[0]);
 
     printf("idem do body\n");
+    skip_newline(file, nextToken);
     if ((*nextToken)->type == KW_VAR) // declare
     {
         printf("deklaracia\n");
@@ -603,15 +620,22 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
     else if ((*nextToken)->type == KW_RETURN) // return
     {
         printf("return\n");
+
         ASTptr returnNode = (ASTptr)malloc(sizeof(ASTnode));
         returnNode->type = AST_RETURN_STMT;
+        returnNode->return_stmt.expr = NULL;
 
         advance(&RETURN_FIRST, nextToken, file);
-
-        ASTptr condition = parse_expression(nextToken, file, &END_RETURN_EXP);
-        returnNode->return_stmt.expr = condition;
-
-        advance(&FUNC_BODY_END, nextToken, file);
+        if ((*nextToken)->type == NEWLINE)
+        {
+            advance(&FUNC_BODY_END, nextToken, file);
+        }
+        else
+        {
+            ASTptr condition = parse_expression(nextToken, file, &END_RETURN_EXP);
+            returnNode->return_stmt.expr = condition;
+            advance(&FUNC_BODY_END, nextToken, file);
+        }
 
         varNameAdd(blockNode, returnNode, file, *nextToken);
 
@@ -648,7 +672,7 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
             program_error(file, 0, 0, *nextToken);
         }
 
-        strcat(functionName, prefix);
+        strcpy(functionName, prefix);
         strcat(functionName, varName);
 
         // call initialize -> maybe make function;
@@ -784,7 +808,7 @@ ASTptr RSA(TokenPtr *nextToken, FILE *file)
             program_error(file, 0, 0, *nextToken);
         }
 
-        strcat(functionName, prefix);
+        strcpy(functionName, prefix);
         strcat(functionName, varName);
 
         // call initialize -> maybe make function;
@@ -1012,52 +1036,6 @@ void NEXT_ARG(TokenPtr *nextToken, FILE *file, ArgArr *argArr) // change return 
                (*nextToken)->id ? (*nextToken)->id : "NULL",
                (*nextToken)->data ? (*nextToken)->data : "NULL");
         ARG_NAME(nextToken, file);
-
-        /* literal lit;
-        if ((*nextToken)->type == NUMERICAL)
-        {
-            lit.liType = LIT_NUMBER;
-            lit.num = strtod((*nextToken)->data, NULL);
-        }
-        else if ((*nextToken)->type == STRING)
-        {
-            lit.liType = LIT_STRING;
-            lit.str = (*nextToken)->data;
-        }
-        else if ((*nextToken)->type == ID_GLOBAL_VAR)
-        {
-            lit.liType = LIT_GLOBAL_ID;
-            lit.str = (*nextToken)->id;
-        }
-        else if ((*nextToken)->type == IDENTIFIER)
-        {
-            lit.liType = LIT_LOCAL_ID;
-            lit.str = (*nextToken)->id;
-        }
-
-        if (argArr->arrCnt == argArr->arrCap)
-        {
-            int newCap;
-            if (argArr->arrCap == 0)
-            {
-                newCap = 4;
-            }
-            else
-            {
-                newCap = argArr->arrCap * 2;
-            }
-
-            literal *newArr = realloc(argArr->items, newCap * sizeof(literal));
-            if (!newArr)
-            {
-                program_error(file, 0, 0, *nextToken);
-            }
-            argArr->items = newArr;
-            argArr->arrCap = newCap;
-        }
-
-        argArr->items[argArr->arrCnt] = lit;
-        argArr->arrCnt++; */
 
         ASTptr node = (ASTptr)malloc(sizeof(ASTnode));
         if ((*nextToken)->type == NUMERICAL)
@@ -1287,4 +1265,13 @@ TokenPtr peekToken(FILE *file)
         pending = true;
     }
     return lookahead;
+}
+
+void skip_newline(FILE *file, TokenPtr *nextToken)
+{
+    while ((*nextToken)->type == NEWLINE)
+    {
+        (*nextToken) = getToken(file);
+    }
+    return;
 }

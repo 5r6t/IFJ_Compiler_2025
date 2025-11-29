@@ -6,16 +6,6 @@
 #include "ast.h"
 #include <stdio.h>
 
-/* typedef struct
-{
-    LiteralType liType;
-    union
-    {
-        double num;
-        char *str;
-    };
-} literal; */
-
 typedef struct
 {
     char **parNames;
@@ -66,6 +56,7 @@ void parser_error(target target, TokenPtr token);
 void advance(const target *target, TokenPtr *token, FILE *file);
 TokenPtr getToken(FILE *file);
 TokenPtr peekToken(FILE *file);
+void skip_newline(FILE *file, TokenPtr *nextToken);
 
 static inline void argArrInit(ArgArr *argArr)
 {
