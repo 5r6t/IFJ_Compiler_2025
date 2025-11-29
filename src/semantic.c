@@ -35,7 +35,7 @@ void semantic(ASTptr root)
  */
 void semanticNode(ASTptr root)
 {
-    printf("Semantic analysis node type: %d\n", root->type);
+    fprintf(stderr,"Semantic analysis node type: %d\n", root->type);
     switch (root->type)
     {
     case AST_PROGRAM:
@@ -222,7 +222,7 @@ void sem_varDecl(ASTptr node)
 void sem_assignStmt(ASTptr node)
 {
     char *name = node->assign_stmt.targetName;
-    printf("Target name %s, target type %d\n", name, node->assign_stmt.asType);
+    fprintf(stderr,"Target name %s, target type %d\n", name, node->assign_stmt.asType);
 
     semanticNode(node->assign_stmt.expr);
 
@@ -288,7 +288,7 @@ void sem_funcCall(ASTptr node)
 
     if(func->kind == FUNC_BUILTIN)
     {
-        printf("Checking argument types for built-in function %s\n", funcName);
+        fprintf(stderr,"Checking argument types for built-in function %s\n", funcName);
         // TODO check argument types for built-in functions
         for(int i = 0; i < node->call.argCount; i++)
         {
@@ -371,7 +371,7 @@ void sem_returnStmt(ASTptr node)
 void sem_identifier(ASTptr node)
 {
     char *idName = node->identifier.name;
-    printf("Identifier name: %s, type: %d\n", idName, node->identifier.idType);
+    fprintf(stderr,"Identifier name: %s, type: %d\n", idName, node->identifier.idType);
 
     if (symTable_searchInScopes(&scopeStack, idName) != -1) // local variable
     {   
@@ -418,7 +418,7 @@ void sem_binop(ASTptr node)
 
     semanticNode(left);
     semanticNode(right);
-    printf("Left node type: %d, Right node type: %d\n", left->type, right->type);
+    fprintf(stderr,"Left node type: %d, Right node type: %d\n", left->type, right->type);
 
     if (left->type == AST_LITERAL && right->type == AST_LITERAL)
     {
@@ -508,6 +508,6 @@ void sem_binop(ASTptr node)
         return; // assume the result of binary operations are of compatible types for now
     }
     
-    printf("Error: incompatible operand types for binary operation\n");
+    fprintf(stderr,"Error: incompatible operand types for binary operation\n");
     exit(6);
 }

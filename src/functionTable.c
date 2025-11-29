@@ -135,7 +135,7 @@ bool funcTableAdd(FuncTable *table, FuncInfo func){
     if(table->funcCount >= table->funcCap){
         funcTableResize(table);
     }
-    printf("Adding function: %s with %d parameters and kind %d\n", func.name, func.paramCount, func.kind);
+    fprintf(stderr,"Adding function: %s with %d parameters and kind %d\n", func.name, func.paramCount, func.kind);
     if(func.kind == FUNC_GETTER){
         if(funcTableGetGetter(table, func.name) != NULL){
             return false; // getter already exists
