@@ -2,9 +2,6 @@
 // filename: semantic.h                	    //
 // IFJ_prekladac	varianta - vv-BVS   	//
 // Authors:						  			//
-//  * Jaroslav Mervart (xmervaj00) / 5r6t 	//
-//  * Veronika Kubová (xkubovv00) / Veradko //
-//  * Jozef Matus (xmatusj00) / karfisk 	//
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
