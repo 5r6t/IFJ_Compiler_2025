@@ -626,7 +626,8 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
         returnNode->return_stmt.expr = NULL;
 
         advance(&RETURN_FIRST, nextToken, file);
-        if ((*nextToken)->type == NEWLINE)
+        // ----------------- EXTENTION EXTSTAT ------------------
+        /* if ((*nextToken)->type == NEWLINE)
         {
             advance(&FUNC_BODY_END, nextToken, file);
         }
@@ -635,7 +636,11 @@ ASTptr FUNC_BODY(TokenPtr *nextToken, FILE *file, ASTptr blockNode)
             ASTptr condition = parse_expression(nextToken, file, &END_RETURN_EXP);
             returnNode->return_stmt.expr = condition;
             advance(&FUNC_BODY_END, nextToken, file);
-        }
+        } */
+
+        ASTptr condition = parse_expression(nextToken, file, &END_RETURN_EXP);
+        returnNode->return_stmt.expr = condition;
+        advance(&FUNC_BODY_END, nextToken, file);
 
         varNameAdd(blockNode, returnNode, file, *nextToken);
 
