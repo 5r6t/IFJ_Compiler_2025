@@ -229,10 +229,13 @@ typedef struct {
     TACnode *tail;
 }TAClist;
 
-void tac_list_init(TAClist *list);
-bool tac_list_is_empty(const TAClist *list);
+void print_tac(TAClist list);
+TACnode *tac_append(OpCode instr, char *a1, char *a2, char *a3);
 TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char *a2, const char *a3);
 TACnode *tac_list_pop_front(TAClist *list);
+
+void tac_list_init(TAClist *list);
+bool tac_list_is_empty(const TAClist *list);
 void tac_list_remove(TAClist *list, TACnode *node);
 void tac_node_free(TACnode *node);
 void tac_list_clear(TAClist *list);
@@ -248,10 +251,10 @@ void gen_program(ASTptr node);
 void gen_func_def(ASTptr node);
 void gen_func_call(ASTptr node);
 void gen_block(ASTptr node);
-void gen_if_stmt(ASTptr node, int scopeDepth);
+void gen_if_stmt(ASTptr node);
 void gen_return_stmt(ASTptr node, int scopeDepth);
 void gen_assign_stmt(ASTptr node);
 void gen_stmt(ASTptr node);
 char *gen_expr(ASTptr node);
-void print_tac();
+
 #endif // CODEGEN_H
