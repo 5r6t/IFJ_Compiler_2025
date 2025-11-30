@@ -7,11 +7,6 @@
 
 #include "symtable.h"
 
-/*NOTES:
-  [x] need to add stack for scopes
-  [ ] need to add types for variables
-*/
-
 /**
  * @brief initializes the binary search tree.
  *

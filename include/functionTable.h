@@ -58,5 +58,6 @@ bool funcTableAdd(FuncTable *table, FuncInfo func);
 void funcTableFree(FuncTable *table);
 
 char *myStrdup(char *str);
+bool is_integer(double x);
 
 #endif // FUNC_TABLE

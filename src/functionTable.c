@@ -171,7 +171,7 @@ void funcTableFree(FuncTable *table){
  * @param s input string to duplicate
  * @return pointer to the new string
  */
-char *myStrdup(char *str){
+char *myStrdup(char *str) {
     size_t len = strlen(str) + 1;
     char *new = malloc(len);
     if(new == NULL){
@@ -179,4 +179,16 @@ char *myStrdup(char *str){
     } 
     memcpy(new, str, len);
     return new;
+}
+
+/**
+ * @brief checks if the value is an integer
+ * 
+ * @param x value to check
+ * @return true if the value is an integer
+ * @return false otherwise
+ */
+bool is_integer(double x) {
+    long long y = (long long)x;
+    return (double)y == x;
 }

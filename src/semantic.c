@@ -253,7 +253,7 @@ void sem_assignStmt(ASTptr node)
 /**
  * @brief semantic analysis for function call node
  *
- * @param node pointer to the function call AST node
+ * @param node pointer to the function call AST nodex
  */
 void sem_funcCall(ASTptr node)
 {
@@ -410,16 +410,26 @@ void sem_identifier(ASTptr node)
 void sem_binop(ASTptr node)
 {
     ASTptr left = node->binop.left;
+
+    if(node->binop.opType == BINOP_IS){
+        semanticNode(left);
+        return;
+    }
+
     ASTptr right = node->binop.right;
 
-    if(node->binop.opType == BINOP_IS){ // TODO
-        return;
+    if(node->binop.opType != BINOP_IS && node->binop.opType != BINOP_EQ && node->binop.opType != BINOP_NEQ){
+        if((left->type == AST_LITERAL && left->literal.liType == LIT_NULL) ||
+           (right->type == AST_LITERAL && right->literal.liType == LIT_NULL)){
+            fprintf(stderr,"Error: null used with bad operator\n");
+            exit(6);
+        }
     }
 
     semanticNode(left);
     semanticNode(right);
     fprintf(stderr,"Left node type: %d, Right node type: %d\n", left->type, right->type);
-
+    
     if (left->type == AST_LITERAL && right->type == AST_LITERAL)
     {
         LiteralType leftType = left->literal.liType;
@@ -461,6 +471,10 @@ void sem_binop(ASTptr node)
             }
             else if (leftType == LIT_STRING && rightType == LIT_NUMBER)
             {
+                if(!is_integer(right->literal.num) || right->literal.num < 0){
+                    fprintf(stderr, "Error: right operand has to be integer and non-negative\n");
+                    exit(6);
+                }
                 return;
             }
             else
@@ -482,10 +496,28 @@ void sem_binop(ASTptr node)
                 exit(6);
             }
             return;
+        case BINOP_EQ:
+        case BINOP_NEQ:
+            if (leftType == rightType)
+            {
+                return;
+            }
+            else if(leftType == LIT_NULL || rightType == LIT_NULL)
+            {
+                return;
+            }
+
+            fprintf(stderr, "Error: both operands has to be of the same type for equality comparison\n");
+            exit(6);
         default:
             return;
         }
     }else if(left->type == AST_IDENTIFIER && right->type == AST_LITERAL){
+        if(node->binop.opType == BINOP_DIV && right->literal.liType == LIT_STRING){ // string division
+            fprintf(stderr, "Error: cannot divide with string\n");
+            exit(6);
+        }
+
         if(node->binop.opType == BINOP_MUL){ // string repetition
             if(right->literal.liType == LIT_NUMBER){
                 return;
@@ -495,19 +527,16 @@ void sem_binop(ASTptr node)
         }
         return;
     }else if(left->type == AST_LITERAL && right->type == AST_IDENTIFIER){
+        if(node->binop.opType == BINOP_DIV && left->literal.liType == LIT_STRING){ // string division
+            fprintf(stderr, "Error: cannot divide string\n");
+            exit(6);
+        }
         return;
     }else if(left->type == AST_IDENTIFIER && right->type == AST_IDENTIFIER){
-        return; // assume identifiers are of compatible types for now
-        /*if(node->binop.opType == BINOP_MUL){ // string repetition
-            // TODO maybe do STATICAN extension
-            return;
-        }else if(node->binop.opType == BINOP_ADD){ // string concatenation
-            return;
-        }*/
+        return;
     }else if(left->type == AST_BINOP || right->type == AST_BINOP){
-        return; // assume the result of binary operations are of compatible types for now
+        return;
     }
     
-    fprintf(stderr,"Error: incompatible operand types for binary operation\n");
-    exit(6);
+    return;
 }
