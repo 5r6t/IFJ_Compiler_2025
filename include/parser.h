@@ -1,3 +1,10 @@
+//////////////////////////////////////////////
+// filename: parser.h                 	    //
+// IFJ_prekladac	varianta - vv-BVS   	//
+// Authors:						  			//
+//  * Jozef Matus (xmatusj00) / karfisk 	//
+//////////////////////////////////////////////
+
 #ifndef PARSER_H
 #define PARSER_H
 

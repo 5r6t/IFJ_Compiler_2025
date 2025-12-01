@@ -1,3 +1,10 @@
+//////////////////////////////////////////////
+// filename: psaParser.h             	    //
+// IFJ_prekladac	varianta - vv-BVS   	//
+// Authors:						  			//
+//  * Jozef Matus (xmatusj00) / karfisk 	//
+//////////////////////////////////////////////
+
 #ifndef PSAPARSER_H
 #define PSAPARSER_H
 
