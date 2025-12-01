@@ -42,7 +42,6 @@
 #define RUNTIME
 
 TAClist tac = {NULL, NULL};
-TAClist globdefs = {NULL, NULL};
 
 #define EMIT_ARG_EXIT()                         \
     do                                          \
@@ -54,6 +53,46 @@ TAClist globdefs = {NULL, NULL};
     do                                          \
     {                                           \
         tac_append(EXIT, "int@26", NULL, NULL); \
+    } while (0)
+
+// macro to avoid writing NULL into params each time while
+// creating a label
+#define EMIT_LABEL(label_name)                     \
+    do                                             \
+    {                                              \
+        tac_append(LABEL, label_name, NULL, NULL); \
+    } while (0)
+
+#define EMIT_RETURN()                         \
+    do                                        \
+    {                                         \
+        tac_append(RETURN, NULL, NULL, NULL); \
+    } while (0)
+
+#define EMIT_POPFRAME()                         \
+    do                                          \
+    {                                           \
+        tac_append(POPFRAME, NULL, NULL, NULL); \
+    } while (0)
+
+#define EMIT_CREATEFRAME()                         \
+    do                                             \
+    {                                              \
+        tac_append(CREATEFRAME, NULL, NULL, NULL); \
+    } while (0)
+
+
+// used for creating new lf variables to store
+// lr types
+#define BINOP_LR_DEF_AND_TYPE()              \
+    do                                       \
+    {                                        \
+        char *t_l = new_lf_tmp();            \
+        char *t_r = new_lf_tmp();            \
+        tac_append(DEFVAR, t_l, NULL, NULL); \
+        tac_append(DEFVAR, t_r, NULL, NULL); \
+        tac_append(TYPE, t_l, l, NULL);      \
+        tac_append(TYPE, t_r, r, NULL);      \
     } while (0)
 
 // track whether handled function should return a value
@@ -71,24 +110,10 @@ static void is_def_glob(const char *name)
             return;
     }
     def_globs[def_glob_cnt++] = my_strdup(name);
-    tac_list_append(&globdefs, DEFVAR, name, NULL, NULL);
+    tac_list_replace_head(&tac, DEFVAR, name, NULL, NULL);
     return;
 }
 
-// used for printing NAMES of operands, see codegen.h
-static const char *tac_opcode_name(OpCode op)
-{
-    switch (op)
-    {
-#define OPCODE_CASE(name) \
-    case name:            \
-        return #name;
-        TAC_OPCODE_LIST(OPCODE_CASE)
-#undef OPCODE_CASE
-    default:
-        return "UNKNOWN";
-    }
-}
 ///////////////////////////////////
 // ---- Strings for Operands ----
 ///////////////////////////////////
@@ -155,7 +180,7 @@ char *lit_bool(bool x)
     return my_strdup(buf);
 }
 
-/// @brief 
+/// @brief
 char *lit_float(double x)
 {
     char buf[NAME_BUF * 2];
@@ -163,7 +188,7 @@ char *lit_float(double x)
     return my_strdup(buf);
 }
 
-/// @brief 
+/// @brief
 char *lit_string(const char *x)
 {
     char buf[4096];
@@ -189,7 +214,7 @@ char *lit_string(const char *x)
     return my_strdup(final);
 }
 
-/// @brief 
+/// @brief
 char *lit_nil()
 {
     return my_strdup("nil@nil");
@@ -257,11 +282,11 @@ static void gen_builtin_substring(ASTptr call, char *result_tmp)
     char *j = gen_expr(call->call.args[2]);
 
     // temps
-    char *tmp = new_lf_tmp();
+    char *tmp = new_tf_tmp();
     tac_append(DEFVAR, tmp, NULL, NULL);
-    char *len = new_lf_tmp();
+    char *len = new_tf_tmp();
     tac_append(DEFVAR, len, NULL, NULL);
-    char *k = new_lf_tmp();
+    char *k = new_tf_tmp();
     tac_append(DEFVAR, k, NULL, NULL);
 
     char *LBL_i_not_int = new_label("$substr_i_not_int_");
@@ -314,7 +339,7 @@ static void gen_builtin_substring(ASTptr call, char *result_tmp)
     // k = i
     tac_append(MOVE, k, i, NULL);
 
-    tac_append(LABEL, LBL_loop, NULL, NULL);
+    EMIT_LABEL(LBL_loop);
 
     // if k >= j → end
     // check (k < j)
@@ -355,17 +380,17 @@ static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
     char *s2 = gen_expr(call->call.args[1]);
 
     // temps
-    char *i = new_lf_tmp();
+    char *i = new_tf_tmp();
     tac_append(DEFVAR, i, NULL, NULL);
-    char *c1 = new_lf_tmp();
+    char *c1 = new_tf_tmp();
     tac_append(DEFVAR, c1, NULL, NULL);
-    char *c2 = new_lf_tmp();
+    char *c2 = new_tf_tmp();
     tac_append(DEFVAR, c2, NULL, NULL);
-    char *len1 = new_lf_tmp();
+    char *len1 = new_tf_tmp();
     tac_append(DEFVAR, len1, NULL, NULL);
-    char *len2 = new_lf_tmp();
+    char *len2 = new_tf_tmp();
     tac_append(DEFVAR, len2, NULL, NULL);
-    char *tmp = new_lf_tmp();
+    char *tmp = new_tf_tmp();
     tac_append(DEFVAR, tmp, NULL, NULL);
 
     char *LBL_loop = new_label("$strcmp_loop_");
@@ -425,7 +450,7 @@ static void gen_builtin_str(ASTptr call, char *result_tmp)
     char *arg = gen_expr(call->call.args[0]);
 
     // temp for storing detected type
-    char *t = new_lf_tmp();
+    char *t = new_tf_tmp();
     tac_append(DEFVAR, t, NULL, NULL);
     tac_append(TYPE, t, arg, NULL);
 
@@ -476,9 +501,9 @@ static void gen_builtin_ord(ASTptr call, char *result_tmp)
     char *s = gen_expr(call->call.args[0]);
     char *i = gen_expr(call->call.args[1]);
 
-    char *tmp = new_lf_tmp();
+    char *tmp = new_tf_tmp();
     tac_append(DEFVAR, tmp, NULL, NULL);
-    char *len = new_lf_tmp();
+    char *len = new_tf_tmp();
     tac_append(DEFVAR, len, NULL, NULL);
 
     char *LBL_i_not_int = new_label("$ord_i_not_int_");
@@ -506,7 +531,7 @@ static void gen_builtin_ord(ASTptr call, char *result_tmp)
 
     // -- not int → error 6
     tac_append(LABEL, LBL_i_not_int, NULL, NULL);
-    tac_append(EXIT, "int@6", NULL, NULL);
+    EMIT_TYPE_EXIT();
 
     // -- nil return
     tac_append(LABEL, LBL_return_nil, NULL, NULL);
@@ -519,7 +544,7 @@ static void gen_builtin_chr(ASTptr call, char *result_tmp)
 {
     char *i = gen_expr(call->call.args[0]);
 
-    char *tmp = new_lf_tmp();
+    char *tmp = new_tf_tmp();
     tac_append(DEFVAR, tmp, NULL, NULL);
 
     char *LBL_i_not_int = new_label("$chr_i_not_int_");
@@ -569,7 +594,8 @@ static bool is_builtin(const char *func_name)
 
     for (int i = 0; arr_builtin_names[i] != NULL; i++)
     {
-        if (strcmp(arr_builtin_names[i], func_name) == 0) {
+        if (strcmp(arr_builtin_names[i], func_name) == 0)
+        {
             return true;
         }
     }
@@ -580,7 +606,6 @@ static bool is_builtin(const char *func_name)
 void gen_builtin_call(ASTptr call, char *result_tmp)
 {
     const char *name = call->call.funcName;
-
     if (strcmp(name, "Ifj.read_str") == 0)
     {
         tac_append(READ, result_tmp, "string", NULL); // "string" ?? idk
@@ -652,6 +677,7 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
         return;
     }
 }
+
 ///////////////////////////////////
 // ---- AST Nodes Codegen ----
 ///////////////////////////////////
@@ -674,12 +700,13 @@ void gen_func_def(ASTptr node)
 
     // label is either $$main or $func_name
     char *label = __is_main ? my_strdup("$$main") : fnc_label(node->func.name);
-    tac_append(LABEL, label, NULL, NULL);
+    EMIT_LABEL(label);
+
     char *retval = "LF@%retval1";
 
     if (__is_main == true)
     {
-        tac_append(CREATEFRAME, NULL, NULL, NULL);
+        EMIT_CREATEFRAME();
         tac_append(PUSHFRAME, NULL, NULL, NULL);
         tac_append(DEFVAR, retval, NULL, NULL);
     }
@@ -712,10 +739,10 @@ void gen_func_def(ASTptr node)
     // function epilogue
     if (!__has_explicit_ret)
     {
-        tac_append(POPFRAME, NULL, NULL, NULL);
+        EMIT_POPFRAME();
         if (!__is_main) // do not return on empty stack
         {
-            tac_append(RETURN, NULL, NULL, NULL);
+            EMIT_RETURN();
         }
         else
         {
@@ -731,14 +758,15 @@ void gen_func_call(ASTptr node)
     // --- BUILTIN CALL ---
     if (is_builtin(fname))
     {
-        char *tmp = new_lf_tmp();
+        EMIT_CREATEFRAME();
+        char *tmp = new_tf_tmp();
         tac_append(DEFVAR, tmp, NULL, NULL);
         gen_builtin_call(node, tmp);
         return;
     }
 
     // --- USER-DEFINED FUNCTION CALL ---
-    tac_append(CREATEFRAME, NULL, NULL, NULL);
+    EMIT_CREATEFRAME();
 
     for (int i = 0; i < node->call.argCount; i++)
     {
@@ -784,7 +812,19 @@ void gen_assign_stmt(ASTptr node)
 /// @brief
 void gen_while_stmt(ASTptr node)
 {
-    (void)node;
+    char *lbl_start = new_label("$while_start_");
+    char *lbl_end = new_label("$while_end_");
+
+    EMIT_LABEL(lbl_start);
+    char *cond = gen_expr(node->while_stmt.cond);
+
+    // jump to end if condition if false
+    tac_append(JUMPIFEQ, lbl_end, cond, "bool@false");
+    gen_block(node->while_stmt.body);
+    // return to condition
+    tac_append(JUMP, lbl_start, NULL, NULL);
+    // finish
+    EMIT_LABEL(lbl_end);
     return;
 }
 
@@ -797,7 +837,7 @@ void gen_if_stmt(ASTptr node)
     char *lbl_else = new_label("$if_else_");
     char *lbl_end = new_label("$if_end_");
 
-    // 3. Shall Condition be false --> exec ELSE block
+    // 3. Should Condition == false --> exec ELSE block
     tac_append(JUMPIFEQ, lbl_else, cond, "bool@false");
 
     // 4. IF block
@@ -817,10 +857,8 @@ void gen_if_stmt(ASTptr node)
     tac_append(LABEL, lbl_end, NULL, NULL);
 }
 
-void gen_return_stmt(ASTptr node, int scopeDepth)
+void gen_return_stmt(ASTptr node)
 {
-    (void)scopeDepth;
-
     __has_explicit_ret = true;
 
     char *expr = gen_expr(node->return_stmt.expr);
@@ -831,8 +869,8 @@ void gen_return_stmt(ASTptr node, int scopeDepth)
         return;
     }
 
-    tac_append(POPFRAME, NULL, NULL, NULL);
-    tac_append(RETURN, NULL, NULL, NULL);
+    EMIT_POPFRAME();
+    EMIT_RETURN();
     return;
 }
 
@@ -842,8 +880,8 @@ void gen_return_stmt(ASTptr node, int scopeDepth)
 // string + string or num + num, but not num + string/null --> ERR 26
 char *gen_binop_add(char *res, char *l, char *r)
 {
-    char *t_l = new_lf_tmp();
-    char *t_r = new_lf_tmp();
+    char *t_l = new_tf_tmp();
+    char *t_r = new_tf_tmp();
     tac_append(DEFVAR, t_l, NULL, NULL);
     tac_append(DEFVAR, t_r, NULL, NULL);
 
@@ -890,8 +928,8 @@ char *gen_binop_add(char *res, char *l, char *r)
 }
 char *gen_binop_sub(char *res, char *l, char *r)
 {
-    char *t_l = new_lf_tmp();
-    char *t_r = new_lf_tmp();
+    char *t_l = new_tf_tmp();
+    char *t_r = new_tf_tmp();
     tac_append(DEFVAR, t_l, NULL, NULL);
     tac_append(DEFVAR, t_r, NULL, NULL);
 
@@ -899,6 +937,7 @@ char *gen_binop_sub(char *res, char *l, char *r)
     tac_append(TYPE, t_r, r, NULL);
 
     char *L_ok = new_label("$sub_ok_");
+    char *L_rhs_ok = new_label("$sub_rhs_ok_");
     char *L_err = new_label("$sub_err_");
     char *L_end = new_label("$sub_end_");
 
@@ -907,10 +946,11 @@ char *gen_binop_sub(char *res, char *l, char *r)
     tac_append(JUMP, L_err, NULL, NULL);
 
     tac_append(LABEL, L_ok, NULL, NULL);
-    tac_append(JUMPIFEQ, L_end, t_r, "string@int");
-    tac_append(JUMPIFEQ, L_end, t_r, "string@float");
+    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@int");
+    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@float");
     tac_append(JUMP, L_err, NULL, NULL);
 
+    tac_append(LABEL, L_rhs_ok, NULL, NULL);
     tac_append(SUB, res, l, r);
     tac_append(JUMP, L_end, NULL, NULL);
 
@@ -923,8 +963,8 @@ char *gen_binop_sub(char *res, char *l, char *r)
 // BAD
 char *gen_binop_mul(char *res, char *l, char *r)
 {
-    char *t_l = new_lf_tmp();
-    char *t_r = new_lf_tmp();
+    char *t_l = new_tf_tmp();
+    char *t_r = new_tf_tmp();
     tac_append(DEFVAR, t_l, NULL, NULL);
     tac_append(DEFVAR, t_r, NULL, NULL);
 
@@ -932,6 +972,7 @@ char *gen_binop_mul(char *res, char *l, char *r)
     tac_append(TYPE, t_r, r, NULL);
 
     char *L_ok = new_label("$mul_ok_");
+    char *L_rhs_ok = new_label("$mul_rhs_ok_");
     char *L_err = new_label("$mul_err_");
     char *L_end = new_label("$mul_end_");
 
@@ -940,10 +981,11 @@ char *gen_binop_mul(char *res, char *l, char *r)
     tac_append(JUMP, L_err, NULL, NULL);
 
     tac_append(LABEL, L_ok, NULL, NULL);
-    tac_append(JUMPIFEQ, L_end, t_r, "string@int");
-    tac_append(JUMPIFEQ, L_end, t_r, "string@float");
+    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@int");
+    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@float");
     tac_append(JUMP, L_err, NULL, NULL);
 
+    tac_append(LABEL, L_rhs_ok, NULL, NULL);
     tac_append(MUL, res, l, r);
     tac_append(JUMP, L_end, NULL, NULL);
 
@@ -953,13 +995,12 @@ char *gen_binop_mul(char *res, char *l, char *r)
     tac_append(LABEL, L_end, NULL, NULL);
     return res;
 }
-
 // todo
 char *gen_binop_div(char *res, char *l, char *r)
 {
-    char *t_l = new_lf_tmp();
-    char *t_r = new_lf_tmp();
-    char *t_zero = new_lf_tmp();
+    char *t_l = new_tf_tmp();
+    char *t_r = new_tf_tmp();
+    char *t_zero = new_tf_tmp();
     tac_append(DEFVAR, t_l, NULL, NULL);
     tac_append(DEFVAR, t_r, NULL, NULL);
     tac_append(DEFVAR, t_zero, NULL, NULL);
@@ -968,6 +1009,7 @@ char *gen_binop_div(char *res, char *l, char *r)
     tac_append(TYPE, t_r, r, NULL);
 
     char *L_ok = new_label("$div_ok_");
+    char *L_rhs_ok = new_label("$div_rhs_ok_");
     char *L_z = new_label("$div_zero_");
     char *L_err = new_label("$div_err_");
     char *L_end = new_label("$div_end_");
@@ -977,10 +1019,11 @@ char *gen_binop_div(char *res, char *l, char *r)
     tac_append(JUMP, L_err, NULL, NULL);
 
     tac_append(LABEL, L_ok, NULL, NULL);
-    tac_append(JUMPIFEQ, L_end, t_r, "string@int");
-    tac_append(JUMPIFEQ, L_end, t_r, "string@float");
+    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@int");
+    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@float");
     tac_append(JUMP, L_err, NULL, NULL);
 
+    tac_append(LABEL, L_rhs_ok, NULL, NULL);
     // check zero
     tac_append(EQ, t_zero, r, "float@0x0p+0");
     tac_append(JUMPIFEQ, L_z, t_zero, "bool@true");
@@ -1001,8 +1044,8 @@ char *gen_binop_div(char *res, char *l, char *r)
 // todo
 char *gen_binop_rel(char *res, char *l, char *r, BinOpType rel)
 {
-    char *t_l = new_lf_tmp();
-    char *t_r = new_lf_tmp();
+    char *t_l = new_tf_tmp();
+    char *t_r = new_tf_tmp();
     tac_append(DEFVAR, t_l, NULL, NULL);
     tac_append(DEFVAR, t_r, NULL, NULL);
 
@@ -1135,7 +1178,7 @@ char *gen_binop_rel(char *res, char *l, char *r, BinOpType rel)
 
     // type error
     tac_append(LABEL, L_err, NULL, NULL);
-    tac_append(EXIT, "int@26", NULL, NULL);
+    EMIT_TYPE_EXIT();
 
     tac_append(LABEL, L_end, NULL, NULL);
     return res;
@@ -1169,8 +1212,8 @@ char *gen_binop(ASTptr node)
     {
         right = gen_expr(node->binop.right);
     }
-
-    char *res = new_lf_tmp();
+    EMIT_CREATEFRAME();
+    char *res = new_tf_tmp();
     tac_append(DEFVAR, res, NULL, NULL);
     // char*possible_lit_left=gen_literal()
     ;
@@ -1212,18 +1255,16 @@ char *gen_binop(ASTptr node)
 /// @brief function that converts identifiers to a desired format
 char *gen_identifier(ASTptr node)
 {
-    // global
     if (node->identifier.idType == ID_GLOBAL)
     {
         return var_gf(node->identifier.name); // GF@__blabla
     }
-    // local
+
     if (node->identifier.idType == ID_LOCAL)
     {
         return var_lf(node->identifier.name); // LF@bla
     }
 
-    // getter
     if (node->identifier.idType == ID_GETTER)
     {
         char *tmp = new_lf_tmp();
@@ -1296,8 +1337,7 @@ void gen_stmt(ASTptr node)
         gen_assign_stmt(node);
         break;
     case AST_RETURN_STMT:
-        // scope depth 1 for now
-        gen_return_stmt(node, 1);
+        gen_return_stmt(node);
         break;
     case AST_IF_STMT:
         gen_if_stmt(node);
@@ -1320,7 +1360,8 @@ char *gen_func_call_expr(ASTptr node)
 {
     char *fname = node->call.funcName;
     // Create temp for return value
-    char *tmp = new_lf_tmp();
+    EMIT_CREATEFRAME();
+    char *tmp = new_tf_tmp();
     tac_append(DEFVAR, tmp, NULL, NULL);
 
     // Prepare call frame
@@ -1331,7 +1372,7 @@ char *gen_func_call_expr(ASTptr node)
     }
 
     // TF
-    tac_append(CREATEFRAME, NULL, NULL, NULL);
+    EMIT_CREATEFRAME();
     // For each argument TF@1 .. TF@n
     for (int i = 0; i < node->call.argCount; i++)
     {
@@ -1353,23 +1394,6 @@ char *gen_func_call_expr(ASTptr node)
     return tmp;
 }
 
-///////////////////////////////////
-// ---- Traversal and Output
-///////////////////////////////////
-
-/// @brief appends prologue of a program to a list, iterates over gen_func_def
-void gen_program(ASTptr node)
-{
-    // header
-    tac_append(JUMP, "$$main", NULL, NULL);
-
-    for (int i = 0; i < node->program.funcsCount; i++)
-    {
-        gen_func_def(node->program.funcs[i]);
-    }
-    return;
-}
-
 /// @brief
 char *gen_expr(ASTptr node)
 {
@@ -1389,8 +1413,8 @@ char *gen_expr(ASTptr node)
 
     default:
         fprintf(stderr, "gen_expr: unsupported AST node -> type %d\n", node->type);
+        return NULL; // reach only on errors
     }
-    return NULL; // reach only on errors
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1402,21 +1426,27 @@ void generate(ASTptr tree)
         fprintf(stderr, "Deforestation in progress...");
         exit(ERR_INTERNAL);
     }
-    fprintf(stderr, "%s", new_tf_tmp()); // just to not cause problems
+    fprintf(stderr, "%s", new_tf_tmp()); // avoid not used err
 
-    tac_list_init(&globdefs);
     tac_list_init(&tac);
-    gen_program(tree);
+    {
+        // header
+        tac_append(JUMP, "$$main", NULL, NULL);
+
+        for (int i = 0; i < tree->program.funcsCount; i++)
+        {
+            gen_func_def(tree->program.funcs[i]);
+        }
+    }
 
     /* OUTPUT -- no optimalizations */
     {
         // print header
         printf(".IFJcode25\n");
-        // todo add func to list to replace head (keeping original as next)
-        // declare globals
-        print_tac(globdefs);
         // print the rest of the program
-        print_tac(tac);
+        print_tac(&tac);
+        // clear the list
+        tac_list_clear(&tac);
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1426,9 +1456,9 @@ void generate(ASTptr tree)
 ///////////////////////////////////
 
 /// @brief prints the entire list to standard output
-void print_tac(TAClist list)
+void print_tac(TAClist *list)
 {
-    for (const TACnode *curr = list.head; curr; curr = curr->next)
+    for (const TACnode *curr = list->head; curr; curr = curr->next)
     {
         printf("%s", tac_opcode_name(curr->instr));
         if (curr->a1)
@@ -1478,8 +1508,23 @@ void tac_print_node(const char *label, const TACnode *node)
            node->a2 ? node->a2 : "NULL",
            node->a3 ? node->a3 : "NULL");
 }
+
+/// @brief DEBUG used for printing NAMES of operands, see codegen.h
+const char *tac_opcode_name(OpCode op)
+{
+    switch (op)
+    {
+#define OPCODE_CASE(name) \
+    case name:            \
+        return #name;
+        TAC_OPCODE_LIST(OPCODE_CASE)
+#undef OPCODE_CASE
+    default:
+        return "UNKNOWN";
+    }
+}
+
 /// @brief
-/// @param list
 void tac_list_init(TAClist *list)
 {
     if (list == NULL)
@@ -1491,20 +1536,12 @@ void tac_list_init(TAClist *list)
 }
 
 /// @brief
-/// @param list
-/// @return
 bool tac_list_is_empty(const TAClist *list)
 {
     return (list == NULL) || (list->head == NULL);
 }
 
 /// @brief
-/// @param list
-/// @param instr
-/// @param a1
-/// @param a2
-/// @param a3
-/// @return
 TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char *a2, const char *a3)
 {
     if (list == NULL)
@@ -1539,9 +1576,42 @@ TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char
     return n;
 }
 
+/// @brief Replace head with new node, keeps head as next
+TACnode *tac_list_replace_head(TAClist *list, OpCode instr, const char *a1, const char *a2, const char *a3)
+{
+    if (list == NULL)
+    {
+        return NULL;
+    }
+
+    TACnode *n = malloc(sizeof(TACnode));
+    if (n == NULL)
+    {
+        fprintf(stderr, "Memory allocation error\n");
+        return NULL;
+    }
+
+    n->instr = instr;
+    n->a1 = a1 ? my_strdup(a1) : NULL;
+    n->a2 = a2 ? my_strdup(a2) : NULL;
+    n->a3 = a3 ? my_strdup(a3) : NULL;
+    n->prev = NULL;
+    n->next = list->head;
+
+    if (list->head)
+    {
+        list->head->prev = n;
+    }
+    else
+    {
+        list->tail = n;
+    }
+
+    list->head = n;
+    return n;
+}
+
 /// @brief
-/// @param list
-/// @return
 TACnode *tac_list_pop_front(TAClist *list)
 {
     if (list == NULL || list->head == NULL)
@@ -1566,8 +1636,6 @@ TACnode *tac_list_pop_front(TAClist *list)
 }
 
 /// @brief
-/// @param list
-/// @param node
 void tac_list_remove(TAClist *list, TACnode *node)
 {
     if (list == NULL || node == NULL)
@@ -1598,7 +1666,6 @@ void tac_list_remove(TAClist *list, TACnode *node)
 }
 
 /// @brief
-/// @param node
 void tac_node_free(TACnode *node)
 {
     if (node == NULL)
@@ -1613,7 +1680,6 @@ void tac_node_free(TACnode *node)
 }
 
 /// @brief Clears the entire list and resets head/tail
-/// @param list
 void tac_list_clear(TAClist *list)
 {
     if (list == NULL)
@@ -1632,8 +1698,7 @@ void tac_list_clear(TAClist *list)
     list->tail = NULL;
 }
 
-/// @brief Function that appends the next TAC intruction to double-linked list,
-///        abstracting from using global TAClist structure.
+/// @brief Abstraction from using global variable tac.
 TACnode *tac_append(OpCode instr, char *a1, char *a2, char *a3)
 {
     return tac_list_append(&tac, instr, a1, a2, a3);
