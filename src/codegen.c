@@ -7,30 +7,13 @@
 //////////////////////////////////////////////
 
 /** ==== TO-DO ====
- * scopedepth ~~ we'll see
-* @brief int scopeDepth - indicating depth level for differentiating
-    between global, local and temporary variables
-=== NOTES ===
-- Only GF is initialized on start
-
-- Use NAME WRANGLING e.g.
-    var x // DEFVAR LF@x$1
-    {
-        var x // DEFVAR LF@x$2 where e.g. $ is scope depth
-    } // use symtable to determine scope depth
-
-- Function Calls - Stack or Frame versions in the presentation 44/56
-- Loops - presentation 46/56
-- Global counter for labels - presentation 47/56
-- Constants - presentation 48/56
-- Type checking - presentation 50/56
 // --- Runtime Error Codes ---
 #define ERR_RUNTIME_ARG 25  // Runtime: invalid builtin parameter type
 #define ERR_RUNTIME_TYPE 26 // Runtime: type mismatch in expr at runtime
 
 HELPFUL NOTES:
-- you can easily use Temporary Frame for variables (CREATEFRAME destroys old TF and it's vars)
-- pushframe creates LF out out TF, keeps previous LF preserved if exists
+- use Temporary Frame for variables (CREATEFRAME destroys old TF and it's vars)
+- PUSHFRAME creates LF out out TF, keeps previous LF preserved if exists
 */
 
 #include "codegen.h"
@@ -44,6 +27,80 @@ HELPFUL NOTES:
 TAClist tac = {NULL, NULL};
 
 static int scope_depth = 0;
+
+////////////////////////////////////////////////////////////////////
+
+typedef struct
+{
+    char *name;
+    int depth;
+} PendingLocal;
+
+static PendingLocal pending_locals[512];
+static int __pending_cnt = 0;
+
+static void pending_reset(void)
+{
+    for (int i = 0; i < __pending_cnt; ++i)
+    {
+        free(pending_locals[i].name);
+    }
+    __pending_cnt = 0;
+}
+
+static void pending_add(const char *name, int depth)
+{
+    pending_locals[__pending_cnt].name = my_strdup(name);
+    pending_locals[__pending_cnt].depth = depth;
+    __pending_cnt++;
+}
+
+static void emit_pending_locals(void)
+{
+    for (int i = 0; i < __pending_cnt; ++i)
+    {
+        char *lf = var_lf_at_depth(pending_locals[i].name,
+                                   pending_locals[i].depth);
+        tac_append(DEFVAR, lf, NULL, NULL);
+    }
+    pending_reset();
+}
+
+static void collect_locals(ASTptr node, int depth)
+{
+    if (!node)
+        return;
+    switch (node->type)
+    {
+    case AST_BLOCK:
+        depth++;
+        for (int i = 0; i < node->block.stmtCount; ++i)
+        {
+            collect_locals(node->block.stmt[i], depth);
+        }
+        break;
+    case AST_VAR_DECL:
+        pending_add(node->var_decl.varName, depth);
+        break;
+    case AST_IF_STMT:
+        collect_locals(node->ifstmt.then, depth);
+        collect_locals(node->ifstmt.elsestmt, depth);
+        break;
+    case AST_WHILE_STMT:
+        collect_locals(node->while_stmt.body, depth);
+        break;
+    default:
+        break;
+    }
+}
+
+////////////////////////////////////////////////////////////////////
+
+typedef struct
+{
+    char *name;
+    int depth;
+} LocalBinding;
 
 static LocalBinding locals[512];
 static int __local_cnt = 0;
@@ -70,11 +127,12 @@ static int locals_lookup_depth(const char *name)
     }
     return -1;
 }
-
+////////////////////////////////////////////////////////////////////
 // track whether handled function should return a value
 static bool __has_explicit_ret = false;
 // track whether main function is being handled
 static bool __is_main = false;
+////////////////////////////////////////////////////////////////////
 // track globals to avoid reinitializing
 static const char *def_globs[256];
 static int def_glob_cnt = 0;
@@ -89,7 +147,7 @@ static void is_def_glob(const char *name)
     tac_list_replace_head(&tac, DEFVAR, name, NULL, NULL);
     return;
 }
-
+////////////////////////////////////////////////////////////////////
 #define EMIT_ARG_EXIT()                         \
     do                                          \
     {                                           \
@@ -702,6 +760,7 @@ void gen_block(ASTptr node)
 void gen_func_def(ASTptr node)
 {
     locals_reset();
+    pending_reset();
     // check if functions is main -- stored in global variable
     __is_main = (strcmp(node->func.name, "main") == 0) &&
                 (node->func.paramCount == 0);
@@ -741,8 +800,9 @@ void gen_func_def(ASTptr node)
             tac_append(MOVE, local_param, my_strdup(srcbuf), NULL);
         }
     }
-
     // Generate function body
+    collect_locals(node->func.body, 0);
+    emit_pending_locals();
     __has_explicit_ret = false;
     gen_block(node->func.body);
 
@@ -1378,8 +1438,8 @@ void gen_stmt(ASTptr node)
     {
     case AST_VAR_DECL: {
         
-        char *name = var_lf_at_depth(node->var_decl.varName, scope_depth);
-        tac_append(DEFVAR, name, NULL, NULL);
+        //char *name = var_lf_at_depth(node->var_decl.varName, scope_depth);
+        //tac_append(DEFVAR, name, NULL, NULL);
         locals_add(node->var_decl.varName);
         break;
     }

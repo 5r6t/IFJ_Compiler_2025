@@ -229,12 +229,6 @@ typedef struct {
     TACnode *tail;
 }TAClist;
 
-typedef struct
-{
-    char *name;
-    int depth;
-} LocalBinding;
-
 TACnode *tac_append(OpCode instr, char *a1, char *a2, char *a3);
 TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char *a2, const char *a3);
 TACnode *tac_list_pop_front(TAClist *list);
@@ -263,5 +257,6 @@ void gen_return_stmt(ASTptr node);
 void gen_assign_stmt(ASTptr node);
 void gen_stmt(ASTptr node);
 char *gen_expr(ASTptr node);
+char *var_lf_at_depth(const char *name, int depth);
 
 #endif // CODEGEN_H
