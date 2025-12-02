@@ -6,12 +6,10 @@
 //  * Veronika Kubová (xkubovv00) / Veradko //
 //////////////////////////////////////////////
 
-/**
-==== TO-DO ====
+/** ==== TO-DO ====
  * scopedepth ~~ we'll see
 * @brief int scopeDepth - indicating depth level for differentiating
     between global, local and temporary variables
-
 === NOTES ===
 - Only GF is initialized on start
 
@@ -26,11 +24,13 @@
 - Global counter for labels - presentation 47/56
 - Constants - presentation 48/56
 - Type checking - presentation 50/56
-
 // --- Runtime Error Codes ---
 #define ERR_RUNTIME_ARG 25  // Runtime: invalid builtin parameter type
 #define ERR_RUNTIME_TYPE 26 // Runtime: type mismatch in expr at runtime
 
+HELPFUL NOTES:
+- you can easily use Temporary Frame for variables (CREATEFRAME destroys old TF and it's vars)
+- pushframe creates LF out out TF, keeps previous LF preserved if exists
 */
 
 #include "codegen.h"
@@ -42,6 +42,53 @@
 #define RUNTIME
 
 TAClist tac = {NULL, NULL};
+
+static int scope_depth = 0;
+
+static LocalBinding locals[512];
+static int __local_cnt = 0;
+static void locals_reset(void) { __local_cnt = 0; }
+static void locals_pop_to_depth(int depth)
+{
+    while (__local_cnt > 0 && locals[__local_cnt - 1].depth > depth)
+    {
+        free(locals[--__local_cnt].name);
+    }
+}
+static void locals_add(const char *name)
+{
+    locals[__local_cnt].name = my_strdup(name);
+    locals[__local_cnt].depth = scope_depth;
+    __local_cnt++;
+}
+static int locals_lookup_depth(const char *name)
+{
+    for (int i = __local_cnt - 1; i >= 0; --i)
+    {
+        if (strcmp(locals[i].name, name) == 0)
+            return locals[i].depth;
+    }
+    return -1;
+}
+
+// track whether handled function should return a value
+static bool __has_explicit_ret = false;
+// track whether main function is being handled
+static bool __is_main = false;
+// track globals to avoid reinitializing
+static const char *def_globs[256];
+static int def_glob_cnt = 0;
+static void is_def_glob(const char *name)
+{
+    for (int i = 0; i < def_glob_cnt; i++)
+    {
+        if (strcmp(def_globs[i], name) == 0)
+            return;
+    }
+    def_globs[def_glob_cnt++] = my_strdup(name);
+    tac_list_replace_head(&tac, DEFVAR, name, NULL, NULL);
+    return;
+}
 
 #define EMIT_ARG_EXIT()                         \
     do                                          \
@@ -81,39 +128,6 @@ TAClist tac = {NULL, NULL};
         tac_append(CREATEFRAME, NULL, NULL, NULL); \
     } while (0)
 
-
-// used for creating new lf variables to store
-// lr types
-#define BINOP_LR_DEF_AND_TYPE()              \
-    do                                       \
-    {                                        \
-        char *t_l = new_lf_tmp();            \
-        char *t_r = new_lf_tmp();            \
-        tac_append(DEFVAR, t_l, NULL, NULL); \
-        tac_append(DEFVAR, t_r, NULL, NULL); \
-        tac_append(TYPE, t_l, l, NULL);      \
-        tac_append(TYPE, t_r, r, NULL);      \
-    } while (0)
-
-// track whether handled function should return a value
-static bool __has_explicit_ret = false;
-// track whether main function is being handled
-static bool __is_main = false;
-// track globals to avoid reinitializing
-static const char *def_globs[256];
-static int def_glob_cnt = 0;
-static void is_def_glob(const char *name)
-{
-    for (int i = 0; i < def_glob_cnt; i++)
-    {
-        if (strcmp(def_globs[i], name) == 0)
-            return;
-    }
-    def_globs[def_glob_cnt++] = my_strdup(name);
-    tac_list_replace_head(&tac, DEFVAR, name, NULL, NULL);
-    return;
-}
-
 ///////////////////////////////////
 // ---- Strings for Operands ----
 ///////////////////////////////////
@@ -126,14 +140,14 @@ char *fnc_label(char *name)
     return my_strdup(buf);
 }
 
-/* returns string for a global variable */
+/// @brief eturns string for a global variable
 char *var_gf(const char *name)
 {
     char buf[NAME_BUF];
     snprintf(buf, sizeof(buf), "GF@%s", name);
     return my_strdup(buf);
 }
-/* returns string for a local variable */
+/// @brief string for a local variable
 char *var_lf(const char *name)
 {
     char buf[NAME_BUF];
@@ -141,9 +155,15 @@ char *var_lf(const char *name)
     return my_strdup(buf);
 }
 
-/// @brief global counter for temporary TF variables
-/// @param num
-/// @return
+/// @brief  returns string for a local variable with depth info
+char *var_lf_at_depth(const char *name, int depth)
+{
+    char buf[NAME_BUF];
+    snprintf(buf, sizeof(buf), "LF@%s$%d", name, depth);
+    return my_strdup(buf);
+}
+
+/// @brief returns string for temporary TF variables
 char *new_tf(int num)
 {
     char buf[NAME_BUF];
@@ -152,8 +172,6 @@ char *new_tf(int num)
 }
 
 /// @brief
-/// @param name
-/// @return
 /// TODO: Complete
 char *fnc_name(const char *name)
 {
@@ -161,7 +179,7 @@ char *fnc_name(const char *name)
     return ret;
 }
 
-///////////////////////////////////
+///////////////////////////i////////
 // ---- Data types conversions ----
 ///////////////////////////////////
 
@@ -218,22 +236,6 @@ char *lit_string(const char *x)
 char *lit_nil()
 {
     return my_strdup("nil@nil");
-}
-
-/// @brief function that determines if a variable is global or local
-char *var_gf_or_lf(char *name, int scope_depth)
-{
-    char buf[NAME_BUF];
-
-    if (scope_depth == 0)
-    {
-        snprintf(buf, sizeof(buf), "GF@%s", name);
-    }
-    else
-    {
-        snprintf(buf, sizeof(buf), "LF@%s", name);
-    }
-    return my_strdup(buf);
 }
 
 ///////////////////////////////////
@@ -685,15 +687,21 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
 /// @brief
 void gen_block(ASTptr node)
 {
+    scope_depth++;
+
     for (int i = 0; i < node->block.stmtCount; i++)
     {
         gen_stmt(node->block.stmt[i]);
     }
+
+    scope_depth--;
+    locals_pop_to_depth(scope_depth);
 }
 
 /// @brief function that appends instructions for a definition of a function to a list
 void gen_func_def(ASTptr node)
 {
+    locals_reset();
     // check if functions is main -- stored in global variable
     __is_main = (strcmp(node->func.name, "main") == 0) &&
                 (node->func.paramCount == 0);
@@ -722,9 +730,11 @@ void gen_func_def(ASTptr node)
         for (int i = 0; i < node->func.paramCount; i++)
         {
             // ASTptr argNode = node->call.args[i]; forgot what i wanted
-            char *local_param = var_lf(node->func.paramNames[i]);
+            char *local_param = var_lf_at_depth(node->func.paramNames[i], scope_depth);
             tac_append(DEFVAR, local_param, NULL, NULL);
-
+            // keep track of locals
+            locals_add(node->func.paramNames[i]);
+            // todo incomplete scoped handling
             char srcbuf[NAME_BUF];
             snprintf(srcbuf, sizeof(srcbuf), "LF@%%%d", i + 1); // start with 1
 
@@ -782,13 +792,6 @@ void gen_func_call(ASTptr node)
     tac_append(CALL, func_label, NULL, NULL);
 }
 
-/// @brief declaration of a variable
-void gen_var_decl(ASTptr node, int scope_depth)
-{
-    char *var = var_gf_or_lf(node->var_decl.varName, scope_depth);
-    tac_append(DEFVAR, var, NULL, NULL);
-}
-
 /// @brief
 void gen_assign_stmt(ASTptr node)
 {
@@ -801,12 +804,56 @@ void gen_assign_stmt(ASTptr node)
     }
     else
     {
-        target = var_lf(node->assign_stmt.targetName);
+        int depth = locals_lookup_depth(node->assign_stmt.targetName);
+        target = var_lf_at_depth(node->assign_stmt.targetName, depth);
     }
 
     char *expr = gen_expr(node->assign_stmt.expr);
     tac_append(MOVE, target, expr, NULL);
     return;
+}
+
+/// @brief result = bool value of expr (num, null, etc)
+/// @note expects to be in TF
+char *gen_eval_bool(char *value)
+{
+    char *t_type = new_tf_tmp();
+    tac_append(DEFVAR, t_type, NULL, NULL);
+    tac_append(TYPE, t_type, value, NULL);
+
+    char *out = new_tf_tmp();
+    tac_append(DEFVAR, out, NULL, NULL);
+
+    char *L_bool = new_label("$truth_bool_");
+    char *L_nil = new_label("$truth_nil_");
+    char *L_else = new_label("$truth_else_");
+    char *L_end = new_label("$truth_end_");
+
+    // if type == bool
+    tac_append(JUMPIFEQ, L_bool, t_type, "string@bool");
+
+    // if null → false
+    tac_append(JUMPIFEQ, L_nil, t_type, "string@nil");
+
+    // else → true
+    tac_append(JUMP, L_else, NULL, NULL);
+
+    // bool branch: out = value
+    EMIT_LABEL(L_bool);
+    tac_append(MOVE, out, value, NULL);
+    tac_append(JUMP, L_end, NULL, NULL);
+
+    // null branch: out = false
+    EMIT_LABEL(L_nil);
+    tac_append(MOVE, out, "bool@false", NULL);
+    tac_append(JUMP, L_end, NULL, NULL);
+
+    // else branch: true
+    EMIT_LABEL(L_else);
+    tac_append(MOVE, out, "bool@true", NULL);
+
+    EMIT_LABEL(L_end);
+    return out; // always bool
 }
 
 /// @brief
@@ -816,7 +863,8 @@ void gen_while_stmt(ASTptr node)
     char *lbl_end = new_label("$while_end_");
 
     EMIT_LABEL(lbl_start);
-    char *cond = gen_expr(node->while_stmt.cond);
+    char *raw = gen_expr(node->while_stmt.cond);
+    char *cond = gen_eval_bool(raw);
 
     // jump to end if condition if false
     tac_append(JUMPIFEQ, lbl_end, cond, "bool@false");
@@ -830,16 +878,17 @@ void gen_while_stmt(ASTptr node)
 
 void gen_if_stmt(ASTptr node)
 {
-    // 1. Condition
-    char *cond = gen_expr(node->ifstmt.cond);
-
+    // 1. Evaluate Condition
+    char *raw = gen_expr(node->ifstmt.cond);
+    // 1.1 Convert to bool
+    char *cond = gen_eval_bool(raw);
+    
     // 2. Labels names
     char *lbl_else = new_label("$if_else_");
     char *lbl_end = new_label("$if_end_");
 
     // 3. Should Condition == false --> exec ELSE block
     tac_append(JUMPIFEQ, lbl_else, cond, "bool@false");
-
     // 4. IF block
     gen_block(node->ifstmt.then);
 
@@ -955,7 +1004,7 @@ char *gen_binop_sub(char *res, char *l, char *r)
     tac_append(JUMP, L_end, NULL, NULL);
 
     tac_append(LABEL, L_err, NULL, NULL);
-    tac_append(EXIT, "int@26", NULL, NULL);
+    EMIT_TYPE_EXIT();
 
     tac_append(LABEL, L_end, NULL, NULL);
     return res;
@@ -1193,7 +1242,7 @@ char *gen_binop_eq(char *res, char *l, char *r, BinOpType eq)
 }
 char *gen_binop_is(char *res, char *l, char *r, TypeName targetType)
 {
-    char *type_tmp = new_lf_tmp();
+    char *type_tmp = new_tf_tmp();
     if (targetType)
     {
     }
@@ -1262,12 +1311,16 @@ char *gen_identifier(ASTptr node)
 
     if (node->identifier.idType == ID_LOCAL)
     {
-        return var_lf(node->identifier.name); // LF@bla
+        int depth = locals_lookup_depth(node->identifier.name);
+        char buf[NAME_BUF];
+        snprintf(buf, sizeof(buf), "LF@%s$%d", node->identifier.name, depth);
+        return my_strdup(buf);
+
     }
 
     if (node->identifier.idType == ID_GETTER)
     {
-        char *tmp = new_lf_tmp();
+        char *tmp = new_tf_tmp();
         tac_append(DEFVAR, tmp, NULL, NULL);
 
         // Call getter function
@@ -1291,13 +1344,6 @@ char *gen_literal(ASTptr node)
     case LIT_NULL:
         r = lit_nil();
         return r;
-
-        /* Extension not implemented
-        case LIT_BOOL:
-            bool b = node->literal.bool;
-            char *r = lit_bool(b);
-            return r;
-        */
 
     case LIT_NUMBER:
     {
@@ -1330,9 +1376,13 @@ void gen_stmt(ASTptr node)
 {
     switch (node->type)
     {
-    case AST_VAR_DECL:
-        gen_var_decl(node, 1);
+    case AST_VAR_DECL: {
+        
+        char *name = var_lf_at_depth(node->var_decl.varName, scope_depth);
+        tac_append(DEFVAR, name, NULL, NULL);
+        locals_add(node->var_decl.varName);
         break;
+    }
     case AST_ASSIGN_STMT:
         gen_assign_stmt(node);
         break;
@@ -1347,6 +1397,9 @@ void gen_stmt(ASTptr node)
         break;
     case AST_FUNC_CALL:
         gen_func_call(node);
+        break;
+    case AST_BLOCK:
+        gen_block(node);
         break;
 
     default:
@@ -1426,10 +1479,10 @@ void generate(ASTptr tree)
         fprintf(stderr, "Deforestation in progress...");
         exit(ERR_INTERNAL);
     }
-    fprintf(stderr, "%s", new_tf_tmp()); // avoid not used err
 
     tac_list_init(&tac);
-    {
+
+    { /* BUILD LIST OF INSTRUCTIONS */
         // header
         tac_append(JUMP, "$$main", NULL, NULL);
 
@@ -1439,8 +1492,7 @@ void generate(ASTptr tree)
         }
     }
 
-    /* OUTPUT -- no optimalizations */
-    {
+    { /* OUTPUT */
         // print header
         printf(".IFJcode25\n");
         // print the rest of the program

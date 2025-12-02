@@ -42,12 +42,9 @@
 #define ERR_SEM_OTHER 10 // Other semantic errors
 #define ERR_INTERNAL 99  // Internal compiler error (e.g. malloc fail)
 
-// --- Runtime Error Codes ---
-#define ERR_RUNTIME_ARG 25  // Runtime: invalid builtin parameter type
-#define ERR_RUNTIME_TYPE 26 // Runtime: type mismatch in expr at runtime
-
 // ---- Codegen Errors ----
-#define ERR_CDGN_NOT_IMPLEMENTED 34
+#define ERR_RUNTIME_ARG 25 // Runtime: invalid builtin parameter type
+#define ERR_RUNTIME_TYPE 26 // Runtime: type mismatch in expr at runtime
 
 // --- ERROR MESSAGE NUMBERS FOR program_error()
 #define ERR_MSG_INTERNAL 0

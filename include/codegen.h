@@ -229,6 +229,12 @@ typedef struct {
     TACnode *tail;
 }TAClist;
 
+typedef struct
+{
+    char *name;
+    int depth;
+} LocalBinding;
+
 TACnode *tac_append(OpCode instr, char *a1, char *a2, char *a3);
 TACnode *tac_list_append(TAClist *list, OpCode instr, const char *a1, const char *a2, const char *a3);
 TACnode *tac_list_pop_front(TAClist *list);
