@@ -4,6 +4,7 @@ build
 program.wren
 docs_materials/.$LEX_FSM_DIA.drawio.bkp
 ifjMoreTests
+IFJ_TestsExpanded
 # exclude comprimed files
 *.zip
 ifj25

@@ -247,6 +247,7 @@ const char *tac_opcode_name(OpCode op);
 char* gen_identifier(ASTptr node);
 char* gen_literal(ASTptr node);
 char* fnc_name(const char* name);
+void insert_before_node(TACnode *ref, TACnode *node);
 
 void generate(ASTptr tree);
 void gen_func_def(ASTptr node);

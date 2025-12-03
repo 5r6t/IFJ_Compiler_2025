@@ -144,9 +144,44 @@ static void is_def_glob(const char *name)
             return;
     }
     def_globs[def_glob_cnt++] = my_strdup(name);
-    tac_list_replace_head(&tac, DEFVAR, name, NULL, NULL);
+    tac_list_replace_head(&tac, MOVE, name, "nil@nil", NULL); 
+    tac_list_replace_head(&tac, DEFVAR, name, NULL, NULL); // becomes head
+
     return;
 }
+////////////////////////////////////////////////////////////////////
+
+void hoist_defvars(TACnode *start_label, TACnode *end_label)
+{
+    if (!start_label || !end_label)
+        return;
+
+    enum
+    {
+        MAX_HOIST = 512
+    };
+    TACnode *to_move[MAX_HOIST];
+    int count = 0;
+
+    for (TACnode *curr = start_label->next; curr && curr != end_label;)
+    {
+        TACnode *next = curr->next;
+        if (curr->instr == DEFVAR && count < MAX_HOIST)
+        {
+            tac_list_remove(&tac, curr);
+            curr->next = curr->prev = NULL;
+            to_move[count++] = curr;
+        }
+        curr = next;
+    }
+
+    for (int i = 0; i < count; ++i)
+    {
+        insert_before_node(start_label, to_move[i]);
+    }
+}
+
+
 ////////////////////////////////////////////////////////////////////
 #define EMIT_ARG_EXIT()                         \
     do                                          \
@@ -786,6 +821,7 @@ void gen_func_def(ASTptr node)
         tac_append(PUSHFRAME, NULL, NULL, NULL);
         tac_append(MOVE, retval, "nil@nil", NULL);
     }
+    EMIT_CREATEFRAME(); // prepare TF for temporaries
 
     if (__is_main == false)
     {
@@ -927,6 +963,8 @@ void gen_while_stmt(ASTptr node)
     char *lbl_end = new_label("$while_end_");
 
     EMIT_LABEL(lbl_start);
+    TACnode *while_start = tac.tail;
+
     char *raw = gen_expr(node->while_stmt.cond);
     char *cond = gen_eval_bool(raw);
 
@@ -937,6 +975,8 @@ void gen_while_stmt(ASTptr node)
     tac_append(JUMP, lbl_start, NULL, NULL);
     // finish
     EMIT_LABEL(lbl_end);
+    TACnode *while_end = tac.tail;
+    hoist_defvars(while_start, while_end);
     return;
 }
 
@@ -1108,7 +1148,7 @@ char *gen_binop_sub(char *res, char *lo, char *ro)
     EMIT_LABEL(L_end);
     return res;
 }
-// BAD
+
 char *gen_binop_mul(char *res, char *lo, char *ro)
 {
     char *l = new_tf_tmp();
@@ -1186,7 +1226,7 @@ char *gen_binop_mul(char *res, char *lo, char *ro)
     EMIT_LABEL(L_end);
     return res;
 }
-// todo
+
 char *gen_binop_div(char *res, char *lo, char *ro)
 {
     char *l = new_tf_tmp();
@@ -1211,7 +1251,6 @@ char *gen_binop_div(char *res, char *lo, char *ro)
     tac_append(TYPE, t_r, r, NULL);
 
     // preemptive checks
-    //tac_append(JUMPIFEQ, L_error, r, "int@0"); // zero div
     tac_append(JUMPIFEQ, L_error, t_l, "string@nil");
     tac_append(JUMPIFEQ, L_error, t_r, "string@nil");
     tac_append(JUMPIFEQ, L_error, t_l, "string@string");
@@ -1223,23 +1262,24 @@ char *gen_binop_div(char *res, char *lo, char *ro)
     EMIT_LABEL(L_float);
     // if right is float too, then SUB
     tac_append(JUMPIFEQ, L_ok, t_r, "string@float");
-    // else convert
+    // convert to float
     tac_append(INT2FLOAT, r, r, NULL);
     tac_append(JUMP, L_ok, NULL, NULL);
 
     EMIT_LABEL(L_int);
-    // if right is int, then SUB
-    tac_append(JUMPIFEQ, L_ok, t_r, "string@int");
-    // else convert
+    // convert left op to float
     tac_append(INT2FLOAT, l, l, NULL);
+    // if right is int, then DIV
+    tac_append(JUMPIFEQ, L_ok, t_r, "string@float");
+    tac_append(INT2FLOAT, r, r, NULL);
     tac_append(JUMP, L_ok, NULL, NULL);
-
-    EMIT_LABEL(L_ok);
-    tac_append(SUB, res, l, r);
-    tac_append(JUMP, L_end, NULL, NULL);
 
     EMIT_LABEL(L_error);
     EMIT_TYPE_EXIT();
+
+    EMIT_LABEL(L_ok);
+    tac_append(DIV, res, l, r);
+    tac_append(JUMP, L_end, NULL, NULL);
 
     EMIT_LABEL(L_end);
     return res;
@@ -1447,7 +1487,7 @@ char *gen_binop(ASTptr node)
     {
         right = gen_expr(node->binop.right);
     }
-    EMIT_CREATEFRAME();
+
     char *res = new_tf_tmp();
     EMIT_DEFVAR(res);
 
@@ -1491,7 +1531,9 @@ char *gen_identifier(ASTptr node)
 {
     if (node->identifier.idType == ID_GLOBAL)
     {
-        return var_gf(node->identifier.name);
+        char *target=  var_gf(node->identifier.name);
+        is_def_glob(target);
+        return target;
     }
 
     if (node->identifier.idType == ID_LOCAL)
@@ -1649,7 +1691,7 @@ char *gen_expr(ASTptr node)
         return gen_func_call_expr(node);
 
     default:
-        fprintf(stderr, "gen_expr: unsupported AST node -> type %d\n", node->type);
+        DEBUG_PRINT("gen_expr: unsupported AST node -> type %d\n", node->type);
         return NULL; // reach only on errors
     }
 }
@@ -1938,4 +1980,20 @@ void tac_list_clear(TAClist *list)
 TACnode *tac_append(OpCode instr, char *a1, char *a2, char *a3)
 {
     return tac_list_append(&tac, instr, a1, a2, a3);
+}
+
+void insert_before_node(TACnode *ref, TACnode *node)
+{
+    if (!ref || !node)
+        return;
+
+    node->next = ref;
+    node->prev = ref->prev;
+
+    if (ref->prev)
+        ref->prev->next = node;
+    else
+        tac.head = node;
+
+    ref->prev = node;
 }
