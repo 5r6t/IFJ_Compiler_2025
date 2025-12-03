@@ -479,7 +479,7 @@ static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
     char *LBL_loop = new_label("$strcmp_loop_");
     char *LBL_loop_end = new_label("$strcmp_end_");
     char *L_end = new_label("$strcmp_ret_");
-    char *LBL_after_diff = new_label("$strcmp_after_diff_");
+    char *L_after_diff = new_label("$strcmp_after_diff_");
 
     // len1 = length(s1)
     tac_append(STRLEN, len1, s1, NULL);
@@ -505,14 +505,13 @@ static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
 
     // if c1 == c2 - continue
     tac_append(EQ, tmp, c1, c2);
-    tac_append(JUMPIFEQ, LBL_after_diff, tmp, "bool@false"); // if equal - skip diff calc
+    tac_append(JUMPIFEQ, L_after_diff, tmp, "bool@false"); // if equal - skip diff calc
 
     // difference - result_tmp = c1 - c2
     tac_append(SUB, result_tmp, c1, c2);
-    tac_append(JUMP, LBL_return, NULL, NULL);
+    tac_append(JUMP, L_end, NULL, NULL);
 
-    tac_append(LABEL, LBL_after_diff, NULL, NULL);
-
+    EMIT_LABEL(L_after_diff);
     // i = i + 1
     tac_append(ADD, i, i, "int@1");
 
