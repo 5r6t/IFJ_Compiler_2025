@@ -186,6 +186,12 @@ static void is_def_glob(const char *name)
         tac_append(CREATEFRAME, NULL, NULL, NULL); \
     } while (0)
 
+#define EMIT_DEFVAR(var_name)                     \
+    do                                            \
+    {                                             \
+        tac_append(DEFVAR, var_name, NULL, NULL); \
+    } while (0)
+
 ///////////////////////////////////
 // ---- Strings for Operands ----
 ///////////////////////////////////
@@ -205,29 +211,6 @@ char *var_gf(const char *name)
     snprintf(buf, sizeof(buf), "GF@%s", name);
     return my_strdup(buf);
 }
-/// @brief string for a local variable
-char *var_lf(const char *name)
-{
-    char buf[NAME_BUF];
-    snprintf(buf, sizeof(buf), "LF@%s", name);
-    return my_strdup(buf);
-}
-
-/// @brief  returns string for a local variable with depth info
-char *var_lf_at_depth(const char *name, int depth)
-{
-    char buf[NAME_BUF];
-    snprintf(buf, sizeof(buf), "LF@%s$%d", name, depth);
-    return my_strdup(buf);
-}
-
-/// @brief returns string for temporary TF variables
-char *new_tf(int num)
-{
-    char buf[NAME_BUF];
-    snprintf(buf, sizeof(buf), "TF@%%%d", num);
-    return my_strdup(buf);
-}
 
 /// @brief
 /// TODO: Complete
@@ -235,6 +218,16 @@ char *fnc_name(const char *name)
 {
     char *ret = my_strdup(name);
     return ret;
+}
+
+/// @brief Create labels in style: <prefix>x, where x is a counter
+static char *new_label(const char *prefix)
+{
+    char buf[128];
+    static int label_counter = 0;
+
+    snprintf(buf, sizeof(buf), "%s%d", prefix, label_counter++);
+    return my_strdup(buf);
 }
 
 ///////////////////////////i////////
@@ -290,23 +283,18 @@ char *lit_string(const char *x)
     return my_strdup(final);
 }
 
-/// @brief
-char *lit_nil()
-{
-    return my_strdup("nil@nil");
-}
+/// @brief returns null in correct Ifjcode format
+char *lit_nil() { return my_strdup("nil@nil"); }
 
 ///////////////////////////////////
-// ---- Temporary variables
+// ---- Variables
 ///////////////////////////////////
 
-/// @brief Create string in format: LF@x, where x is a number
-static char *new_lf_tmp()
+/// @brief returns string for temporary TF variables
+char *new_tf(int num)
 {
     char buf[NAME_BUF];
-    static int lf_counter = 0;
-
-    snprintf(buf, sizeof(buf), "LF@%%%d", lf_counter++);
+    snprintf(buf, sizeof(buf), "TF@%%%d", num);
     return my_strdup(buf);
 }
 
@@ -320,13 +308,29 @@ static char *new_tf_tmp()
     return my_strdup(buf);
 }
 
-/// @brief Create labels in style: <prefix>x, where x is a counter
-static char *new_label(const char *prefix)
+/// @brief string for a local variable
+char *var_lf(const char *name)
 {
-    char buf[128];
-    static int label_counter = 0;
+    char buf[NAME_BUF];
+    snprintf(buf, sizeof(buf), "LF@%s", name);
+    return my_strdup(buf);
+}
 
-    snprintf(buf, sizeof(buf), "%s%d", prefix, label_counter++);
+/// @brief Create string in format: LF@x, where x is a number
+static char *new_lf_tmp()
+{
+    char buf[NAME_BUF];
+    static int lf_counter = 0;
+
+    snprintf(buf, sizeof(buf), "LF@%%%d", lf_counter++);
+    return my_strdup(buf);
+}
+
+/// @brief  returns string for a local variable with depth info
+char *var_lf_at_depth(const char *name, int depth)
+{
+    char buf[NAME_BUF];
+    snprintf(buf, sizeof(buf), "LF@%s$%d", name, depth);
     return my_strdup(buf);
 }
 
@@ -343,11 +347,11 @@ static void gen_builtin_substring(ASTptr call, char *result_tmp)
 
     // temps
     char *tmp = new_tf_tmp();
-    tac_append(DEFVAR, tmp, NULL, NULL);
+    EMIT_DEFVAR(tmp);
     char *len = new_tf_tmp();
-    tac_append(DEFVAR, len, NULL, NULL);
+    EMIT_DEFVAR(len);
     char *k = new_tf_tmp();
-    tac_append(DEFVAR, k, NULL, NULL);
+    EMIT_DEFVAR(k);
 
     char *LBL_i_not_int = new_label("$substr_i_not_int_");
     char *LBL_j_not_int = new_label("$substr_j_not_int_");
@@ -367,24 +371,24 @@ static void gen_builtin_substring(ASTptr call, char *result_tmp)
     // compute len(s)
     tac_append(STRLEN, len, s, NULL);
 
-    // ----- i < 0 → nil -----
+    // ----- i < 0 - nil -----
     tac_append(LT, tmp, i, "int@0");
     tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@true");
 
-    // ----- j < 0 → nil -----
+    // ----- j < 0 - nil -----
     tac_append(LT, tmp, j, "int@0");
     tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@true");
 
-    // ----- i > j → nil -----
+    // ----- i > j - nil -----
     tac_append(GT, tmp, i, j);
     tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@true");
 
     // ----- i >= len -----
     // compute (i < len)
     tac_append(LT, tmp, i, len);
-    // if tmp == true → ok, continue
+    // if tmp == true - ok, continue
     tac_append(JUMPIFEQ, LBL_loop, tmp, "bool@true");
-    // else → i >= len
+    // else - i >= len
     tac_append(JUMP, LBL_return_nil, NULL, NULL);
 
     // ----- j > len -----
@@ -401,11 +405,11 @@ static void gen_builtin_substring(ASTptr call, char *result_tmp)
 
     EMIT_LABEL(LBL_loop);
 
-    // if k >= j → end
+    // if k >= j - end
     // check (k < j)
     tac_append(LT, tmp, k, j);
     tac_append(JUMPIFEQ, LBL_loop_end, tmp, "bool@false");
-    // IF tmp is false → !(k < j) → k >= j
+    // IF tmp is false - !(k < j) - k >= j
 
     // tmp = s[k]
     tac_append(GETCHAR, tmp, s, k);
@@ -441,17 +445,17 @@ static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
 
     // temps
     char *i = new_tf_tmp();
-    tac_append(DEFVAR, i, NULL, NULL);
+    EMIT_DEFVAR(i);
     char *c1 = new_tf_tmp();
-    tac_append(DEFVAR, c1, NULL, NULL);
+    EMIT_DEFVAR(c1);
     char *c2 = new_tf_tmp();
-    tac_append(DEFVAR, c2, NULL, NULL);
+    EMIT_DEFVAR(c2);
     char *len1 = new_tf_tmp();
-    tac_append(DEFVAR, len1, NULL, NULL);
+    EMIT_DEFVAR(len1);
     char *len2 = new_tf_tmp();
-    tac_append(DEFVAR, len2, NULL, NULL);
+    EMIT_DEFVAR(len2);
     char *tmp = new_tf_tmp();
-    tac_append(DEFVAR, tmp, NULL, NULL);
+    EMIT_DEFVAR(tmp);
 
     char *LBL_loop = new_label("$strcmp_loop_");
     char *LBL_loop_end = new_label("$strcmp_end_");
@@ -469,7 +473,7 @@ static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
     // loop:
     tac_append(LABEL, LBL_loop, NULL, NULL);
 
-    // if i >= len1 or i >= len2 → go to post-loop
+    // if i >= len1 or i >= len2 - go to post-loop
     tac_append(LT, tmp, i, len1);
     tac_append(JUMPIFEQ, LBL_loop_end, tmp, "bool@false"); // !(i < len1)
     tac_append(LT, tmp, i, len2);
@@ -480,11 +484,11 @@ static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
     // c2 = ASCII of s2[i]
     tac_append(STRI2INT, c2, s2, i);
 
-    // if c1 == c2 → continue
+    // if c1 == c2 - continue
     tac_append(EQ, tmp, c1, c2);
-    tac_append(JUMPIFEQ, LBL_after_diff, tmp, "bool@false"); // if equal → skip diff calc
+    tac_append(JUMPIFEQ, LBL_after_diff, tmp, "bool@false"); // if equal - skip diff calc
 
-    // difference → result_tmp = c1 - c2
+    // difference - result_tmp = c1 - c2
     tac_append(SUB, result_tmp, c1, c2);
     tac_append(JUMP, LBL_return, NULL, NULL);
 
@@ -511,7 +515,7 @@ static void gen_builtin_str(ASTptr call, char *result_tmp)
 
     // temp for storing detected type
     char *t = new_tf_tmp();
-    tac_append(DEFVAR, t, NULL, NULL);
+    EMIT_DEFVAR(t);
     tac_append(TYPE, t, arg, NULL);
 
     // labels
@@ -562,9 +566,9 @@ static void gen_builtin_ord(ASTptr call, char *result_tmp)
     char *i = gen_expr(call->call.args[1]);
 
     char *tmp = new_tf_tmp();
-    tac_append(DEFVAR, tmp, NULL, NULL);
+    EMIT_DEFVAR(tmp);
     char *len = new_tf_tmp();
-    tac_append(DEFVAR, len, NULL, NULL);
+    EMIT_DEFVAR(len);
 
     char *LBL_i_not_int = new_label("$ord_i_not_int_");
     char *LBL_return_nil = new_label("$ord_ret_nil_");
@@ -577,11 +581,11 @@ static void gen_builtin_ord(ASTptr call, char *result_tmp)
     // -- compute length of s
     tac_append(STRLEN, len, s, NULL);
 
-    // -- if i < 0 → nil
+    // -- if i < 0 - nil
     tac_append(LT, tmp, i, "int@0");
     tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@true");
 
-    // -- if i >= len → nil   (i < len must be true)
+    // -- if i >= len - nil   (i < len must be true)
     tac_append(LT, tmp, i, len);
     tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@false");
 
@@ -589,7 +593,7 @@ static void gen_builtin_ord(ASTptr call, char *result_tmp)
     tac_append(STRI2INT, result_tmp, s, i);
     tac_append(JUMP, LBL_end, NULL, NULL);
 
-    // -- not int → error 6
+    // -- not int - error 6
     tac_append(LABEL, LBL_i_not_int, NULL, NULL);
     EMIT_TYPE_EXIT();
 
@@ -605,7 +609,7 @@ static void gen_builtin_chr(ASTptr call, char *result_tmp)
     char *i = gen_expr(call->call.args[0]);
 
     char *tmp = new_tf_tmp();
-    tac_append(DEFVAR, tmp, NULL, NULL);
+    EMIT_DEFVAR(tmp);
 
     char *LBL_i_not_int = new_label("$chr_i_not_int_");
     char *LBL_err_range = new_label("$chr_err_range_");
@@ -615,11 +619,11 @@ static void gen_builtin_chr(ASTptr call, char *result_tmp)
     tac_append(ISINT, tmp, i, NULL);
     tac_append(JUMPIFNEQ, LBL_i_not_int, tmp, "bool@true");
 
-    // -- check i < 0 → error 6
+    // -- check i < 0 - error 6
     tac_append(LT, tmp, i, "int@0");
     tac_append(JUMPIFEQ, LBL_err_range, tmp, "bool@true");
 
-    // -- check i > 255 → error 6
+    // -- check i > 255 - error 6
     tac_append(GT, tmp, i, "int@255");
     tac_append(JUMPIFEQ, LBL_err_range, tmp, "bool@true");
 
@@ -627,8 +631,8 @@ static void gen_builtin_chr(ASTptr call, char *result_tmp)
     tac_append(INT2CHAR, result_tmp, i, NULL);
     tac_append(JUMP, LBL_end, NULL, NULL);
 
-    // -- not int → error 26
-    // -- out of range → error 26
+    // -- not int - error 26
+    // -- out of range - error 26
     tac_append(LABEL, LBL_i_not_int, NULL, NULL);
     tac_append(LABEL, LBL_err_range, NULL, NULL);
     EMIT_ARG_EXIT();
@@ -693,7 +697,7 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
     {
         char *arg = gen_expr(call->call.args[0]);
         char *tmp = new_lf_tmp();
-        tac_append(DEFVAR, tmp, NULL, NULL);
+        EMIT_DEFVAR(tmp);
 
         // convert float to int (floor semantics)
         tac_append(FLOAT2INT, tmp, arg, NULL);
@@ -775,7 +779,7 @@ void gen_func_def(ASTptr node)
     {
         EMIT_CREATEFRAME();
         tac_append(PUSHFRAME, NULL, NULL, NULL);
-        tac_append(DEFVAR, retval, NULL, NULL);
+        EMIT_DEFVAR(retval);
     }
     else
     {
@@ -790,7 +794,8 @@ void gen_func_def(ASTptr node)
         {
             // ASTptr argNode = node->call.args[i]; forgot what i wanted
             char *local_param = var_lf_at_depth(node->func.paramNames[i], scope_depth);
-            tac_append(DEFVAR, local_param, NULL, NULL);
+            EMIT_DEFVAR(local_param);
+
             // keep track of locals
             locals_add(node->func.paramNames[i]);
             // todo incomplete scoped handling
@@ -830,7 +835,7 @@ void gen_func_call(ASTptr node)
     {
         EMIT_CREATEFRAME();
         char *tmp = new_tf_tmp();
-        tac_append(DEFVAR, tmp, NULL, NULL);
+        EMIT_DEFVAR(tmp);
         gen_builtin_call(node, tmp);
         return;
     }
@@ -842,12 +847,11 @@ void gen_func_call(ASTptr node)
     {
         char buf[NAME_BUF];
         snprintf(buf, sizeof(buf), "TF@%%%d", i + 1);
-        tac_append(DEFVAR, buf, NULL, NULL);
+        EMIT_DEFVAR(buf);
 
         char *arg = gen_expr(node->call.args[i]);
         tac_append(MOVE, buf, arg, NULL);
     }
-
     char *func_label = fnc_label(fname);
     tac_append(CALL, func_label, NULL, NULL);
 }
@@ -878,11 +882,11 @@ void gen_assign_stmt(ASTptr node)
 char *gen_eval_bool(char *value)
 {
     char *t_type = new_tf_tmp();
-    tac_append(DEFVAR, t_type, NULL, NULL);
+    EMIT_DEFVAR(t_type);
     tac_append(TYPE, t_type, value, NULL);
 
     char *out = new_tf_tmp();
-    tac_append(DEFVAR, out, NULL, NULL);
+    EMIT_DEFVAR(out);
 
     char *L_bool = new_label("$truth_bool_");
     char *L_nil = new_label("$truth_nil_");
@@ -892,10 +896,10 @@ char *gen_eval_bool(char *value)
     // if type == bool
     tac_append(JUMPIFEQ, L_bool, t_type, "string@bool");
 
-    // if null → false
+    // if null - false
     tac_append(JUMPIFEQ, L_nil, t_type, "string@nil");
 
-    // else → true
+    // else - true
     tac_append(JUMP, L_else, NULL, NULL);
 
     // bool branch: out = value
@@ -938,32 +942,24 @@ void gen_while_stmt(ASTptr node)
 
 void gen_if_stmt(ASTptr node)
 {
+    char *lbl_else = new_label("$if_else_");
+    char *lbl_end = new_label("$if_end_");
     // 1. Evaluate Condition
     char *raw = gen_expr(node->ifstmt.cond);
     // 1.1 Convert to bool
     char *cond = gen_eval_bool(raw);
-    
-    // 2. Labels names
-    char *lbl_else = new_label("$if_else_");
-    char *lbl_end = new_label("$if_end_");
-
-    // 3. Should Condition == false --> exec ELSE block
+    // 2. Go to else if cond is false
     tac_append(JUMPIFEQ, lbl_else, cond, "bool@false");
-    // 4. IF block
+    // 3. IF block
     gen_block(node->ifstmt.then);
-
-    // 5. JUMP to ELSE block
+    // 4. Skip ELSE block
     tac_append(JUMP, lbl_end, NULL, NULL);
-
-    // 6. ELSE label
-    tac_append(LABEL, lbl_else, NULL, NULL);
-
-    // 7. ELSE block (if exists)
+    EMIT_LABEL(lbl_else);
+    // 5. ELSE block (if exists) // EVEN THOUGH EXTENSION NOT IMPLEMENTED
     if (node->ifstmt.elsestmt != NULL)
         gen_block(node->ifstmt.elsestmt);
-
-    // 8. final end label
-    tac_append(LABEL, lbl_end, NULL, NULL);
+    // 6. finish
+    EMIT_LABEL(lbl_end);
 }
 
 void gen_return_stmt(ASTptr node)
@@ -987,258 +983,296 @@ void gen_return_stmt(ASTptr node)
 // ---- BINARY OPERATORS  ----
 ///////////////////////////////////
 // string + string or num + num, but not num + string/null --> ERR 26
-char *gen_binop_add(char *res, char *l, char *r)
+char *gen_binop_add(char *res, char *lo, char *ro)
 {
+    char *l = new_tf_tmp();
+    char *r = new_tf_tmp();
     char *t_l = new_tf_tmp();
     char *t_r = new_tf_tmp();
-    tac_append(DEFVAR, t_l, NULL, NULL);
-    tac_append(DEFVAR, t_r, NULL, NULL);
-
-    tac_append(TYPE, t_l, l, NULL);
-    tac_append(TYPE, t_r, r, NULL);
 
     char *L_str_ok = new_label("$add_str_");
-    char *L_num_ok = new_label("$add_num_");
+    char *L_float = new_label("$in_float_L_");
+    char *L_int = new_label("$in_int_L_");
+    char *L_rnum_ok = new_label("add_rnum");
     char *L_error = new_label("$add_err_");
     char *L_end = new_label("$add_end_");
 
+    EMIT_DEFVAR(l);
+    EMIT_DEFVAR(r);
+    tac_append(MOVE, l, lo, NULL);
+    tac_append(MOVE, r, ro, NULL);
+    EMIT_DEFVAR(t_l);
+    EMIT_DEFVAR(t_r);
+
+    tac_append(TYPE, t_l, l, NULL);
+    tac_append(TYPE, t_r, r, NULL);
+
+    // preemptive check
+    tac_append(JUMPIFEQ, L_error, t_r, "string@nil");
+
     // string + string ?
     tac_append(JUMPIFEQ, L_str_ok, t_l, "string@string");
-    tac_append(JUMPIFEQ, L_error, t_r, "string@string"); // if only right is string → error
-    //   (if left wasn't string, above would not trigger unless mismatch)
+    tac_append(JUMPIFEQ, L_error, t_r, "string@string"); // if only right is string - error
 
     // numeric + numeric ?
-    tac_append(JUMPIFEQ, L_num_ok, t_l, "string@int");
-    tac_append(JUMPIFEQ, L_num_ok, t_l, "string@float");
+    // if L float or int -- ok jump
+    tac_append(JUMPIFEQ, L_float, t_l, "string@float");
+    tac_append(JUMPIFEQ, L_int, t_l, "string@int");
 
-    // error if types mismatched
+    // error (type mismatch)
     tac_append(JUMP, L_error, NULL, NULL);
 
-    // ----- string concat -----
-    tac_append(LABEL, L_str_ok, NULL, NULL);
-    tac_append(JUMPIFNEQ, L_error, t_r, "string@string");
+    EMIT_LABEL(L_str_ok);
+    tac_append(JUMPIFNEQ, L_error, t_r, "string@string"); // right not string
     tac_append(CONCAT, res, l, r);
     tac_append(JUMP, L_end, NULL, NULL);
 
-    // ----- numeric add -----
-    tac_append(LABEL, L_num_ok, NULL, NULL);
-    tac_append(JUMPIFNEQ, L_error, t_r, "string@int");
-    // OR float automatically works since ADD handles both
+    EMIT_LABEL(L_float);
+    // if right is float too, then ADD
+    tac_append(JUMPIFEQ, L_rnum_ok, t_r, "string@float");
+    // else convert
+    tac_append(INT2FLOAT, r, r, NULL);
+    tac_append(JUMP, L_rnum_ok, NULL, NULL);
+
+    EMIT_LABEL(L_int);
+    // if right is int, then ADD
+    tac_append(JUMPIFEQ, L_rnum_ok, t_r, "string@int");
+    // else convert
+    tac_append(INT2FLOAT, l, l, NULL);
+    tac_append(JUMP, L_rnum_ok, NULL, NULL);
+
+    EMIT_LABEL(L_rnum_ok);
     tac_append(ADD, res, l, r);
     tac_append(JUMP, L_end, NULL, NULL);
 
-    // ----- error -----
-    tac_append(LABEL, L_error, NULL, NULL);
+    EMIT_LABEL(L_error);
     EMIT_TYPE_EXIT();
 
-    // ----- end -----
-    tac_append(LABEL, L_end, NULL, NULL);
+    EMIT_LABEL(L_end);
     return res;
 }
-char *gen_binop_sub(char *res, char *l, char *r)
+char *gen_binop_sub(char *res, char *lo, char *ro)
 {
+    char *l = new_tf_tmp();
+    char *r = new_tf_tmp();
     char *t_l = new_tf_tmp();
     char *t_r = new_tf_tmp();
-    tac_append(DEFVAR, t_l, NULL, NULL);
-    tac_append(DEFVAR, t_r, NULL, NULL);
+
+    char *L_ok = new_label("$sub_ok_");
+    char *L_error = new_label("$sub_err_");
+    char *L_end = new_label("$sub_end_");
+    char *L_float = new_label("$in_float_L_");
+    char *L_int = new_label("$in_int_L_");
+
+    EMIT_DEFVAR(l);
+    EMIT_DEFVAR(r);
+    tac_append(MOVE, l, lo, NULL);
+    tac_append(MOVE, r, ro, NULL);
+    EMIT_DEFVAR(t_l);
+    EMIT_DEFVAR(t_r);
 
     tac_append(TYPE, t_l, l, NULL);
     tac_append(TYPE, t_r, r, NULL);
 
-    char *L_ok = new_label("$sub_ok_");
-    char *L_rhs_ok = new_label("$sub_rhs_ok_");
-    char *L_err = new_label("$sub_err_");
-    char *L_end = new_label("$sub_end_");
+    // preemptive checks
+    tac_append(JUMPIFEQ, L_error, t_l, "string@nil");
+    tac_append(JUMPIFEQ, L_error, t_r, "string@nil");
+    tac_append(JUMPIFEQ, L_error, t_l, "string@string");
+    tac_append(JUMPIFEQ, L_error, t_r, "string@string");
 
-    tac_append(JUMPIFEQ, L_ok, t_l, "string@int");
-    tac_append(JUMPIFEQ, L_ok, t_l, "string@float");
-    tac_append(JUMP, L_err, NULL, NULL);
+    tac_append(JUMPIFEQ, L_float, t_l, "string@float");
+    tac_append(JUMPIFEQ, L_int, t_l, "string@int");
 
-    tac_append(LABEL, L_ok, NULL, NULL);
-    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@int");
-    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@float");
-    tac_append(JUMP, L_err, NULL, NULL);
+    EMIT_LABEL(L_float);
+    // if right is float too, then SUB
+    tac_append(JUMPIFEQ, L_ok, t_r, "string@float");
+    // else convert
+    tac_append(INT2FLOAT, r, r, NULL);
+    tac_append(JUMP, L_ok, NULL, NULL);
 
-    tac_append(LABEL, L_rhs_ok, NULL, NULL);
+    EMIT_LABEL(L_int);
+    // if right is int, then SUB
+    tac_append(JUMPIFEQ, L_ok, t_r, "string@int");
+    // else convert
+    tac_append(INT2FLOAT, l, l, NULL);
+    tac_append(JUMP, L_ok, NULL, NULL);
+
+    EMIT_LABEL(L_ok);
     tac_append(SUB, res, l, r);
     tac_append(JUMP, L_end, NULL, NULL);
 
-    tac_append(LABEL, L_err, NULL, NULL);
+    EMIT_LABEL(L_error);
     EMIT_TYPE_EXIT();
 
-    tac_append(LABEL, L_end, NULL, NULL);
+    EMIT_LABEL(L_end);
     return res;
 }
 // BAD
-char *gen_binop_mul(char *res, char *l, char *r)
+char *gen_binop_mul(char *res, char *lo, char *ro)
 {
+    char *l = new_tf_tmp();
+    char *r = new_tf_tmp();
     char *t_l = new_tf_tmp();
     char *t_r = new_tf_tmp();
-    tac_append(DEFVAR, t_l, NULL, NULL);
-    tac_append(DEFVAR, t_r, NULL, NULL);
-
-    tac_append(TYPE, t_l, l, NULL);
-    tac_append(TYPE, t_r, r, NULL);
+    char *r_tmp = new_tf_tmp();
 
     char *L_ok = new_label("$mul_ok_");
-    char *L_rhs_ok = new_label("$mul_rhs_ok_");
-    char *L_err = new_label("$mul_err_");
+    char *L_str_ok = new_label("$add_str_");
+    char *L_error = new_label("$mul_err_");
     char *L_end = new_label("$mul_end_");
+    char *L_float = new_label("$in_float_L_");
+    char *L_int = new_label("$in_int_L_");
+    char *L_loop = new_label("$iter_loop_");
 
-    tac_append(JUMPIFEQ, L_ok, t_l, "string@int");
-    tac_append(JUMPIFEQ, L_ok, t_l, "string@float");
-    tac_append(JUMP, L_err, NULL, NULL);
-
-    tac_append(LABEL, L_ok, NULL, NULL);
-    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@int");
-    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@float");
-    tac_append(JUMP, L_err, NULL, NULL);
-
-    tac_append(LABEL, L_rhs_ok, NULL, NULL);
-    tac_append(MUL, res, l, r);
-    tac_append(JUMP, L_end, NULL, NULL);
-
-    tac_append(LABEL, L_err, NULL, NULL);
-    EMIT_TYPE_EXIT();
-
-    tac_append(LABEL, L_end, NULL, NULL);
-    return res;
-}
-// todo
-char *gen_binop_div(char *res, char *l, char *r)
-{
-    char *t_l = new_tf_tmp();
-    char *t_r = new_tf_tmp();
-    char *t_zero = new_tf_tmp();
-    tac_append(DEFVAR, t_l, NULL, NULL);
-    tac_append(DEFVAR, t_r, NULL, NULL);
-    tac_append(DEFVAR, t_zero, NULL, NULL);
+    EMIT_DEFVAR(l);
+    EMIT_DEFVAR(r);
+    tac_append(MOVE, l, lo, NULL);
+    tac_append(MOVE, r, ro, NULL);
+    EMIT_DEFVAR(t_l);
+    EMIT_DEFVAR(t_r);
+    EMIT_DEFVAR(r_tmp);
+    tac_append(MOVE, r_tmp, "string@", NULL);
 
     tac_append(TYPE, t_l, l, NULL);
     tac_append(TYPE, t_r, r, NULL);
 
-    char *L_ok = new_label("$div_ok_");
-    char *L_rhs_ok = new_label("$div_rhs_ok_");
-    char *L_z = new_label("$div_zero_");
-    char *L_err = new_label("$div_err_");
-    char *L_end = new_label("$div_end_");
+    // preemptive check
+    tac_append(JUMPIFEQ, L_error, t_r, "string@nil");
 
-    tac_append(JUMPIFEQ, L_ok, t_l, "string@int");
-    tac_append(JUMPIFEQ, L_ok, t_l, "string@float");
-    tac_append(JUMP, L_err, NULL, NULL);
+    // string + int ?
+    tac_append(JUMPIFEQ, L_str_ok, t_l, "string@string");
+    tac_append(JUMPIFEQ, L_error, t_r, "string@string"); // right cannot be string
 
-    tac_append(LABEL, L_ok, NULL, NULL);
-    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@int");
-    tac_append(JUMPIFEQ, L_rhs_ok, t_r, "string@float");
-    tac_append(JUMP, L_err, NULL, NULL);
+    // numeric + numeric ?
+    // if L float or int -- ok jump
+    tac_append(JUMPIFEQ, L_float, t_l, "string@float");
+    tac_append(JUMPIFEQ, L_int, t_l, "string@int");
 
-    tac_append(LABEL, L_rhs_ok, NULL, NULL);
-    // check zero
-    tac_append(EQ, t_zero, r, "float@0x0p+0");
-    tac_append(JUMPIFEQ, L_z, t_zero, "bool@true");
+    // error (type mismatch)
+    tac_append(JUMP, L_error, NULL, NULL);
 
-    tac_append(DIV, res, l, r);
+    EMIT_LABEL(L_str_ok);
+    tac_append(JUMPIFNEQ, L_error, t_r, "string@int"); // right not int
+
+    EMIT_LABEL(L_loop);
+    tac_append(CONCAT, r_tmp, r_tmp, l);
+    tac_append(SUB, r, r, "int@1");            // r = r - 1 => r--
+    tac_append(JUMPIFNEQ, L_loop, r, "int@0"); // until r is zero
+    tac_append(MOVE, res, r_tmp, NULL);
     tac_append(JUMP, L_end, NULL, NULL);
 
-    tac_append(LABEL, L_z, NULL, NULL);
-    tac_append(EXIT, "int@9", NULL, NULL);
+    EMIT_LABEL(L_float);
+    // if right is float too, then ADD
+    tac_append(JUMPIFEQ, L_ok, t_r, "string@float");
+    // else convert
+    tac_append(INT2FLOAT, r, r, NULL);
+    tac_append(JUMP, L_ok, NULL, NULL);
 
-    tac_append(LABEL, L_err, NULL, NULL);
+    EMIT_LABEL(L_int);
+    // if right is int, then ADD
+    tac_append(JUMPIFEQ, L_ok, t_r, "string@int");
+    // else convert
+    tac_append(INT2FLOAT, l, l, NULL);
+    tac_append(JUMP, L_ok, NULL, NULL);
+
+    EMIT_LABEL(L_ok);
+    tac_append(ADD, res, l, r);
+    tac_append(JUMP, L_end, NULL, NULL);
+
+    EMIT_LABEL(L_error);
     EMIT_TYPE_EXIT();
 
-    tac_append(LABEL, L_end, NULL, NULL);
+    EMIT_LABEL(L_end);
+    return res;
+}
+// todo
+char *gen_binop_div(char *res, char *lo, char *ro)
+{
+    char *l = new_tf_tmp();
+    char *r = new_tf_tmp();
+    char *t_l = new_tf_tmp();
+    char *t_r = new_tf_tmp();
+
+    char *L_ok = new_label("$div_ok_");
+    char *L_error = new_label("$div_err_");
+    char *L_end = new_label("$div_end_");
+    char *L_float = new_label("$in_float_L_");
+    char *L_int = new_label("$in_int_L_");
+
+    EMIT_DEFVAR(l);
+    EMIT_DEFVAR(r);
+    tac_append(MOVE, l, lo, NULL);
+    tac_append(MOVE, r, ro, NULL);
+    EMIT_DEFVAR(t_l);
+    EMIT_DEFVAR(t_r);
+
+    tac_append(TYPE, t_l, l, NULL);
+    tac_append(TYPE, t_r, r, NULL);
+
+    // preemptive checks
+    //tac_append(JUMPIFEQ, L_error, r, "int@0"); // zero div
+    tac_append(JUMPIFEQ, L_error, t_l, "string@nil");
+    tac_append(JUMPIFEQ, L_error, t_r, "string@nil");
+    tac_append(JUMPIFEQ, L_error, t_l, "string@string");
+    tac_append(JUMPIFEQ, L_error, t_r, "string@string");
+
+    tac_append(JUMPIFEQ, L_float, t_l, "string@float");
+    tac_append(JUMPIFEQ, L_int, t_l, "string@int");
+
+    EMIT_LABEL(L_float);
+    // if right is float too, then SUB
+    tac_append(JUMPIFEQ, L_ok, t_r, "string@float");
+    // else convert
+    tac_append(INT2FLOAT, r, r, NULL);
+    tac_append(JUMP, L_ok, NULL, NULL);
+
+    EMIT_LABEL(L_int);
+    // if right is int, then SUB
+    tac_append(JUMPIFEQ, L_ok, t_r, "string@int");
+    // else convert
+    tac_append(INT2FLOAT, l, l, NULL);
+    tac_append(JUMP, L_ok, NULL, NULL);
+
+    EMIT_LABEL(L_ok);
+    tac_append(SUB, res, l, r);
+    tac_append(JUMP, L_end, NULL, NULL);
+
+    EMIT_LABEL(L_error);
+    EMIT_TYPE_EXIT();
+
+    EMIT_LABEL(L_end);
     return res;
 }
 
-// todo
+/// @brief  Handles <, >, <=, >= (NUM ONLY)
 char *gen_binop_rel(char *res, char *l, char *r, BinOpType rel)
 {
     char *t_l = new_tf_tmp();
     char *t_r = new_tf_tmp();
-    tac_append(DEFVAR, t_l, NULL, NULL);
-    tac_append(DEFVAR, t_r, NULL, NULL);
+    EMIT_DEFVAR(t_l);
+    EMIT_DEFVAR(t_r);
 
     tac_append(TYPE, t_l, l, NULL);
     tac_append(TYPE, t_r, r, NULL);
 
-    char *L_types_eq = new_label("$rel_tyeq_");
-    char *L_null_null = new_label("$rel_nullnull_");
     char *L_num = new_label("$rel_numok_");
     char *L_do = new_label("$rel_do_");
     char *L_false = new_label("$rel_false_");
     char *L_end = new_label("$rel_end_");
     char *L_err = new_label("$rel_err_");
 
-    /* ================================
-         HANDLE == and != first
-       ================================ */
-    if (rel == BINOP_EQ || rel == BINOP_NEQ)
-    {
-
-        // if types equal → go compare
-        tac_append(EQ, res, t_l, t_r);
-        tac_append(JUMPIFEQ, L_types_eq, res, "bool@true");
-
-        // types differ → null == null special case?
-        // if both null types?
-        tac_append(JUMPIFEQ, L_null_null, t_l, "string@nil");
-        tac_append(JUMP, L_false, NULL, NULL);
-
-        tac_append(LABEL, L_null_null, NULL, NULL);
-        tac_append(JUMPIFEQ, L_false, t_r, "string@nil");
-
-        // both null → true
-        tac_append(MOVE, res, "bool@true", NULL);
-        tac_append(JUMP, L_end, NULL, NULL);
-
-        // types same
-        tac_append(LABEL, L_types_eq, NULL, NULL);
-
-        // if null == null already handled; if both null return true
-        tac_append(JUMPIFEQ, L_null_null, t_l, "string@nil");
-
-        // Compare using EQ
-        tac_append(EQ, res, l, r);
-
-        if (rel == BINOP_NEQ)
-        {
-            // invert boolean
-            tac_append(JUMPIFEQ, L_false, res, "bool@true");
-            tac_append(MOVE, res, "bool@true", NULL); // was false → true
-            tac_append(JUMP, L_end, NULL, NULL);
-
-            tac_append(LABEL, L_false, NULL, NULL);
-            tac_append(MOVE, res, "bool@false", NULL);
-            tac_append(JUMP, L_end, NULL, NULL);
-        }
-
-        tac_append(JUMP, L_end, NULL, NULL);
-
-        // final false block for EQ
-        tac_append(LABEL, L_false, NULL, NULL);
-        tac_append(MOVE, res, "bool@false", NULL);
-        tac_append(JUMP, L_end, NULL, NULL);
-
-        tac_append(LABEL, L_end, NULL, NULL);
-        return res;
-    }
-
-    /* ================================
-         HANDLE <, >, <=, >= (NUM ONLY)
-       ================================ */
-
     // left must be int/float
     tac_append(JUMPIFEQ, L_num, t_l, "string@int");
     tac_append(JUMPIFEQ, L_num, t_l, "string@float");
     tac_append(JUMP, L_err, NULL, NULL);
 
-    tac_append(LABEL, L_num, NULL, NULL);
+    EMIT_LABEL(L_num);
     // right must be int/float
     tac_append(JUMPIFEQ, L_do, t_r, "string@int");
     tac_append(JUMPIFEQ, L_do, t_r, "string@float");
     tac_append(JUMP, L_err, NULL, NULL);
 
-    tac_append(LABEL, L_do, NULL, NULL);
+    EMIT_LABEL(L_do);
 
     // perform comparison
     switch (rel)
@@ -1252,7 +1286,7 @@ char *gen_binop_rel(char *res, char *l, char *r, BinOpType rel)
         break;
 
     case BINOP_LTE:
-        // l <= r  ⇢  !(l > r)
+        // l <= r  ->  !(l > r)
         tac_append(GT, res, l, r);
         // invert
         tac_append(JUMPIFEQ, L_false, res, "bool@true");
@@ -1265,7 +1299,7 @@ char *gen_binop_rel(char *res, char *l, char *r, BinOpType rel)
         break;
 
     case BINOP_GTE:
-        // l >= r ⇢ !(l < r)
+        // l >= r -> !(l < r)
         tac_append(LT, res, l, r);
         // invert
         tac_append(JUMPIFEQ, L_false, res, "bool@true");
@@ -1286,20 +1320,77 @@ char *gen_binop_rel(char *res, char *l, char *r, BinOpType rel)
     tac_append(JUMP, L_end, NULL, NULL);
 
     // type error
-    tac_append(LABEL, L_err, NULL, NULL);
+    EMIT_LABEL(L_err);
     EMIT_TYPE_EXIT();
 
-    tac_append(LABEL, L_end, NULL, NULL);
+    EMIT_LABEL(L_end);
     return res;
 }
 
 // todo
 char *gen_binop_eq(char *res, char *l, char *r, BinOpType eq)
 {
-    if (eq == BINOP_EQ)
-        tac_append(EQ, res, l, r);
+    char *t_l = new_tf_tmp();
+    char *t_r = new_tf_tmp();
+    EMIT_DEFVAR(t_l);
+    EMIT_DEFVAR(t_r);
+
+    tac_append(TYPE, t_l, l, NULL);
+    tac_append(TYPE, t_r, r, NULL);
+
+    char *L_types_eq = new_label("$rel_tyeq_");
+    char *L_null_null = new_label("$rel_nullnull_");
+    char *L_false = new_label("$rel_false_");
+    char *L_end = new_label("$rel_end_");
+
+    // if types equal - go compare
+    tac_append(EQ, res, t_l, t_r);
+    tac_append(JUMPIFEQ, L_types_eq, res, "bool@true");
+
+    // types differ - null == null special case?
+    // if both null types?
+    tac_append(JUMPIFEQ, L_null_null, t_l, "string@nil");
+    tac_append(JUMP, L_false, NULL, NULL);
+
+    tac_append(LABEL, L_null_null, NULL, NULL);
+    tac_append(JUMPIFEQ, L_false, t_r, "string@nil");
+
+    // both null - true
+    tac_append(MOVE, res, "bool@true", NULL);
+    tac_append(JUMP, L_end, NULL, NULL);
+
+    // types same
+    tac_append(LABEL, L_types_eq, NULL, NULL);
+
+    // if null == null already handled; if both null return true
+    tac_append(JUMPIFEQ, L_null_null, t_l, "string@nil");
+
+    // Compare using EQ
+    tac_append(EQ, res, l, r);
+
+    if (eq == BINOP_NEQ)
+    {
+        // invert boolean
+        tac_append(JUMPIFEQ, L_false, res, "bool@true");
+        tac_append(MOVE, res, "bool@true", NULL); // was false - true
+        tac_append(JUMP, L_end, NULL, NULL);
+
+        tac_append(LABEL, L_false, NULL, NULL);
+        tac_append(MOVE, res, "bool@false", NULL);
+        tac_append(JUMP, L_end, NULL, NULL);
+    }
+
+    tac_append(JUMP, L_end, NULL, NULL);
+
+    // final false block for EQ
+    tac_append(LABEL, L_false, NULL, NULL);
+    tac_append(MOVE, res, "bool@false", NULL);
+    tac_append(JUMP, L_end, NULL, NULL);
+
+    tac_append(LABEL, L_end, NULL, NULL);
     return res;
 }
+
 char *gen_binop_is(char *res, char *l, char *r, TypeName targetType)
 {
     char *type_tmp = new_tf_tmp();
@@ -1323,9 +1414,8 @@ char *gen_binop(ASTptr node)
     }
     EMIT_CREATEFRAME();
     char *res = new_tf_tmp();
-    tac_append(DEFVAR, res, NULL, NULL);
-    // char*possible_lit_left=gen_literal()
-    ;
+    EMIT_DEFVAR(res);
+
     switch (node->binop.opType)
     {
     case BINOP_ADD:
@@ -1366,7 +1456,7 @@ char *gen_identifier(ASTptr node)
 {
     if (node->identifier.idType == ID_GLOBAL)
     {
-        return var_gf(node->identifier.name); // GF@__blabla
+        return var_gf(node->identifier.name);
     }
 
     if (node->identifier.idType == ID_LOCAL)
@@ -1375,13 +1465,12 @@ char *gen_identifier(ASTptr node)
         char buf[NAME_BUF];
         snprintf(buf, sizeof(buf), "LF@%s$%d", node->identifier.name, depth);
         return my_strdup(buf);
-
     }
 
     if (node->identifier.idType == ID_GETTER)
     {
         char *tmp = new_tf_tmp();
-        tac_append(DEFVAR, tmp, NULL, NULL);
+        EMIT_DEFVAR(tmp);
 
         // Call getter function
         char *fn = fnc_name(node->identifier.name);
@@ -1393,7 +1482,7 @@ char *gen_identifier(ASTptr node)
         return tmp;
     }
     fprintf(stderr, "CODEGEN -> Error: in gen_identifier");
-    exit(1);
+    return NULL;
 }
 /// @brief function that converts literals to a desired format
 char *gen_literal(ASTptr node)
@@ -1436,10 +1525,11 @@ void gen_stmt(ASTptr node)
 {
     switch (node->type)
     {
-    case AST_VAR_DECL: {
-        
-        //char *name = var_lf_at_depth(node->var_decl.varName, scope_depth);
-        //tac_append(DEFVAR, name, NULL, NULL);
+    case AST_VAR_DECL:
+    {
+
+        // char *name = var_lf_at_depth(node->var_decl.varName, scope_depth);
+        // tac_append(DEFVAR, name, NULL, NULL);
         locals_add(node->var_decl.varName);
         break;
     }
@@ -1475,7 +1565,7 @@ char *gen_func_call_expr(ASTptr node)
     // Create temp for return value
     EMIT_CREATEFRAME();
     char *tmp = new_tf_tmp();
-    tac_append(DEFVAR, tmp, NULL, NULL);
+    EMIT_DEFVAR(tmp);
 
     // Prepare call frame
     if (is_builtin(fname))
@@ -1489,16 +1579,15 @@ char *gen_func_call_expr(ASTptr node)
     // For each argument TF@1 .. TF@n
     for (int i = 0; i < node->call.argCount; i++)
     {
-        char tfname[NAME_BUF];
-        snprintf(tfname, sizeof(tfname), "TF@%%%d", i + 1);
-        tac_append(DEFVAR, my_strdup(tfname), NULL, NULL);
+        char *tf = new_tf(i + 1);
+        EMIT_DEFVAR(tf);
 
         char *arg = gen_expr(node->call.args[i]);
-        tac_append(MOVE, my_strdup(tfname), arg, NULL);
+        tac_append(MOVE, my_strdup(tf), arg, NULL);
     }
     // return slot
     char *retval = "TF@%retval1";
-    tac_append(DEFVAR, retval, NULL, NULL);
+    EMIT_DEFVAR(retval);
     // call
     char *func_lab = fnc_label(fname);
     tac_append(CALL, func_lab, NULL, NULL);
@@ -1543,7 +1632,7 @@ void generate(ASTptr tree)
     tac_list_init(&tac);
 
     { /* BUILD LIST OF INSTRUCTIONS */
-        // header
+        // begin in main (param-less)
         tac_append(JUMP, "$$main", NULL, NULL);
 
         for (int i = 0; i < tree->program.funcsCount; i++)
