@@ -377,24 +377,33 @@ static void gen_builtin_substring(char *string, char *i_num, char *j_num, char *
 {
     // temps
     char *tmp = new_tf_tmp();
-    EMIT_DEFVAR(tmp);
     char *len = new_tf_tmp();
-    EMIT_DEFVAR(len);
     char *k = new_tf_tmp();
-    EMIT_DEFVAR(k);
+    char *i_type = new_tf_tmp();
+    char *j_type = new_tf_tmp();
 
-    char *L_ij_not_int = new_label("$substr_i_or_j_not_int_");
     char *L_return_nil = new_label("$substr_ret_nil_");
     char *L_loop = new_label("$substr_loop_");
     char *L_loop_end = new_label("$substr_loop_end_");
     char *L_bounds_ok = new_label("$substr_bounds_ok_");
     char *L_end = new_label("$substr_end_");
+    char *L_error = new_label("$substr_err_");
 
+    EMIT_DEFVAR(tmp);
+    EMIT_DEFVAR(len);
+    EMIT_DEFVAR(k);
+    EMIT_DEFVAR(i_type);
+    EMIT_DEFVAR(j_type);
     // ----- i and j must be int -----
-    tac_append(ISINT, tmp, i_num, NULL);
-    tac_append(JUMPIFNEQ, L_ij_not_int, tmp, "bool@true");
-    tac_append(ISINT, tmp, j_num, NULL);
-    tac_append(JUMPIFNEQ, L_ij_not_int, tmp, "bool@true");
+    tac_append(TYPE, i_type, i_num, NULL);
+    tac_append(TYPE, j_type, j_num, NULL);
+    // check tediously all types
+    tac_append(JUMPIFEQ, L_error, i_type, "string@string");
+    tac_append(JUMPIFEQ, L_error, i_type, "string@nil"); // if only right is string - error
+    tac_append(JUMPIFEQ, L_error, i_type, "string@float");
+    tac_append(JUMPIFEQ, L_error, j_type, "string@string");
+    tac_append(JUMPIFEQ, L_error, j_type, "string@nil");    // if only right is string - error
+    tac_append(JUMPIFEQ, L_error, j_type, "string@float");
 
     // compute len(s)
     tac_append(STRLEN, len, string, NULL);
@@ -448,7 +457,7 @@ static void gen_builtin_substring(char *string, char *i_num, char *j_num, char *
     EMIT_LABEL(L_loop_end);
     tac_append(JUMP, L_end, NULL, NULL);
 
-    EMIT_LABEL(L_ij_not_int);
+    EMIT_LABEL(L_error);
     EMIT_TYPE_EXIT();
 
     EMIT_LABEL(L_return_nil);
@@ -1184,7 +1193,7 @@ char *gen_binop_mul(char *res, char *lo, char *ro)
     tac_append(JUMP, L_ok, NULL, NULL);
 
     EMIT_LABEL(L_ok);
-    tac_append(ADD, res, l, r);
+    tac_append(MUL, res, l, r);
     tac_append(JUMP, L_end, NULL, NULL);
 
     EMIT_LABEL(L_error);
