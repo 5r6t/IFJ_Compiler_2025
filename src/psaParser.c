@@ -75,7 +75,6 @@ PrecedentTableRel precedence_table[15][15] = {
 static struct Token endOfStackSymbol = {DOLLAR, "$", NULL};
 static struct Token shift = {SHIFT, "<", NULL};
 static struct Token TOKEN_E = {E, "E", NULL};
-// static struct Token TOKEN_TYPE = {TYPE, "TYPE", NULL};
 
 int stack_token_top_terminal(stack_token *stack)
 {
@@ -105,7 +104,7 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
 {
     // fprintf(stderr,"som v parse expression\n");
     stack_token stack;
-    stack_token_init(&stack);
+    stack_token_init(&stack); // kontrola ci stack sa inicializoval spravne
 
     stack_token_push(&stack, &endOfStackSymbol, NULL);
 
@@ -143,13 +142,13 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
         TokenPtr a = stack.items[a_index].token;
 
         int ia = converter(&a, file);
-        fprintf(stderr,"converter vratil %d\n", ia);
-        fprintf(stderr,"token: type=%d, id=%s, data=%s\n",
-               b->type,
-               b->id ? b->id : "NULL",
-               b->data ? b->data : "NULL");
+        fprintf(stderr, "converter vratil %d\n", ia);
+        fprintf(stderr, "token: type=%d, id=%s, data=%s\n",
+                b->type,
+                b->id ? b->id : "NULL",
+                b->data ? b->data : "NULL");
         int ib = converter(&b, file);
-        fprintf(stderr,"converter vratil %d\n", ib);
+        fprintf(stderr, "converter vratil %d\n", ib);
         if (ia < 0 || ia >= PRECEDENCE_ROWS || ib < 0 || ib >= PRECEDENCE_COLS)
         {
             // fprintf(stderr,"som v chybe convertera\n");
@@ -160,13 +159,13 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
         switch (precedence_table[ia][ib])
         {
         case PRE_TAB_EQUAL:
-            fprintf(stderr,"=\n");
+            fprintf(stderr, "=\n");
             stack_token_push(&stack, b, NULL);
             b = getToken(file);
             break;
         case PRE_TAB_LESS:
         {
-            fprintf(stderr,"<\n");
+            fprintf(stderr, "<\n");
             int a_index = stack_token_top_terminal(&stack);
             if (a_index < 0)
             {
@@ -179,11 +178,11 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
             break;
         }
         case PRE_TAB_GREATER:
-            fprintf(stderr,">\n");
+            fprintf(stderr, ">\n");
             reduce(file, &stack);
             break;
         case PRE_TAB_NULL:
-            fprintf(stderr,"NULL\n");
+            fprintf(stderr, "NULL\n");
             program_error(file, 2, 4, b);
             break;
         default:
@@ -306,18 +305,18 @@ int converter(TokenPtr *tokenToConvert, FILE *file)
 
 ASTptr reduce(FILE *file, stack_token *stack)
 {
-    fprintf(stderr,"som v reduce\n");
+    fprintf(stderr, "som v reduce\n");
     int index = stack->top;
     int steps = 0;
     TokenPtr token = stack->items[index].token;
 
     while (token->type != SHIFT)
     {
-        fprintf(stderr,"redukujem\n");
-        fprintf(stderr,"token: type=%d, id=%s, data=%s\n",
-               token->type,
-               token->id ? token->id : "NULL",
-               token->data ? token->data : "NULL");
+        fprintf(stderr, "redukujem\n");
+        fprintf(stderr, "token: type=%d, id=%s, data=%s\n",
+                token->type,
+                token->id ? token->id : "NULL",
+                token->data ? token->data : "NULL");
         if (token->type == DOLLAR)
         {
             program_error(file, 2, 4, token);
@@ -329,7 +328,7 @@ ASTptr reduce(FILE *file, stack_token *stack)
 
     int index_shift = index;
     int reduce_len = steps;
-    fprintf(stderr,"v reduce_len je  %d\n", reduce_len);
+    fprintf(stderr, "v reduce_len je  %d\n", reduce_len);
     if (reduce_len == 1)
         checkForI(index_shift, stack, file);
     else if (reduce_len == 3)
@@ -345,13 +344,18 @@ ASTptr reduce(FILE *file, stack_token *stack)
 ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
 {
     TokenPtr token = stack->items[index_shift + 1].token;
-    // TypeName resType;
-    fprintf(stderr,"som v checkForI");
+    fprintf(stderr, "som v checkForI");
     ASTptr node = NULL;
+    node = malloc(sizeof(ASTnode));
+    if (!node)
+    {
+        program_error(file, 99, 0, token);
+    }
+
     if (token->type == NUMERICAL)
     {
         // fprintf(stderr,"som tu");
-        node = malloc(sizeof(ASTnode));
+        // node = malloc(sizeof(ASTnode));
         node->type = AST_LITERAL;
         node->literal.liType = LIT_NUMBER;
         node->literal.num = strtod(token->data, NULL);
@@ -359,27 +363,26 @@ ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
     }
     else if (token->type == STRING)
     {
-        node = malloc(sizeof(ASTnode));
+        // node = malloc(sizeof(ASTnode));
         node->type = AST_LITERAL;
         node->literal.liType = LIT_STRING;
         node->literal.str = my_strdup(token->data);
     }
     else if (token->type == KW_NULL)
     {
-        node = malloc(sizeof(ASTnode));
+        // node = malloc(sizeof(ASTnode));
         node->type = AST_LITERAL;
         node->literal.liType = LIT_NULL;
     }
     else if (token->type == IDENTIFIER)
     {
-        node = malloc(sizeof(ASTnode));
+        // node = malloc(sizeof(ASTnode));
         node->type = AST_IDENTIFIER;
         node->identifier.idType = ID_LOCAL;
         node->identifier.name = my_strdup(token->id);
     }
     else if (token->type == ID_GLOBAL_VAR)
     {
-        node = malloc(sizeof(ASTnode));
         node->type = AST_IDENTIFIER;
         node->identifier.idType = ID_GLOBAL;
         node->identifier.name = my_strdup(token->id);
@@ -565,7 +568,7 @@ ASTptr ruleArithmetics(int index, stack_token *stack, FILE *file)
     ASTptr node = malloc(sizeof(ASTnode));
     if (!node)
     {
-        program_error(file, 1, 0, token); // should make different error
+        program_error(file, 99, 0, token);
         return NULL;
     }
     node->type = AST_BINOP;
@@ -608,7 +611,7 @@ ASTptr ruleIS(int index, stack_token *stack, FILE *file)
     node = malloc(sizeof(ASTnode));
     if (!node)
     {
-        program_error(file, 1, 0, token);
+        program_error(file, 99, 0, token);
         return NULL;
     }
     node->type = AST_BINOP;
@@ -635,7 +638,7 @@ void checkEnd(int end, stack_token *stack, FILE *file)
 // helper function for testing -> created by ai
 void debug_stack(stack_token *stack)
 {
-    fprintf(stderr,"\n==== STACK DUMP (top=%d) ====\n", stack->top);
+    fprintf(stderr, "\n==== STACK DUMP (top=%d) ====\n", stack->top);
 
     for (int i = 0; i <= stack->top; i++)
     {
@@ -653,9 +656,9 @@ void debug_stack(stack_token *stack)
         // AST flag
         const char *astinfo = (it.ast ? "AST" : "NULL");
 
-        fprintf(stderr,"[%02d] type=%d  lex='%s'  ast=%s\n",
-               i, type, lex, astinfo);
+        fprintf(stderr, "[%02d] type=%d  lex='%s'  ast=%s\n",
+                i, type, lex, astinfo);
     }
 
-    fprintf(stderr,"==== END STACK DUMP ====\n\n");
+    fprintf(stderr, "==== END STACK DUMP ====\n\n");
 }

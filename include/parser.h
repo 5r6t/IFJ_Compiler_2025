@@ -64,6 +64,7 @@ void advance(const target *target, TokenPtr *token, FILE *file);
 TokenPtr getToken(FILE *file);
 TokenPtr peekToken(FILE *file);
 void skip_newline(FILE *file, TokenPtr *nextToken);
+void fillNode(ASTptr *node, FILE *file, TokenPtr *nextToken, ArgArr *argArr);
 
 static inline void argArrInit(ArgArr *argArr)
 {
