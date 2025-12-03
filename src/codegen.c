@@ -1051,6 +1051,7 @@ char *gen_binop_add(char *res, char *lo, char *ro)
     EMIT_LABEL(L_end);
     return res;
 }
+
 char *gen_binop_sub(char *res, char *lo, char *ro)
 {
     char *l = new_tf_tmp();
@@ -1326,7 +1327,6 @@ char *gen_binop_rel(char *res, char *l, char *r, BinOpType rel)
     EMIT_LABEL(L_end);
     return res;
 }
-
 // todo
 char *gen_binop_eq(char *res, char *l, char *r, BinOpType eq)
 {
@@ -1391,15 +1391,50 @@ char *gen_binop_eq(char *res, char *l, char *r, BinOpType eq)
     return res;
 }
 
-char *gen_binop_is(char *res, char *l, char *r, TypeName targetType)
+char *gen_binop_is(char *res, char *lo, TypeName targetType)
 {
-    char *type_tmp = new_tf_tmp();
-    if (targetType)
+    char *l = new_tf_tmp();
+    char *t_l = new_tf_tmp();
+
+    char *L_true  = new_label("$correct_type_");
+    char *L_false = new_label("$incorrect_type_");
+    char *L_error = new_label("$is_err_");
+    char *L_end   = new_label("$is_end");
+
+    EMIT_DEFVAR(l);
+    tac_append(MOVE, l, lo, NULL);
+    EMIT_DEFVAR(t_l);
+
+    tac_append(TYPE, t_l, l, NULL);
+
+    if (targetType == TYPE_STRING)
     {
+        tac_append(JUMPIFNEQ, L_false, t_l, "string@string");
+        tac_append(JUMP, L_true, NULL, NULL);
     }
-    tac_append(DEFVAR, type_tmp, l, "FUCKING WRONG");
-    tac_append(DEFVAR, type_tmp, r, "FUCKING WRONG");
-    tac_append(DEFVAR, type_tmp, res, "FUCKING WRONG");
+    else if (targetType == TYPE_NUMBER)
+    {
+        tac_append(JUMPIFEQ, L_false, t_l, "string@string");
+        tac_append(JUMPIFEQ, L_false, t_l, "string@nil");
+        tac_append(JUMP, L_true, NULL, NULL);
+    }
+    else if (targetType == TYPE_NULL)
+    {
+        tac_append(JUMPIFNEQ, L_false, t_l, "string@nil");
+        tac_append(JUMP, L_true, NULL, NULL);
+    }
+
+    EMIT_LABEL(L_error);
+    EMIT_TYPE_EXIT();
+
+    EMIT_LABEL(L_false);
+        tac_append(MOVE, res, "bool@false", NULL);
+        tac_append(JUMP, L_end, NULL, NULL);
+
+    EMIT_LABEL(L_true);
+        tac_append(MOVE, res, "bool@true", NULL);
+
+    EMIT_LABEL(L_end);
     return res;
 }
 
@@ -1438,7 +1473,7 @@ char *gen_binop(ASTptr node)
         return gen_binop_eq(res, left, right, node->binop.opType);
 
     case BINOP_IS:
-        return gen_binop_is(res, left, right, node->binop.resultType);
+        return gen_binop_is(res, left, node->binop.resultType);
 
     default:
         break;
@@ -1575,7 +1610,7 @@ char *gen_func_call_expr(ASTptr node)
     }
 
     // TF
-    EMIT_CREATEFRAME();
+    //EMIT_CREATEFRAME();
     // For each argument TF@1 .. TF@n
     for (int i = 0; i < node->call.argCount; i++)
     {
