@@ -66,6 +66,11 @@ TokenPtr peekToken(FILE *file);
 void skip_newline(FILE *file, TokenPtr *nextToken);
 void fillNode(ASTptr *node, FILE *file, TokenPtr *nextToken, ArgArr *argArr);
 
+/**
+ * @brief Initializes an ArgArr to an empty state.
+ *
+ * @param argArr Pointer to the argument array structure.
+ */
 static inline void argArrInit(ArgArr *argArr)
 {
     argArr->items = NULL;
@@ -73,6 +78,11 @@ static inline void argArrInit(ArgArr *argArr)
     argArr->arrCnt = 0;
 }
 
+/**
+ * @brief Initializes a parArr to an empty state.
+ *
+ * @param pA Pointer to the parameter array structure.
+ */
 static inline void parArrInit(parArr *pA)
 {
     pA->parNames = NULL;
@@ -80,6 +90,11 @@ static inline void parArrInit(parArr *pA)
     pA->arrCap = 0;
 }
 
+/**
+ * @brief Initializes an AST block node with an empty statement list.
+ *
+ * @param blockNode Pointer to the block AST node.
+ */
 static inline void blockNodeInit(ASTptr blockNode)
 {
     blockNode->type = AST_BLOCK;
@@ -88,6 +103,14 @@ static inline void blockNodeInit(ASTptr blockNode)
     blockNode->block.stmtCap = 0;
 }
 
+/**
+ * @brief Adds a parameter name into a parArr, reallocating if needed.
+ *
+ * @param pA    Parameter array structure.
+ * @param name  Parameter name to add.
+ * @param file  Source file handle.
+ * @param token Token used for error reporting.
+ */
 static inline void parArrAdd(parArr *pA, const char *name, FILE *file, TokenPtr token)
 {
     if (pA->arrCnt == pA->arrCap)
@@ -115,6 +138,14 @@ static inline void parArrAdd(parArr *pA, const char *name, FILE *file, TokenPtr 
     pA->arrCnt++;
 }
 
+/**
+ * @brief Appends a statement node to a block node, reallocating the statement array if needed.
+ *
+ * @param blockNode Block AST node where the statement is stored.
+ * @param varNode   Statement AST node to add.
+ * @param file      Source file handle.
+ * @param token     Token used for error reporting.
+ */
 static inline void varNameAdd(ASTptr blockNode, ASTptr varNode, FILE *file, TokenPtr token)
 {
     if (blockNode->block.stmtCount == blockNode->block.stmtCap)

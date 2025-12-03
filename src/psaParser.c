@@ -76,6 +76,18 @@ static struct Token endOfStackSymbol = {DOLLAR, "$", NULL};
 static struct Token shift = {SHIFT, "<", NULL};
 static struct Token TOKEN_E = {E, "E", NULL};
 
+/**
+ * @brief Finds the nearest terminal symbol on the stack from the top.
+ *
+ * Scans the stack from the top downwards and returns the index of the first
+ * terminal symbol it encounters. Non-terminal E and the SHIFT marker are
+ * ignored during the scan.
+ *
+ * @param stack Pointer to the PSA stack structure.
+ *
+ * @return Index of the top-most terminal token on success, or -1 if no suitable
+ *         terminal token is found or the stack is empty/invalid.
+ */
 int stack_token_top_terminal(stack_token *stack)
 {
 
@@ -100,6 +112,34 @@ int stack_token_top_terminal(stack_token *stack)
     return -1;
 }
 
+/**
+ * @brief Parses an expression using precedence syntax analysis and builds its AST.
+ *
+ * Implements a precedence parser loop over the token stream starting from
+ * @p *nextToken. The function:
+ *  - Initializes a PSA stack with the end-of-stack symbol.
+ *  - Repeatedly compares the top terminal on the stack (a) and current input
+ *    token (b) using the precedence table.
+ *  - According to the relation (=, <, >, or error) either:
+ *      - pushes the input token,
+ *      - inserts a SHIFT marker and then pushes the input token,
+ *      - or performs a reduction via reduce().
+ *  - Stops when the stack contains E just above DOLLAR and the lookahead token
+ *    fulfills the end condition defined by @p endIfExp (peek()).
+ *
+ * On success, the AST node for the whole expression is returned and
+ * @p *nextToken is updated to the first token after the expression.
+ * On any syntax or internal error, program_error() is called.
+ *
+ * @param nextToken Pointer to the current token pointer; will be updated to the
+ *                  first token following the parsed expression on success.
+ * @param file      Source file handle used for lexical / syntax error reporting.
+ * @param endIfExp  Pointer to a target structure describing the end-of-expression
+ *                  condition (typically tokens that terminate an expression).
+ *
+ * @return ASTptr Root node of the parsed expression AST on success, or NULL if
+ *         an error occurs (program_error() is invoked in that case).
+ */
 ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
 {
     // fprintf(stderr,"som v parse expression\n");
@@ -191,6 +231,28 @@ ASTptr parse_expression(TokenPtr *nextToken, FILE *file, const target *endIfExp)
     }
 }
 
+/**
+ * @brief Converts a token to an index in the precedence table.
+ *
+ * Maps the given token (operator, identifier-like symbol, parenthesis, etc.)
+ * to a symbolic column/row index used in the precedence table for PSA.
+ * Supported mappings include:
+ *  - DOLLAR / NEWLINE    => END
+ *  - '(' / ')'           => LPAR / RPAR
+ *  - arithmetic ops      => ADD, SUB, DIV, MULL
+ *  - comparison ops      => EQUAL, NEQUAL, LESS, GREATER, LSEQ, GREQ
+ *  - identifiers, literals, type keywords, null => ID
+ *  - keyword 'is'        => IS
+ *
+ * If the token is not supported or its combination (type / id) does not match
+ * any known case, program_error() is called and -1 is returned.
+ *
+ * @param tokenToConvert Pointer to the token pointer that should be converted.
+ * @param file           Source file handle used for error reporting.
+ *
+ * @return Integer index into the precedence table (e.g., END, ID, ADD, ...),
+ *         or -1 if the token cannot be converted and program_error() is invoked.
+ */
 int converter(TokenPtr *tokenToConvert, FILE *file)
 {
     TokenPtr token = (*tokenToConvert);
@@ -303,6 +365,28 @@ int converter(TokenPtr *tokenToConvert, FILE *file)
     return -1;
 }
 
+/**
+ * @brief Performs a single precedence-parser reduction on the PSA stack.
+ *
+ * Scans the expression stack from the top down to the nearest SHIFT marker
+ * and determines the length of the handle to be reduced. According to the
+ * handle length, it:
+ *  - reduces a single terminal I (literal / identifier) to non-terminal E
+ *    via checkForI(), or
+ *  - reduces a three-symbol handle (E op E, "( E )", "E is Type") via
+ *    checkForOtherRules().
+ *
+ * On success, the reduced symbols (including the SHIFT marker) are removed
+ * from the stack and replaced with a single E carrying the constructed AST node.
+ * On error, program_error() is called.
+ *
+ * @param file  Source file handle used for error reporting.
+ * @param stack Pointer to the PSA stack of tokens and partial AST nodes.
+ *
+ * @return ASTptr Pointer to the AST node created by the reduction, or NULL if
+ *         an error occurred or the caller should ignore the result and read it
+ *         from the top of the stack instead.
+ */
 ASTptr reduce(FILE *file, stack_token *stack)
 {
     fprintf(stderr, "som v reduce\n");
@@ -341,6 +425,26 @@ ASTptr reduce(FILE *file, stack_token *stack)
     return NULL;
 }
 
+/**
+ * @brief Reduces a single terminal symbol I to the non-terminal E.
+ *
+ * This rule handles terminals that directly correspond to literals or
+ * identifiers (Num, String, null, local id, global id). It creates a new
+ * AST node of type AST_LITERAL or AST_IDENTIFIER based on the token type.
+ *
+ * The function:
+ *  - Reads the token immediately to the right of the SHIFT marker.
+ *  - Allocates and fills an AST node.
+ *  - Pops the handle including SHIFT from the stack.
+ *  - Pushes a new stack item with non-terminal E and the created AST node.
+ *
+ * @param index_shift Index of the SHIFT marker within the stack.
+ * @param stack       Pointer to the PSA stack.
+ * @param file        Source file handle used for error reporting.
+ *
+ * @return ASTptr Pointer to the created AST node, or NULL if an error occurs
+ *         (program_error() is called in that case).
+ */
 ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
 {
     TokenPtr token = stack->items[index_shift + 1].token;
@@ -355,7 +459,6 @@ ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
     if (token->type == NUMERICAL)
     {
         // fprintf(stderr,"som tu");
-        // node = malloc(sizeof(ASTnode));
         node->type = AST_LITERAL;
         node->literal.liType = LIT_NUMBER;
         node->literal.num = strtod(token->data, NULL);
@@ -363,20 +466,17 @@ ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
     }
     else if (token->type == STRING)
     {
-        // node = malloc(sizeof(ASTnode));
         node->type = AST_LITERAL;
         node->literal.liType = LIT_STRING;
         node->literal.str = my_strdup(token->data);
     }
     else if (token->type == KW_NULL)
     {
-        // node = malloc(sizeof(ASTnode));
         node->type = AST_LITERAL;
         node->literal.liType = LIT_NULL;
     }
     else if (token->type == IDENTIFIER)
     {
-        // node = malloc(sizeof(ASTnode));
         node->type = AST_IDENTIFIER;
         node->identifier.idType = ID_LOCAL;
         node->identifier.name = my_strdup(token->id);
@@ -398,6 +498,30 @@ ASTptr checkForI(int index_shift, stack_token *stack, FILE *file)
     return node;
 }
 
+/**
+ * @brief Reduces three-symbol handles of the form "( E )", "E op E" or "E is Type".
+ *
+ * Depending on the token following the SHIFT marker, this function chooses
+ * the appropriate reduction rule:
+ *
+ *  - "( E )"         → calls ruleParenthesis()
+ *  - "E <cmp> E"     → calls ruleComper()
+ *  - "E <arith> E"   → calls ruleArithmetics()
+ *  - "E is TypeName" → calls ruleIS()
+ *
+ * For each successful rule:
+ *  - The corresponding AST node is created.
+ *  - The whole handle including SHIFT is popped from the stack.
+ *  - A new non-terminal E with the resulting AST node is pushed.
+ *
+ * If the pattern does not match any supported rule, program_error() is called.
+ *
+ * @param index Index of the SHIFT marker within the stack.
+ * @param stack Pointer to the PSA stack.
+ * @param file  Source file handle used for error reporting.
+ *
+ * @return ASTptr Pointer to the newly created AST node, or NULL on error.
+ */
 ASTptr checkForOtherRules(int index, stack_token *stack, FILE *file)
 {
     // fprintf(stderr,"check for other rules\n");
@@ -417,7 +541,6 @@ ASTptr checkForOtherRules(int index, stack_token *stack, FILE *file)
         return NULL;
     }
 
-    // left = (ASTptr)stack->items[index + 1]->data;
     token = stack->items[index + 2].token;
     if (token->type == CMP_OPERATOR)
     {
@@ -443,6 +566,16 @@ ASTptr checkForOtherRules(int index, stack_token *stack, FILE *file)
     return node;
 }
 
+/**
+ * @brief Pops a complete reduction handle (including SHIFT) from the PSA stack.
+ *
+ * Removes all items from the top of the stack down to and including the item
+ * at position @p index_shift. Used after a rule has been recognized and the
+ * corresponding AST node has been created.
+ *
+ * @param index_shift Index of the first item (typically SHIFT) to be removed.
+ * @param stack       Pointer to the PSA stack.
+ */
 void popRuleFromStack(int index_shift, stack_token *stack)
 {
     for (int i = stack->top; i >= index_shift; i--)
@@ -452,6 +585,25 @@ void popRuleFromStack(int index_shift, stack_token *stack)
     return;
 }
 
+/**
+ * @brief Reduction rule for parenthesized expressions "( E )".
+ *
+ * Expects a handle of the form:
+ *   SHIFT '(' E ')'
+ *
+ * The function:
+ *  - Verifies that the symbol after '(' is non-terminal E.
+ *  - Verifies that the following symbol is a closing parenthesis ')'.
+ *  - Returns the AST node stored with E without modifying the stack.
+ *
+ * Any mismatch leads to a syntax error via program_error().
+ *
+ * @param index Index of the SHIFT marker within the stack.
+ * @param stack Pointer to the PSA stack.
+ * @param file  Source file handle used for error reporting.
+ *
+ * @return ASTptr The AST node of the inner expression E, or NULL on error.
+ */
 ASTptr ruleParenthesis(int index, stack_token *stack, FILE *file)
 {
     index += 2;
@@ -472,6 +624,27 @@ ASTptr ruleParenthesis(int index, stack_token *stack, FILE *file)
     return NULL;
 }
 
+/**
+ * @brief Reduction rule for comparison operators "E <cmp> E".
+ *
+ * Expects a handle of the form:
+ *   SHIFT E CMP_OPERATOR E
+ *
+ * The function:
+ *  - Reads the left and right E AST nodes.
+ *  - Maps the comparison operator token ("==", "!=", "<", "<=", ">", ">=")
+ *    to the corresponding BinOpType value.
+ *  - Verifies that the right symbol is non-terminal E via checkEnd().
+ *  - Allocates an AST_BINOP node with the selected operator and both operands.
+ *
+ * On invalid operator or stack layout, program_error() is called.
+ *
+ * @param index Index of the SHIFT marker within the stack.
+ * @param stack Pointer to the PSA stack.
+ * @param file  Source file handle used for error reporting.
+ *
+ * @return ASTptr Pointer to the created AST_BINOP node, or NULL on error.
+ */
 ASTptr ruleComper(int index, stack_token *stack, FILE *file)
 {
     ASTptr left = stack->items[index + 1].ast;
@@ -528,6 +701,26 @@ ASTptr ruleComper(int index, stack_token *stack, FILE *file)
     return node;
 }
 
+/**
+ * @brief Reduction rule for arithmetic operators "E + E", "E - E", "E * E", "E / E".
+ *
+ * Expects a handle of the form:
+ *   SHIFT E ARITHMETICAL E
+ *
+ * The function:
+ *  - Reads the left and right E AST nodes.
+ *  - Maps the arithmetic operator token ("+", "-", "*", "/") to BinOpType.
+ *  - Verifies that the right symbol is non-terminal E via checkEnd().
+ *  - Allocates an AST_BINOP node with the selected operator and both operands.
+ *
+ * On invalid operator or stack layout, program_error() is called.
+ *
+ * @param index Index of the SHIFT marker within the stack.
+ * @param stack Pointer to the PSA stack.
+ * @param file  Source file handle used for error reporting.
+ *
+ * @return ASTptr Pointer to the created AST_BINOP node, or NULL on error.
+ */
 ASTptr ruleArithmetics(int index, stack_token *stack, FILE *file)
 {
     // fprintf(stderr,"vosiel ruleArithmetics\n");
@@ -579,6 +772,30 @@ ASTptr ruleArithmetics(int index, stack_token *stack, FILE *file)
     return node;
 }
 
+/**
+ * @brief Reduction rule for the type test operator "E is TypeName".
+ *
+ * Expects a handle of the form:
+ *   SHIFT E KW_IS TypeName
+ *
+ * The function:
+ *  - Reads the left E AST node (expression being tested).
+ *  - Maps the type keyword (Num, String, Null) to internal TypeName
+ *    (TYPE_NUMBER, TYPE_STRING, TYPE_NULL).
+ *  - Allocates an AST_BINOP node with operator BINOP_IS and the inferred
+ *    result type stored in node->binop.resultType.
+ *
+ * The right AST child is set to NULL, because the type name is represented
+ * directly by resultType, not by an expression subtree.
+ *
+ * On invalid type keyword, program_error() is called.
+ *
+ * @param index Index of the SHIFT marker within the stack.
+ * @param stack Pointer to the PSA stack.
+ * @param file  Source file handle used for error reporting.
+ *
+ * @return ASTptr Pointer to the created AST_BINOP node, or NULL on error.
+ */
 ASTptr ruleIS(int index, stack_token *stack, FILE *file)
 {
     ASTptr left = stack->items[index + 1].ast;
@@ -623,6 +840,17 @@ ASTptr ruleIS(int index, stack_token *stack, FILE *file)
     return node;
 }
 
+/**
+ * @brief Verifies that the symbol at a given stack position is non-terminal E.
+ *
+ * Helper used by binary operator rules to ensure that the right-hand side of
+ * a handle has already been reduced to non-terminal E. If the token at the
+ * given index is not E, a syntax error is reported via program_error().
+ *
+ * @param end   Index of the symbol to check.
+ * @param stack Pointer to the PSA stack.
+ * @param file  Source file handle used for error reporting.
+ */
 void checkEnd(int end, stack_token *stack, FILE *file)
 {
     TokenPtr token = stack->items[end].token;
