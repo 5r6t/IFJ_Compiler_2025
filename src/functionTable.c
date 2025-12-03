@@ -5,6 +5,13 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
+/**
+ * @file functionTable.c
+ * @author Jan Hájek (xhajekj00) / Wekk
+ * @brief implements functions for function table management
+ * 
+ */
+
 #include "functionTable.h"
 
 /**
@@ -14,7 +21,7 @@
  */
 void funcTableInit(FuncTable *table){
     table->funcCount = 0;
-    table->funcCap = MAX_FUNCTIONS+INBUILD_FUNCTIONS;
+    table->funcCap = MAX_FUNCTIONS+INBUILD_FUNCTIONS; // initial capacity
     table->functions = malloc((table->funcCap) * sizeof(FuncInfo));
 }
 
@@ -25,8 +32,8 @@ void funcTableInit(FuncTable *table){
  */
 void funcTableFill(FuncTable *table){
     char names[][16] = {"Ifj.read_str", "Ifj.read_num", "Ifj.write", "Ifj.floor", "Ifj.str", "Ifj.length", "Ifj.substring", "Ifj.strcmp", "Ifj.ord", "Ifj.chr"};
-    int paramCounts[] = {0, 0, 1, 1, 1, 1, 3, 2, 2, 1};
-    FuncParamType paramTypes[][3] = {
+    int paramCounts[] = {0, 0, 1, 1, 1, 1, 3, 2, 2, 1}; // number of parameters for each function
+    FuncParamType paramTypes[][3] = { // parameter types for each function
         {PARAM_TYPE_NONE}, // read_str
         {PARAM_TYPE_NONE}, // read_num
         {PARAM_TYPE_ANY}, // write

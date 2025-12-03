@@ -5,6 +5,13 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
+/**
+ * @file semantic.h
+ * @author Jan Hájek (xhajekj00) / Wekk
+ * @brief functions for semantic analysis
+ * 
+ */
+
 #ifndef SEMANTIC_H
 #define SEMANTIC_H
 

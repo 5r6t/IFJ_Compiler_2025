@@ -7,8 +7,9 @@
 
 /**
  * @file symtable.h
+ * @author Jan Hájek (xhajekj00) / Wekk
  * @brief functions and structures for symbol table implementation
- *  
+ *
  */
 
 #ifndef SYMTABLE
@@ -19,12 +20,10 @@
 #include <string.h>
 #include <stdbool.h>
 
-// TODO unite with lexer's MAX_ID_LENGTH
 #define MAX_ID_LENGTH 100 // maximum length of an identifier
 #define MAX_SCOPES 100 // maximum number of scopes in the stack
 
 typedef struct STN {
-    int type;
     int height;
     char id[MAX_ID_LENGTH];
     struct STN *left;

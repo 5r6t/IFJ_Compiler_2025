@@ -5,6 +5,13 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
+/**
+ * @file semantic.c
+ * @author Jan Hájek (xhajekj00) / Wekk
+ * @brief performs semantic analysis on the AST
+ * 
+ */
+
 #include "semantic.h"
 #include "ast.h"
 #include "symtable.h"
@@ -36,7 +43,7 @@ void semantic(ASTptr root)
 void semanticNode(ASTptr root)
 {
     fprintf(stderr,"Semantic analysis node type: %d\n", root->type);
-    switch (root->type)
+    switch (root->type) // dispatch based on node type
     {
     case AST_PROGRAM:
         for (int i = 0; i < root->program.funcsCount; i++)
@@ -75,7 +82,7 @@ void semanticNode(ASTptr root)
         sem_binop(root);
         break;
     default:
-        // unexpected node type for now
+        // unexpected node type
         break;
     }
 }
@@ -87,7 +94,7 @@ void semanticNode(ASTptr root)
  */
 void registerFunctions(ASTptr programNode)
 {
-    for (int i = 0; i < programNode->program.funcsCount; i++)
+    for (int i = 0; i < programNode->program.funcsCount; i++) // register functions
     {     
         ASTptr func = programNode->program.funcs[i];
 
@@ -108,7 +115,7 @@ void registerFunctions(ASTptr programNode)
             sym.kind = FUNC_NORMAL;
         }
 
-        if (!funcTableAdd(&globalFunc, sym))
+        if (!funcTableAdd(&globalFunc, sym)) // function redefinition
         {
             fprintf(stderr, "Error: function redefinition\n");
             exit(4);
@@ -132,13 +139,13 @@ void registerFunctions(ASTptr programNode)
  */
 void sem_funcDef(ASTptr node)
 {
-    SymTableNode *scope = NULL;
+    SymTableNode *scope = NULL; // create new scope for function
 
     scopeStack_push(&scopeStack, scope);
 
     SymTableNode *currentScope = scopeStack_top(&scopeStack);
 
-    for (int i = 0; i < node->func.paramCount; i++)
+    for (int i = 0; i < node->func.paramCount; i++) // insert parameters into scope
     {
         char *paramName = node->func.paramNames[i];
 
@@ -149,7 +156,7 @@ void sem_funcDef(ASTptr node)
         }
 
         if (bst_search(currentScope, paramName))
-        {
+        { // parameter redefinition
             fprintf(stderr, "Error: parameter redefinition\n");
             exit(4);
         }
@@ -157,7 +164,6 @@ void sem_funcDef(ASTptr node)
         currentScope = bst_insert(currentScope, paramName);
     }
 
-    //scopeStack_replaceTop(&scopeStack, currentScope);
     scopeStack_pop(&scopeStack);
     scopeStack_push(&scopeStack, currentScope);
 
@@ -166,7 +172,7 @@ void sem_funcDef(ASTptr node)
         semanticNode(body->block.stmt[i]);
     }
 
-    scopeStack_pop(&scopeStack);
+    scopeStack_pop(&scopeStack); // pop function scope
 }
 
 /**
@@ -177,9 +183,9 @@ void sem_funcDef(ASTptr node)
 void sem_block(ASTptr node)
 {
     SymTableNode *scope = NULL;
-    scopeStack_push(&scopeStack, scope);
+    scopeStack_push(&scopeStack, scope); // create new scope for block
 
-    for (int i = 0; i < node->block.stmtCount; i++)
+    for (int i = 0; i < node->block.stmtCount; i++) // traverse through statements in block
     {
         semanticNode(node->block.stmt[i]);
     }
@@ -196,20 +202,20 @@ void sem_varDecl(ASTptr node)
 {
     char *varName = node->var_decl.varName;
 
-    if (varName[0] == '_' && varName[1] == '_')
-    { // variable can't be global
+    if (varName[0] == '_' && varName[1] == '_') // variable can't be global
+    {
         fprintf(stderr, "Error: invalid variable name\n");
         exit(4);
     }
 
     SymTableNode *currentScope = scopeStack_top(&scopeStack);
-    if (bst_search(currentScope, varName))
+    if (bst_search(currentScope, varName)) // search for variable in current scope
     {
         fprintf(stderr, "Error: variable redefinition\n");
         exit(4);
     }
 
-    currentScope = bst_insert(currentScope, varName);
+    currentScope = bst_insert(currentScope, varName); // insert variable into current scope
     scopeStack_pop(&scopeStack);
     scopeStack_push(&scopeStack, currentScope);
 }
@@ -224,7 +230,7 @@ void sem_assignStmt(ASTptr node)
     char *name = node->assign_stmt.targetName;
     fprintf(stderr,"Target name %s, target type %d\n", name, node->assign_stmt.asType);
 
-    semanticNode(node->assign_stmt.expr);
+    semanticNode(node->assign_stmt.expr); // analyze the right side of assignment
 
     if (name[0] == '_' && name[1] == '_')
     { // if the left side is global variable
@@ -289,7 +295,6 @@ void sem_funcCall(ASTptr node)
     if(func->kind == FUNC_BUILTIN)
     {
         fprintf(stderr,"Checking argument types for built-in function %s\n", funcName);
-        // TODO check argument types for built-in functions
         for(int i = 0; i < node->call.argCount; i++)
         {
             if(node->call.args[i]->type == AST_LITERAL) // argument is literal
@@ -303,13 +308,13 @@ void sem_funcCall(ASTptr node)
                     exit(5);
                 }
 
-            } // argument is not literal, check for identifier
+            } // checking other than literal types is part of extension STATICAN
         }
     }
 
     node->call.callInfo = func; // linking function info to the call node
 
-    for (int i = 0; i < argc; i++)
+    for (int i = 0; i < argc; i++) // analyze arguments
     {
         semanticNode(node->call.args[i]);
     }
@@ -359,7 +364,7 @@ void sem_returnStmt(ASTptr node)
 {
     if (node->return_stmt.expr != NULL)
     {
-        semanticNode(node->return_stmt.expr);
+        semanticNode(node->return_stmt.expr); // return expression
     }
 }
 
@@ -411,14 +416,14 @@ void sem_binop(ASTptr node)
 {
     ASTptr left = node->binop.left;
 
-    if(node->binop.opType == BINOP_IS){
+    if(node->binop.opType == BINOP_IS){ // only left operand is needed for IS operator
         semanticNode(left);
         return;
     }
 
     ASTptr right = node->binop.right;
 
-    if(node->binop.opType != BINOP_IS && node->binop.opType != BINOP_EQ && node->binop.opType != BINOP_NEQ){
+    if(node->binop.opType != BINOP_IS && node->binop.opType != BINOP_EQ && node->binop.opType != BINOP_NEQ){ // null can only be used with IS, EQ and NEQ operators
         if((left->type == AST_LITERAL && left->literal.liType == LIT_NULL) ||
            (right->type == AST_LITERAL && right->literal.liType == LIT_NULL)){
             fprintf(stderr,"Error: null used with bad operator\n");
@@ -427,17 +432,17 @@ void sem_binop(ASTptr node)
     }
 
     semanticNode(left);
-    semanticNode(right);
+    semanticNode(right); // analyze both operands
     fprintf(stderr,"Left node type: %d, Right node type: %d\n", left->type, right->type);
     
-    if (left->type == AST_LITERAL && right->type == AST_LITERAL)
+    if (left->type == AST_LITERAL && right->type == AST_LITERAL) // both operands are literals
     {
         LiteralType leftType = left->literal.liType;
         LiteralType rightType = right->literal.liType;
 
         switch (node->binop.opType)
         {
-        case BINOP_ADD:
+        case BINOP_ADD: // addition or string concatenation
             if (leftType == LIT_STRING && rightType == LIT_STRING)
             {
                 return;
@@ -464,7 +469,7 @@ void sem_binop(ASTptr node)
                 exit(6);
             }
             return;
-        case BINOP_MUL:
+        case BINOP_MUL: // multiplication or string repetition
             if (leftType == LIT_NUMBER && rightType == LIT_NUMBER)
             {
                 return;
@@ -512,7 +517,7 @@ void sem_binop(ASTptr node)
         default:
             return;
         }
-    }else if(left->type == AST_IDENTIFIER && right->type == AST_LITERAL){
+    }else if(left->type == AST_IDENTIFIER && right->type == AST_LITERAL){ // left is identifier, right is literal
         if(node->binop.opType == BINOP_DIV && right->literal.liType == LIT_STRING){ // string division
             fprintf(stderr, "Error: cannot divide with string\n");
             exit(6);
@@ -526,15 +531,13 @@ void sem_binop(ASTptr node)
             exit(6);
         }
         return;
-    }else if(left->type == AST_LITERAL && right->type == AST_IDENTIFIER){
+    }else if(left->type == AST_LITERAL && right->type == AST_IDENTIFIER){ // left is literal, right is identifier
         if(node->binop.opType == BINOP_DIV && left->literal.liType == LIT_STRING){ // string division
             fprintf(stderr, "Error: cannot divide string\n");
             exit(6);
         }
         return;
-    }else if(left->type == AST_IDENTIFIER && right->type == AST_IDENTIFIER){
-        return;
-    }else if(left->type == AST_BINOP || right->type == AST_BINOP){
+    }else if(left->type == AST_IDENTIFIER && right->type == AST_IDENTIFIER){ // both are identifiers
         return;
     }
     

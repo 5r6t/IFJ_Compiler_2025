@@ -7,7 +7,8 @@
 
 /**
  * @file ast.h
- * @brief Header file for the syntactic analyzer.
+ * @author Jan Hájek (xhajekj00) / Wekk
+ * @brief header file for the syntactic analyzer with AST structures
  *
  */
 

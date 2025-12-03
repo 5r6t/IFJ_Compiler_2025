@@ -5,6 +5,13 @@
 //  * Jan Hájek (xhajekj00) / Wekk 			//
 //////////////////////////////////////////////
 
+/**
+ * @file symtable.c
+ * @author Jan Hájek (xhajekj00) / Wekk
+ * @brief functions and structures for symbol table implementation
+ *
+ */
+
 #include "symtable.h"
 
 /**
@@ -30,7 +37,7 @@ bool bst_search(SymTableNode *tree, char id[])
 {
     while (tree != NULL)
     {
-        int compare = strcmp(tree->id, id);
+        int compare = strcmp(tree->id, id); // comparing current node id with searched id
 
         if (compare == 0)
         {
@@ -114,7 +121,6 @@ SymTableNode *bst_createNode(char id[])
 
     new->left = NULL;
     new->right = NULL;
-    new->type = 0;
     new->height = 1;
 
     return new;
@@ -227,7 +233,7 @@ SymTableNode *bst_insert(SymTableNode *tree, char id[])
  */
 void scopeStack_init(Scopes *stack)
 {
-    stack->topIndex = -1;                                                        // initializing topIndex to -1 indicating empty stack
+    stack->topIndex = -1; // initializing topIndex to -1 indicating empty stack
     stack->array = (SymTableNode **)malloc(MAX_SCOPES * sizeof(SymTableNode *)); // allocating memory for stack array
 }
 
