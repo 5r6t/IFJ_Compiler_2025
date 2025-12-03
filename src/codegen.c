@@ -373,13 +373,8 @@ char *var_lf_at_depth(const char *name, int depth)
 // ---- Built in handling
 ///////////////////////////////////
 
-// buggy === same labels
-static void gen_builtin_substring(ASTptr call, char *result_tmp)
+static void gen_builtin_substring(char *string, char *i_num, char *j_num, char *result)
 {
-    char *s = gen_expr(call->call.args[0]);
-    char *i = gen_expr(call->call.args[1]);
-    char *j = gen_expr(call->call.args[2]);
-
     // temps
     char *tmp = new_tf_tmp();
     EMIT_DEFVAR(tmp);
@@ -388,89 +383,78 @@ static void gen_builtin_substring(ASTptr call, char *result_tmp)
     char *k = new_tf_tmp();
     EMIT_DEFVAR(k);
 
-    char *LBL_i_not_int = new_label("$substr_i_not_int_");
-    char *LBL_j_not_int = new_label("$substr_j_not_int_");
-    char *LBL_return_nil = new_label("$substr_ret_nil_");
-    char *LBL_loop = new_label("$substr_loop_");
-    char *LBL_loop_end = new_label("$substr_loop_end_");
-    char *LBL_end = new_label("$substr_end_");
+    char *L_ij_not_int = new_label("$substr_i_or_j_not_int_");
+    char *L_return_nil = new_label("$substr_ret_nil_");
+    char *L_loop = new_label("$substr_loop_");
+    char *L_loop_end = new_label("$substr_loop_end_");
+    char *L_bounds_ok = new_label("$substr_bounds_ok_");
+    char *L_end = new_label("$substr_end_");
 
-    // ----- i must be int -----
-    tac_append(ISINT, tmp, i, NULL);
-    tac_append(JUMPIFNEQ, LBL_i_not_int, tmp, "bool@true");
-
-    // ----- j must be int -----
-    tac_append(ISINT, tmp, j, NULL);
-    tac_append(JUMPIFNEQ, LBL_j_not_int, tmp, "bool@true");
+    // ----- i and j must be int -----
+    tac_append(ISINT, tmp, i_num, NULL);
+    tac_append(JUMPIFNEQ, L_ij_not_int, tmp, "bool@true");
+    tac_append(ISINT, tmp, j_num, NULL);
+    tac_append(JUMPIFNEQ, L_ij_not_int, tmp, "bool@true");
 
     // compute len(s)
-    tac_append(STRLEN, len, s, NULL);
+    tac_append(STRLEN, len, string, NULL);
 
-    // ----- i < 0 - nil -----
-    tac_append(LT, tmp, i, "int@0");
-    tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@true");
+    // i < 0 - nil
+    tac_append(LT, tmp, i_num, "int@0");
+    tac_append(JUMPIFEQ, L_return_nil, tmp, "bool@true");
+    // j < 0 - nil
+    tac_append(LT, tmp, j_num, "int@0");
+    tac_append(JUMPIFEQ, L_return_nil, tmp, "bool@true");
 
-    // ----- j < 0 - nil -----
-    tac_append(LT, tmp, j, "int@0");
-    tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@true");
+    // i > j - nil
+    tac_append(GT, tmp, i_num, j_num);
+    tac_append(JUMPIFEQ, L_return_nil, tmp, "bool@true");
 
-    // ----- i > j - nil -----
-    tac_append(GT, tmp, i, j);
-    tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@true");
-
-    // ----- i >= len -----
-    // compute (i < len)
-    tac_append(LT, tmp, i, len);
+    // i >= len => compute (i < len)
+    tac_append(LT, tmp, i_num, len);
     // if tmp == true - ok, continue
-    tac_append(JUMPIFEQ, LBL_loop, tmp, "bool@true");
+    tac_append(JUMPIFEQ, L_bounds_ok, tmp, "bool@true");
     // else - i >= len
-    tac_append(JUMP, LBL_return_nil, NULL, NULL);
+    tac_append(JUMP, L_return_nil, NULL, NULL);
 
-    // ----- j > len -----
-    tac_append(LABEL, LBL_loop, NULL, NULL);
-    tac_append(GT, tmp, j, len);
-    tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@true");
+    EMIT_LABEL(L_bounds_ok);
+    // j > len
+    tac_append(GT, tmp, j_num, len);
+    tac_append(JUMPIFEQ, L_return_nil, tmp, "bool@true");
 
-    // ----- build substring -----
     // res = ""
-    tac_append(MOVE, result_tmp, "string@", NULL);
+    tac_append(MOVE, result, "string@", NULL);
 
     // k = i
-    tac_append(MOVE, k, i, NULL);
+    tac_append(MOVE, k, i_num, NULL);
 
-    EMIT_LABEL(LBL_loop);
+    EMIT_LABEL(L_loop);
 
     // if k >= j - end
     // check (k < j)
-    tac_append(LT, tmp, k, j);
-    tac_append(JUMPIFEQ, LBL_loop_end, tmp, "bool@false");
+    tac_append(LT, tmp, k, j_num);
+    tac_append(JUMPIFEQ, L_loop_end, tmp, "bool@false");
     // IF tmp is false - !(k < j) - k >= j
 
     // tmp = s[k]
-    tac_append(GETCHAR, tmp, s, k);
+    tac_append(GETCHAR, tmp, string, k);
     // result_tmp += tmp
-    tac_append(CONCAT, result_tmp, result_tmp, tmp);
+    tac_append(CONCAT, result, result, tmp);
 
     // k = k + 1
     tac_append(ADD, k, k, "int@1");
+    tac_append(JUMP, L_loop, NULL, NULL);
 
-    tac_append(JUMP, LBL_loop, NULL, NULL);
+    EMIT_LABEL(L_loop_end);
+    tac_append(JUMP, L_end, NULL, NULL);
 
-    tac_append(LABEL, LBL_loop_end, NULL, NULL);
-    tac_append(JUMP, LBL_end, NULL, NULL);
+    EMIT_LABEL(L_ij_not_int);
+    EMIT_TYPE_EXIT();
 
-    // ----- errors -----
-    tac_append(LABEL, LBL_i_not_int, NULL, NULL);
-    tac_append(EXIT, "int@6", NULL, NULL);
+    EMIT_LABEL(L_return_nil);
+    tac_append(MOVE, result, "nil@nil", NULL);
 
-    tac_append(LABEL, LBL_j_not_int, NULL, NULL);
-    tac_append(EXIT, "int@6", NULL, NULL);
-
-    // ----- nil -----
-    tac_append(LABEL, LBL_return_nil, NULL, NULL);
-    tac_append(MOVE, result_tmp, "nil@nil", NULL);
-
-    tac_append(LABEL, LBL_end, NULL, NULL);
+    EMIT_LABEL(L_end);
 }
 
 static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
@@ -494,7 +478,7 @@ static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
 
     char *LBL_loop = new_label("$strcmp_loop_");
     char *LBL_loop_end = new_label("$strcmp_end_");
-    char *LBL_return = new_label("$strcmp_ret_");
+    char *L_end = new_label("$strcmp_ret_");
     char *LBL_after_diff = new_label("$strcmp_after_diff_");
 
     // len1 = length(s1)
@@ -540,7 +524,7 @@ static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
     // compare lengths
     tac_append(SUB, result_tmp, len1, len2);
 
-    tac_append(LABEL, LBL_return, NULL, NULL);
+    EMIT_LABEL(L_end);
 }
 
 static void gen_builtin_str(ASTptr call, char *result_tmp)
@@ -595,85 +579,63 @@ static void gen_builtin_str(ASTptr call, char *result_tmp)
     return;
 }
 
-static void gen_builtin_ord(ASTptr call, char *result_tmp)
+static void gen_builtin_ord(char *string, char *num, char *result_tmp)
 {
-    char *s = gen_expr(call->call.args[0]);
-    char *i = gen_expr(call->call.args[1]);
-
     char *tmp = new_tf_tmp();
-    EMIT_DEFVAR(tmp);
     char *len = new_tf_tmp();
+    EMIT_DEFVAR(tmp);
     EMIT_DEFVAR(len);
+    // empty or out of index => return 0
+    // err if num not int
+    char *L_error = new_label("$ord_num_not_int_");
+    char *L_return_zero = new_label("$ord_out_of_bounds_");
+    char *L_end = new_label("$ord_end_");
 
-    char *LBL_i_not_int = new_label("$ord_i_not_int_");
-    char *LBL_return_nil = new_label("$ord_ret_nil_");
-    char *LBL_end = new_label("$ord_end_");
+    // num must be integer
+    tac_append(ISINT, tmp, num, NULL);
+    tac_append(JUMPIFNEQ, L_error, tmp, "bool@true");
 
-    // -- type check: i must be integer
-    tac_append(ISINT, tmp, i, NULL);
-    tac_append(JUMPIFNEQ, LBL_i_not_int, tmp, "bool@true");
+    // compute length of string
+    tac_append(STRLEN, len, string, NULL);
 
-    // -- compute length of s
-    tac_append(STRLEN, len, s, NULL);
+    // if num < 0
+    tac_append(LT, tmp, num, "int@0");
+    tac_append(JUMPIFEQ, L_return_zero, tmp, "bool@true");
+    // if num >= len  (num < len must be true)
+    tac_append(LT, tmp, num, len);
+    tac_append(JUMPIFEQ, L_return_zero, tmp, "bool@false");
+    // convert
+    tac_append(STRI2INT, result_tmp, string, num);
+    tac_append(JUMP, L_end, NULL, NULL);
 
-    // -- if i < 0 - nil
-    tac_append(LT, tmp, i, "int@0");
-    tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@true");
-
-    // -- if i >= len - nil   (i < len must be true)
-    tac_append(LT, tmp, i, len);
-    tac_append(JUMPIFEQ, LBL_return_nil, tmp, "bool@false");
-
-    // -- valid: STRI2INT result_tmp = s[i]
-    tac_append(STRI2INT, result_tmp, s, i);
-    tac_append(JUMP, LBL_end, NULL, NULL);
-
-    // -- not int - error 6
-    tac_append(LABEL, LBL_i_not_int, NULL, NULL);
+    EMIT_LABEL(L_error);
     EMIT_TYPE_EXIT();
 
-    // -- nil return
-    tac_append(LABEL, LBL_return_nil, NULL, NULL);
-    tac_append(MOVE, result_tmp, "nil@nil", NULL);
+    EMIT_LABEL(L_return_zero);
+    tac_append(MOVE, result_tmp, "int@0", NULL);
 
-    tac_append(LABEL, LBL_end, NULL, NULL);
+    EMIT_LABEL(L_end);
 }
 
-static void gen_builtin_chr(ASTptr call, char *result_tmp)
+static void gen_builtin_chr(char *num, char *result_tmp)
 {
-    char *i = gen_expr(call->call.args[0]);
-
     char *tmp = new_tf_tmp();
     EMIT_DEFVAR(tmp);
 
-    char *LBL_i_not_int = new_label("$chr_i_not_int_");
-    char *LBL_err_range = new_label("$chr_err_range_");
-    char *LBL_end = new_label("$chr_end_");
+    char *L_error = new_label("$chr_err_range_");
+    char *L_end = new_label("$chr_end_");
 
-    // -- type check: must be integer
-    tac_append(ISINT, tmp, i, NULL);
-    tac_append(JUMPIFNEQ, LBL_i_not_int, tmp, "bool@true");
+    // must be int
+    tac_append(ISINT, tmp, num, NULL);
+    tac_append(JUMPIFNEQ, L_error, tmp, "bool@true");
 
-    // -- check i < 0 - error 6
-    tac_append(LT, tmp, i, "int@0");
-    tac_append(JUMPIFEQ, LBL_err_range, tmp, "bool@true");
+    tac_append(INT2CHAR, result_tmp, num, NULL);
+    tac_append(JUMP, L_end, NULL, NULL);
 
-    // -- check i > 255 - error 6
-    tac_append(GT, tmp, i, "int@255");
-    tac_append(JUMPIFEQ, LBL_err_range, tmp, "bool@true");
-
-    // -- valid: INT2CHAR
-    tac_append(INT2CHAR, result_tmp, i, NULL);
-    tac_append(JUMP, LBL_end, NULL, NULL);
-
-    // -- not int - error 26
-    // -- out of range - error 26
-    tac_append(LABEL, LBL_i_not_int, NULL, NULL);
-    tac_append(LABEL, LBL_err_range, NULL, NULL);
+    EMIT_LABEL(L_error);
     EMIT_ARG_EXIT();
 
-    // END
-    tac_append(LABEL, LBL_end, NULL, NULL);
+    EMIT_LABEL(L_end);
 }
 /// TODO implement builtin checker/helper
 static bool is_builtin(const char *func_name)
@@ -756,7 +718,10 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
     }
     if (strcmp(name, "Ifj.substring") == 0)
     {
-        gen_builtin_substring(call, result_tmp);
+        char *s = gen_expr(call->call.args[0]);
+        char *i = gen_expr(call->call.args[1]);
+        char *j = gen_expr(call->call.args[2]);
+        gen_builtin_substring(s, i, j, result_tmp);
         return;
     }
     if (strcmp(name, "Ifj.strcmp") == 0)
@@ -766,13 +731,16 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
     }
     if (strcmp(name, "Ifj.ord") == 0)
     {
-        gen_builtin_ord(call, result_tmp);
+        char *string = gen_expr(call->call.args[0]);
+        char *num = gen_expr(call->call.args[1]);
+        gen_builtin_ord(string, num, result_tmp);
         return;
     }
 
     if (strcmp(name, "Ifj.chr") == 0)
     {
-        gen_builtin_chr(call, result_tmp);
+        char *num = gen_expr(call->call.args[0]);
+        gen_builtin_chr(num, result_tmp);
         return;
     }
 }
