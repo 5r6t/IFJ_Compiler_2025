@@ -620,13 +620,29 @@ static void gen_builtin_ord(char *string, char *num, char *result_tmp)
 {
     char *tmp = new_tf_tmp();
     char *len = new_tf_tmp();
+    char *num_type = new_tf_tmp();
+    char *string_type = new_tf_tmp();
+
     EMIT_DEFVAR(tmp);
     EMIT_DEFVAR(len);
+    EMIT_DEFVAR(num_type);
+    EMIT_DEFVAR(string_type);
     // empty or out of index => return 0
     // err if num not int
     char *L_error = new_label("$ord_num_not_int_");
     char *L_return_zero = new_label("$ord_out_of_bounds_");
     char *L_end = new_label("$ord_end_");
+
+    tac_append(TYPE, num_type, num, NULL);
+    tac_append(TYPE, string_type, string, NULL);
+
+    tac_append(JUMPIFEQ, L_error, num_type, "string@string");
+    tac_append(JUMPIFEQ, L_error, num_type, "string@float");
+    tac_append(JUMPIFEQ, L_error, num_type, "string@nil");
+
+    tac_append(JUMPIFEQ, L_error, string_type, "string@nil");
+    tac_append(JUMPIFEQ, L_error, string_type, "string@int");
+    tac_append(JUMPIFEQ, L_error, string_type, "string@float");
 
     // num must be integer
     tac_append(ISINT, tmp, num, NULL);
@@ -646,7 +662,7 @@ static void gen_builtin_ord(char *string, char *num, char *result_tmp)
     tac_append(JUMP, L_end, NULL, NULL);
 
     EMIT_LABEL(L_error);
-    EMIT_TYPE_EXIT();
+    EMIT_ARG_EXIT();
 
     EMIT_LABEL(L_return_zero);
     tac_append(MOVE, result_tmp, "int@0", NULL);
@@ -657,14 +673,18 @@ static void gen_builtin_ord(char *string, char *num, char *result_tmp)
 static void gen_builtin_chr(char *num, char *result_tmp)
 {
     char *tmp = new_tf_tmp();
+    char *num_type = new_tf_tmp();
     EMIT_DEFVAR(tmp);
+    EMIT_DEFVAR(num_type);
 
-    char *L_error = new_label("$chr_err_range_");
     char *L_end = new_label("$chr_end_");
+    char *L_error = new_label("$chr_num_not_int_");
 
+    tac_append(TYPE, num_type, num, NULL);
     // must be int
-    tac_append(ISINT, tmp, num, NULL);
-    tac_append(JUMPIFNEQ, L_error, tmp, "bool@true");
+    tac_append(JUMPIFEQ, L_error, num_type, "string@string");
+    tac_append(JUMPIFEQ, L_error, num_type, "string@float");
+    tac_append(JUMPIFEQ, L_error, num_type, "string@nil");
 
     tac_append(INT2CHAR, result_tmp, num, NULL);
     tac_append(JUMP, L_end, NULL, NULL);
@@ -674,8 +694,34 @@ static void gen_builtin_chr(char *num, char *result_tmp)
 
     EMIT_LABEL(L_end);
 }
-/// TODO implement builtin checker/helper
-static bool is_builtin(const char *func_name)
+
+static void gen_builtin_length(char *string, char *result_tmp)
+{
+    char *tmp = new_tf_tmp();
+    char *string_type = new_tf_tmp();
+    EMIT_DEFVAR(tmp);
+    EMIT_DEFVAR(string_type);
+
+    char *L_end = new_label("$length_end_");
+    char *L_error = new_label("$length_num_not_string_");
+
+    tac_append(TYPE, string_type, string, NULL);
+    // must be int
+    tac_append(JUMPIFEQ, L_error, string_type, "string@int");
+    tac_append(JUMPIFEQ, L_error, string_type, "string@float");
+    tac_append(JUMPIFEQ, L_error, string_type, "string@nil");
+
+    tac_append(STRLEN, result_tmp, string, NULL);
+    tac_append(JUMP, L_end, NULL, NULL);
+
+    EMIT_LABEL(L_error);
+    EMIT_ARG_EXIT();
+
+    EMIT_LABEL(L_end);
+}
+
+    /// TODO implement builtin checker/helper
+    static bool is_builtin(const char *func_name)
 {
     static const char *arr_builtin_names[] = {
         "Ifj.read_str",
@@ -749,8 +795,8 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
 
     if (strcmp(name, "Ifj.length") == 0)
     {
-        char *arg = gen_expr(call->call.args[0]);
-        tac_append(STRLEN, result_tmp, arg, NULL);
+        char *string = gen_expr(call->call.args[0]);
+        gen_builtin_length(string, result_tmp);
         return;
     }
     if (strcmp(name, "Ifj.substring") == 0)
@@ -1557,7 +1603,6 @@ char *gen_identifier(ASTptr node)
         snprintf(buf, sizeof(buf), "LF@%s$%d", node->identifier.name, depth);
         return my_strdup(buf);
     }
-
     if (node->identifier.idType == ID_GETTER)
     {
         char *tmp = new_tf_tmp();
