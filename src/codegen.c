@@ -379,6 +379,7 @@ static void gen_builtin_substring(char *string, char *i_num, char *j_num, char *
     char *tmp = new_tf_tmp();
     char *len = new_tf_tmp();
     char *k = new_tf_tmp();
+    char *string_type = new_tf_tmp();
     char *i_type = new_tf_tmp();
     char *j_type = new_tf_tmp();
 
@@ -387,23 +388,32 @@ static void gen_builtin_substring(char *string, char *i_num, char *j_num, char *
     char *L_loop_end = new_label("$substr_loop_end_");
     char *L_bounds_ok = new_label("$substr_bounds_ok_");
     char *L_end = new_label("$substr_end_");
-    char *L_error = new_label("$substr_err_");
+    char *L_type_error = new_label("$substr_type_err_");
+    char *L_num_error = new_label("$substr_num_err_");
 
     EMIT_DEFVAR(tmp);
     EMIT_DEFVAR(len);
     EMIT_DEFVAR(k);
     EMIT_DEFVAR(i_type);
     EMIT_DEFVAR(j_type);
+    EMIT_DEFVAR(string_type);
     // ----- i and j must be int -----
     tac_append(TYPE, i_type, i_num, NULL);
     tac_append(TYPE, j_type, j_num, NULL);
+    tac_append(TYPE, string_type, string, NULL);
     // check tediously all types
-    tac_append(JUMPIFEQ, L_error, i_type, "string@string");
-    tac_append(JUMPIFEQ, L_error, i_type, "string@nil"); // if only right is string - error
-    tac_append(JUMPIFEQ, L_error, i_type, "string@float");
-    tac_append(JUMPIFEQ, L_error, j_type, "string@string");
-    tac_append(JUMPIFEQ, L_error, j_type, "string@nil");    // if only right is string - error
-    tac_append(JUMPIFEQ, L_error, j_type, "string@float");
+    tac_append(JUMPIFEQ, L_type_error, string_type, "string@int");
+    tac_append(JUMPIFEQ, L_type_error, string_type, "string@float");
+    tac_append(JUMPIFEQ, L_type_error, string_type, "string@nil");
+
+    tac_append(JUMPIFEQ, L_type_error, i_type, "string@string");
+    tac_append(JUMPIFEQ, L_type_error, j_type, "string@string");
+
+    tac_append(JUMPIFEQ, L_type_error, j_type, "string@nil"); // if only right is string - error
+    tac_append(JUMPIFEQ, L_type_error, i_type, "string@nil"); // if only right is string - error
+
+    tac_append(JUMPIFEQ, L_num_error, i_type, "string@float");
+    tac_append(JUMPIFEQ, L_num_error, j_type, "string@float");
 
     // compute len(s)
     tac_append(STRLEN, len, string, NULL);
@@ -457,7 +467,10 @@ static void gen_builtin_substring(char *string, char *i_num, char *j_num, char *
     EMIT_LABEL(L_loop_end);
     tac_append(JUMP, L_end, NULL, NULL);
 
-    EMIT_LABEL(L_error);
+
+    EMIT_LABEL(L_type_error);
+    EMIT_ARG_EXIT();
+    EMIT_LABEL(L_num_error);
     EMIT_TYPE_EXIT();
 
     EMIT_LABEL(L_return_nil);
@@ -466,29 +479,42 @@ static void gen_builtin_substring(char *string, char *i_num, char *j_num, char *
     EMIT_LABEL(L_end);
 }
 
-static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
+static void gen_builtin_strcmp(char *s1, char *s2, char *result_tmp)
 {
-    char *s1 = gen_expr(call->call.args[0]);
-    char *s2 = gen_expr(call->call.args[1]);
-
     // temps
     char *i = new_tf_tmp();
-    EMIT_DEFVAR(i);
     char *c1 = new_tf_tmp();
-    EMIT_DEFVAR(c1);
     char *c2 = new_tf_tmp();
-    EMIT_DEFVAR(c2);
     char *len1 = new_tf_tmp();
-    EMIT_DEFVAR(len1);
     char *len2 = new_tf_tmp();
-    EMIT_DEFVAR(len2);
     char *tmp = new_tf_tmp();
-    EMIT_DEFVAR(tmp);
+    char *str_type1 = new_tf_tmp();
+    char *str_type2 = new_tf_tmp();
 
     char *LBL_loop = new_label("$strcmp_loop_");
     char *LBL_loop_end = new_label("$strcmp_end_");
     char *L_end = new_label("$strcmp_ret_");
     char *L_after_diff = new_label("$strcmp_after_diff_");
+    char *L_type_error = new_label("$strcmp_type_err_");
+
+    EMIT_DEFVAR(i);
+    EMIT_DEFVAR(c1);
+    EMIT_DEFVAR(c2);
+    EMIT_DEFVAR(len1);
+    EMIT_DEFVAR(len2);
+    EMIT_DEFVAR(tmp);
+    EMIT_DEFVAR(str_type1);
+    EMIT_DEFVAR(str_type2);
+
+    tac_append(TYPE, str_type1, s1, NULL);
+    tac_append(TYPE, str_type2, s2, NULL);
+
+    tac_append(JUMPIFEQ, L_type_error, str_type1, "string@nil");
+    tac_append(JUMPIFEQ, L_type_error, str_type1, "string@int");
+    tac_append(JUMPIFEQ, L_type_error, str_type1, "string@float");
+    tac_append(JUMPIFEQ, L_type_error, str_type2, "string@nil");
+    tac_append(JUMPIFEQ, L_type_error, str_type2, "string@int");
+    tac_append(JUMPIFEQ, L_type_error, str_type2, "string@float");
 
     // len1 = length(s1)
     tac_append(STRLEN, len1, s1, NULL);
@@ -514,7 +540,7 @@ static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
 
     // if c1 == c2 - continue
     tac_append(EQ, tmp, c1, c2);
-    tac_append(JUMPIFEQ, L_after_diff, tmp, "bool@false"); // if equal - skip diff calc
+    tac_append(JUMPIFEQ, L_after_diff, tmp, "bool@true"); // if equal - skip diff calc
 
     // difference - result_tmp = c1 - c2
     tac_append(SUB, result_tmp, c1, c2);
@@ -531,6 +557,9 @@ static void gen_builtin_strcmp(ASTptr call, char *result_tmp)
 
     // compare lengths
     tac_append(SUB, result_tmp, len1, len2);
+
+    EMIT_LABEL(L_type_error);
+    EMIT_ARG_EXIT();
 
     EMIT_LABEL(L_end);
 }
@@ -734,7 +763,9 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
     }
     if (strcmp(name, "Ifj.strcmp") == 0)
     {
-        gen_builtin_strcmp(call, result_tmp);
+        char *s1 = gen_expr(call->call.args[0]);
+        char *s2 = gen_expr(call->call.args[1]);
+        gen_builtin_strcmp(s1, s2, result_tmp);
         return;
     }
     if (strcmp(name, "Ifj.ord") == 0)
@@ -1211,6 +1242,7 @@ char *gen_binop_div(char *res, char *lo, char *ro)
     char *t_r = new_tf_tmp();
 
     char *L_ok = new_label("$div_ok_");
+    char *L_idiv = new_label("$idiv_ok_");
     char *L_error = new_label("$div_err_");
     char *L_end = new_label("$div_end_");
     char *L_float = new_label("$in_float_L_");
@@ -1243,6 +1275,8 @@ char *gen_binop_div(char *res, char *lo, char *ro)
     tac_append(JUMP, L_ok, NULL, NULL);
 
     EMIT_LABEL(L_int);
+    // jump to L_idiv handling -- both are ints
+    tac_append(JUMPIFEQ, L_idiv, t_r, "string@int");
     // convert left op to float
     tac_append(INT2FLOAT, l, l, NULL);
     // if right is int, then DIV
@@ -1256,6 +1290,10 @@ char *gen_binop_div(char *res, char *lo, char *ro)
     EMIT_LABEL(L_ok);
     tac_append(DIV, res, l, r);
     tac_append(JUMP, L_end, NULL, NULL);
+
+    EMIT_LABEL(L_idiv);
+    tac_append(IDIV, res, l, r);
+
 
     EMIT_LABEL(L_end);
     return res;
