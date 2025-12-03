@@ -350,7 +350,7 @@ char *var_lf(const char *name)
     snprintf(buf, sizeof(buf), "LF@%s", name);
     return my_strdup(buf);
 }
-
+/* 
 /// @brief Create string in format: LF@x, where x is a number
 static char *new_lf_tmp()
 {
@@ -359,7 +359,7 @@ static char *new_lf_tmp()
 
     snprintf(buf, sizeof(buf), "LF@%%%d", lf_counter++);
     return my_strdup(buf);
-}
+} */
 
 /// @brief  returns string for a local variable with depth info
 char *var_lf_at_depth(const char *name, int depth)
@@ -512,9 +512,12 @@ static void gen_builtin_strcmp(char *s1, char *s2, char *result_tmp)
     tac_append(JUMPIFEQ, L_type_error, str_type1, "string@nil");
     tac_append(JUMPIFEQ, L_type_error, str_type1, "string@int");
     tac_append(JUMPIFEQ, L_type_error, str_type1, "string@float");
+    tac_append(JUMPIFEQ, L_type_error, str_type1, "string@bool");
+
     tac_append(JUMPIFEQ, L_type_error, str_type2, "string@nil");
     tac_append(JUMPIFEQ, L_type_error, str_type2, "string@int");
     tac_append(JUMPIFEQ, L_type_error, str_type2, "string@float");
+    tac_append(JUMPIFEQ, L_type_error, str_type2, "string@bool");
 
     // len1 = length(s1)
     tac_append(STRLEN, len1, s1, NULL);
@@ -639,10 +642,12 @@ static void gen_builtin_ord(char *string, char *num, char *result_tmp)
     tac_append(JUMPIFEQ, L_error, num_type, "string@string");
     tac_append(JUMPIFEQ, L_error, num_type, "string@float");
     tac_append(JUMPIFEQ, L_error, num_type, "string@nil");
+    tac_append(JUMPIFEQ, L_error, num_type, "string@bool");
 
     tac_append(JUMPIFEQ, L_error, string_type, "string@nil");
     tac_append(JUMPIFEQ, L_error, string_type, "string@int");
     tac_append(JUMPIFEQ, L_error, string_type, "string@float");
+    tac_append(JUMPIFEQ, L_error, string_type, "string@bool");
 
     // num must be integer
     tac_append(ISINT, tmp, num, NULL);
@@ -678,16 +683,20 @@ static void gen_builtin_chr(char *num, char *result_tmp)
     EMIT_DEFVAR(num_type);
 
     char *L_end = new_label("$chr_end_");
-    char *L_error = new_label("$chr_num_not_int_");
-
+    char *L_error = new_label("$chr_bad_op");
+    char *L_error_num =new_label("$chr_not_whole");
     tac_append(TYPE, num_type, num, NULL);
     // must be int
     tac_append(JUMPIFEQ, L_error, num_type, "string@string");
-    tac_append(JUMPIFEQ, L_error, num_type, "string@float");
+    tac_append(JUMPIFEQ, L_error_num, num_type, "string@float");
     tac_append(JUMPIFEQ, L_error, num_type, "string@nil");
+    tac_append(JUMPIFEQ, L_error, num_type, "string@bool");
 
     tac_append(INT2CHAR, result_tmp, num, NULL);
     tac_append(JUMP, L_end, NULL, NULL);
+
+    EMIT_LABEL(L_error_num);
+    EMIT_TYPE_EXIT();
 
     EMIT_LABEL(L_error);
     EMIT_ARG_EXIT();
@@ -710,6 +719,7 @@ static void gen_builtin_length(char *string, char *result_tmp)
     tac_append(JUMPIFEQ, L_error, string_type, "string@int");
     tac_append(JUMPIFEQ, L_error, string_type, "string@float");
     tac_append(JUMPIFEQ, L_error, string_type, "string@nil");
+    tac_append(JUMPIFEQ, L_error, string_type, "string@bool");
 
     tac_append(STRLEN, result_tmp, string, NULL);
     tac_append(JUMP, L_end, NULL, NULL);
@@ -720,8 +730,34 @@ static void gen_builtin_length(char *string, char *result_tmp)
     EMIT_LABEL(L_end);
 }
 
-    /// TODO implement builtin checker/helper
-    static bool is_builtin(const char *func_name)
+static void gen_builtin_floor(char* num, char *result_tmp)
+{
+    char *tmp = new_tf_tmp();
+    char *num_type = new_tf_tmp();
+    EMIT_DEFVAR(tmp);
+    EMIT_DEFVAR(num_type);
+
+    char *L_end = new_label("$floor_end_");
+    char *L_error = new_label("$floor_num_not_float_");
+
+    tac_append(TYPE, num_type, num, NULL);
+    // must be int
+    tac_append(JUMPIFEQ, L_error, num_type, "string@string");
+    tac_append(JUMPIFEQ, L_error, num_type, "string@int");
+    tac_append(JUMPIFEQ, L_error, num_type, "string@nil");
+    tac_append(JUMPIFEQ, L_error, num_type, "string@bool");
+
+    tac_append(FLOAT2INT, result_tmp, num, NULL);
+    tac_append(JUMP, L_end, NULL, NULL);
+
+    EMIT_LABEL(L_error);
+    EMIT_ARG_EXIT();
+
+    EMIT_LABEL(L_end);
+}
+
+/// TODO implement builtin checker/helper
+static bool is_builtin(const char *func_name)
 {
     static const char *arr_builtin_names[] = {
         "Ifj.read_str",
@@ -775,15 +811,10 @@ void gen_builtin_call(ASTptr call, char *result_tmp)
 
     if (strcmp(name, "Ifj.floor") == 0)
     {
-        char *arg = gen_expr(call->call.args[0]);
-        char *tmp = new_lf_tmp();
-        EMIT_DEFVAR(tmp);
-
-        // convert float to int (floor semantics)
-        tac_append(FLOAT2INT, tmp, arg, NULL);
+        char *my_float = gen_expr(call->call.args[0]);
+        gen_builtin_floor(my_float, result_tmp);
 
         // store return valu
-        tac_append(MOVE, result_tmp, tmp, NULL);
         return;
     }
 
@@ -1700,12 +1731,13 @@ char *gen_func_call_expr(ASTptr node)
     char *fname = node->call.funcName;
     // Create temp for return value
     EMIT_CREATEFRAME();
-    char *tmp = new_tf_tmp();
-    EMIT_DEFVAR(tmp);
+
 
     // Prepare call frame
     if (is_builtin(fname))
     {
+        char *tmp = new_tf_tmp();
+        EMIT_DEFVAR(tmp);
         gen_builtin_call(node, tmp);
         return tmp;
     }
@@ -1728,8 +1760,7 @@ char *gen_func_call_expr(ASTptr node)
     char *func_lab = fnc_label(fname);
     tac_append(CALL, func_lab, NULL, NULL);
     // copy into local tmp
-    tac_append(MOVE, tmp, retval, NULL);
-    return tmp;
+    return retval;
 }
 
 /// @brief
