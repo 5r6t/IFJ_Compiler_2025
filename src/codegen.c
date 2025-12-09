@@ -739,11 +739,12 @@ static void gen_builtin_floor(char* num, char *result_tmp)
 
     char *L_end = new_label("$floor_end_");
     char *L_error = new_label("$floor_num_not_float_");
+    char *L_floored = new_label("$floor_num_not_float_");
 
     tac_append(TYPE, num_type, num, NULL);
     // must be int
     tac_append(JUMPIFEQ, L_error, num_type, "string@string");
-    tac_append(JUMPIFEQ, L_error, num_type, "string@int");
+    tac_append(JUMPIFEQ, L_floored, num_type, "string@int");
     tac_append(JUMPIFEQ, L_error, num_type, "string@nil");
     tac_append(JUMPIFEQ, L_error, num_type, "string@bool");
 
@@ -752,6 +753,9 @@ static void gen_builtin_floor(char* num, char *result_tmp)
 
     EMIT_LABEL(L_error);
     EMIT_ARG_EXIT();
+
+    EMIT_LABEL(L_floored);
+    tac_append(MOVE, result_tmp, num, NULL);
 
     EMIT_LABEL(L_end);
 }
