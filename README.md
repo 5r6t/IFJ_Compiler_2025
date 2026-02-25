@@ -1,7 +1,4 @@
-# ifj_2025
-Formal Languages and Compilers project repo
-IFJ Project by team "automats enjoyers" (team xmervaj00)
-
+# IFJ Compiler Project by team "automats enjoyers" (team xmervaj00)
 ## Useful
 - [IFJ website](https://www.fit.vut.cz/study/course/IFJ/public/project/index.php.cz)
 
