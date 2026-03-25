@@ -34,7 +34,8 @@
 - Script [pack_it_up.sh](pack_it_up.sh) is not required to run the program and is used to archive relevant files into a directory (flattens directories, required by assignment). 
 - Files [rozdeleni](rozdeleni) and [rozsireni](rozsireni) are irrelevant (used in grading process)
 
-# Evaluation
+# Final evaluation
+Original output:
 ```
 Lexikální analýza (detekce chyb): 92 % (166/180 mb, špatné kódy 7 %)
 Syntaktická analýza (detekce chyb): 98 % (245/250 mb, špatné kódy 2 %)
@@ -53,6 +54,25 @@ ONELINEBLOCK 0 % (0/25 mb, špatné kódy 100 %, nesouhlasné výpisy 0 %)
 STATICAN 0 % (0/215 mb, špatné kódy 100 %, nesouhlasné výpisy 0 %)
 Celkem bez rozšíření: 72 % (1321/1832 mb)
 ```
+Formatted output:
+| Component / Extension | Accuracy | Tested Cases | Wrong Codes | Mismatched Outputs |
+|----------------------|---------|-------------|------------|------------------|
+| Lexical analysis (error detection) | 92% | 166/180 | 7% | – |
+| Syntax analysis (error detection) | 98% | 245/250 | 2% | – |
+| Semantic analysis (error detection) | 77% | 162/210 | 22% | – |
+| Semantic/runtime errors (detection) | 100% | 160/160 | 0% | – |
+| Interpreted compiled code (basic) | 55% | 138/247 | 33% | 10% |
+| Interpreted compiled code (expressions, built-in functions) | 67% | 212/314 | 21% | 10% |
+| Interpreted compiled code (complex) | 50% | 238/471 | 49% | 0% |
+| FUNEXP | 0% | 0/150 | 100% | 0% |
+| EXTSTAT | 0% | 0/25 | 100% | 0% |
+| EXTFUN | 0% | 0/10 | 100% | 0% |
+| BOOLTHEN | 0% | 0/100 | 100% | 0% |
+| CYCLES | 12% | 12/100 | 88% | 0% |
+| OPERATORS | 0% | 0/25 | 100% | 0% |
+| ONELINEBLOCK | 0% | 0/25 | 100% | 0% |
+| STATICAN | 0% | 0/215 | 100% | 0% |
+| Total without extensions | 72% | 1321/1832 | – | – |
 
 ## LL1 rules
 ```js
