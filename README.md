@@ -1,7 +1,10 @@
 # IFJ Compiler Project (team xmervaj00)
-## Useful
-- [IFJ website](https://www.fit.vut.cz/study/course/IFJ/public/project/index.php.cz)
-
+## Useful links
+- [Official IFJ website](https://www.fit.vut.cz/study/course/IFJ/public/project/index.php.cz)
+- [Assignment](assignment/project_assignment_IFJ_a_IAL_2025) and [assignment section](assignment)
+- [Documentation](documentation/ifj25_documentation.pdf)
+- [Presentation](documentation/ifj25_compiler_presentation.pdf) and it's [accompanying text](documentation/ifj25_compiler_text_presentation.pdf)
+-  
 ## To-Do
 
 - [x] choose assignment variant:
