@@ -1,19 +1,10 @@
-# IFJ Compiler Project (team xmervaj00)
+# IFJ25 Compiler Project
 ## Useful links
 - [Official IFJ website](https://www.fit.vut.cz/study/course/IFJ/public/project/index.php.cz)
 - [Assignment](assignment/project_assignment_IFJ_a_IAL_2025) and [assignment section](assignment)
 - [Documentation](documentation/ifj25_documentation.pdf)
 - [Presentation](documentation/ifj25_compiler_presentation.pdf) and it's [accompanying text](documentation/ifj25_compiler_text_presentation.pdf)
--  
-## To-Do
-
-- [x] choose assignment variant:
-    - Assignment variant with the implementation of the symbol table using a table with scattered items with implicit chaining of items (TRP with open addressing)
-    - AST variant - assignment with the implementation of the symbol table as a height-balanced binary search tree
-- [x] go through the assignment together
-- [x] try out the git functionality etc. (e.g. everyone adds a few constants for error messages, see assignment page?)
-
-## Team
+## Team (xmervaj00)
 
 > Jaroslav Mervart (xmervaj00) / 5r6t
 
@@ -22,14 +13,26 @@
 > Jozef Matus (xmatusj00) / karfisk
 
 > Jan Hájek (xhajekj00) / Wekk
-
-## DEADLINES
-
-Code should be done by November 18. !!!
-
-Submission of the entire project - 3.12.2025 
 ---
-@repo created on 16.9.2025
+## To-Do
+
+- [x] choose assignment variant:
+    - Assignment variant with the implementation of the symbol table using a table with scattered items with implicit chaining of items (TRP with open addressing)
+    - AST variant - assignment with the implementation of the symbol table as a height-balanced binary search tree
+- [x] go through the assignment together
+- [x] try out the git functionality, etc. (e.g. everyone adds a few constants for error messages, see assignment page?)
+
+## Deadlines
+
+- The coding part should be done by 18. 11. 2025
+- Submission of the entire project - 3. 12. 2025
+
+---
+## Notes/Disclaimers
+- Running `make` builds the compiler.
+- Script [is_it_ok.sh](is_it_ok.sh) has been included with the assignment and belongs to its rightful owners. It is included for informational and testing purposes.
+- Script [pack_it_up.sh](pack_it_up.sh) is not required to run the program and is used to archive relevant files into a directory (flattens directories, required by assignment). 
+- Files [rozdeleni](rozdeleni) and [rozsireni](rozsireni) are irrelevant (used in grading process)
 
 # Evaluation
 ```
@@ -104,3 +107,5 @@ Celkem bez rozšíření: 72 % (1321/1832 mb)
 - WHILE ::= while ( EXPRESSION ) { / FUNC_BODY } /
 - RETURN ::= return EXPRESSION /
 ```
+
+Repository created: 16 September 2025
